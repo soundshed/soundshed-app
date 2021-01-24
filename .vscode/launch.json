@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Electron Process",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+      },
+      "args": ["./build/main.js"],
+      "outputCapture": "std"
+    },{
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "Test Spark Message",
+      "skipFiles": [
+          "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}\\build\\spork\\src\\test\\sparkTester.js",
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "outFiles": [
+          "${workspaceFolder}/dist/**/*.js"
+      ]
+  }
+  ]
+}

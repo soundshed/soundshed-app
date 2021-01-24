@@ -1,0 +1,146 @@
+html, body {
+    height: 100%;
+    margin: 0;
+}
+@font-face {
+    font-family: "digital";
+    src: url("fonts/digital_7/Digital-7.woff2") format("woff2"), url("fonts/digital_7/Digital-7.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+body {
+    background-color: rgb(39, 38, 38);
+    color: whitesmoke;
+}
+h1 {
+    font-size: 140%;
+}
+
+.preset-name {
+    font-family: "digital";
+    background-color: rgba(0, 0, 0, 0.473);
+    padding: 0.2em;
+    color: rgb(252, 235, 0);
+    text-shadow: 2px 2px 2px rgba(128, 128, 128, 0.644);
+    border-radius: 8px;
+}
+
+.control-strip {
+    background-color: rgba(0, 0, 0, 0.596);
+    padding: 1em;
+    border-radius: 8px;
+    border: 1px solid rgb(99, 72, 0);
+}
+
+.fx {
+    min-width: 100px;
+    box-shadow: -1px 1px 9px 0px #020202cf;
+    background-color: #2d2d2da9;
+}
+.fx .preset-name {
+    color: aliceblue;
+}
+
+.fx .fx-controls {
+    margin-left: 30%;
+}
+
+.fx label,
+.control-label {
+    display: block;
+    font-size: 0.6em;
+    margin-left: 2em;
+    color: darkkhaki;
+    font-weight: bold;
+}
+
+.container {
+    margin-left: 0;
+}
+label.fx-type {
+    display: block;
+    font-size: 0.6em;
+    margin-left: 2em;
+    color: darkkhaki;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 1em;
+}
+
+.tone {
+    min-width: 100px;
+    box-shadow: -1px 1px 9px 0px #020202cf;
+    padding: 0.4em;
+}
+
+.tone .preset-name {
+    color: aliceblue;
+}
+
+.tone label {
+    display: block;
+    font-size: 0.6em;
+    color: darkkhaki;
+    font-weight: bold;
+}
+
+.nav-tabs .nav-link {
+    color: #dee2e6;
+}
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
+    color: #ffffff;
+    background-color: #2d2d2d;
+    border-color: #5a5a5a;
+}
+.nav-tabs {
+    border-bottom: 1px solid #5a5a5a;
+}
+
+.home-intro{
+    background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+
+}
+
+.tones-intro{
+    background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+
+}
+
+.amp-intro{
+    background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+
+}
+
+.about-intro{
+    background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+
+}
+.info{
+    background-color: #2d2d2da9;
+    color:white;
+    padding: 1em;
+    border-radius: 8px;
+}

@@ -1,0 +1,63 @@
+{
+  "name": "spork-ui",
+  "version": "1.0.0",
+  "description": "Browse and manage favourite tones, preview or store on your amp.",
+  "main": "./build/main.bundle.js",
+  "scripts": {
+    "build": "npx tsc && webpack --config ./webpack.config.js",
+    "watch": "concurrently \"tsc -w\" \"webpack -w --config ./webpack.config.js\"",
+    "start": "npm run build && electron ./build/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "concurrently": "^5.3.0",
+    "copy-webpack-plugin": "^7.0.0",
+    "css-loader": "^5.0.1",
+    "electron": "^11.1.1",
+    "electron-builder": "^22.9.1",
+    "electron-devtools-installer": "^3.1.1",
+    "electron-rebuild": "^2.3.4",
+    "electron-reloader": "^1.1.0",
+    "file-loader": "^6.2.0",
+    "html-webpack-plugin": "^4.5.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "style-loader": "^2.0.0",
+    "ts-loader": "^8.0.14",
+    "typescript": "^4.1.3",
+    "webpack": "^5.14.0",
+    "webpack-cli": "^4.3.1"
+  },
+  "dependencies": {
+    "@webcomponents/webcomponentsjs": "^2.5.0",
+    "bluetooth-serial-port": "",
+    "bootstrap": "^5.0.0-beta1",
+    "install": "^0.13.0",
+    "nanoid": "^3.1.20",
+    "npm": "^6.14.11",
+    "react-bootstrap": "^1.4.3",
+    "react-router-dom": "^5.2.0"
+  },
+  "build": {
+    "productName": "soundshed",
+    "appId": "com.soundshed.tones",
+    "files": [
+      "build/",
+      "node_modules/",
+      "index.html",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
