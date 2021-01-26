@@ -11,11 +11,13 @@ export class FxMappingToneToSpark {
     }
 
     mapFx(source: ToneFx): SignalPath {
+
+        let type=source.type.replace("pg.spark40.","");
         return {
             active: source.enabled,
             params: source.params.map((p => { return <FxParam>{ index: 0, value: p.value, name: "" } })),
-            type: this.mapFxCategory(source.type),
-            dspId: this.mapFxId(source.type),
+            type: this.mapFxCategory(type),
+            dspId: this.mapFxId(type),
             name: source.name
         }
     }

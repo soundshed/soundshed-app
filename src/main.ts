@@ -1,8 +1,6 @@
-//import { SparkManager } from './lib/spork/sparkManager';
-import { app, BrowserWindow, ipcMain, ipcRenderer } from 'electron';
-import { SparkDeviceManager } from './spork/src/devices/spark/sparkDeviceManager';
-import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 
+import { app, BrowserWindow, ipcMain } from 'electron';
+import { SparkDeviceManager } from './spork/src/devices/spark/sparkDeviceManager';
 
 try {
     require('electron-reloader')(module)
@@ -22,12 +20,15 @@ function createWindow() {
     win = new BrowserWindow({
         width: 800,
         height: 600,
+        
 
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
         }
     })
+
+    //win.removeMenu();
 
     win.loadFile('index.html');
 }

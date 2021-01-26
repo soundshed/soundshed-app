@@ -59,6 +59,12 @@ export class AppViewModel {
                 favourites = JSON.parse(allPresets);
             }
 
+            if (favourites.find(t=>t.name==convertedTone.name))
+            {
+                alert("You already have a preset stored with the same name.")
+                return false;
+            }
+            
             favourites.push(convertedTone);
             localStorage.setItem("favourites", JSON.stringify(favourites));
 

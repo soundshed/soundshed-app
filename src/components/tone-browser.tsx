@@ -3,14 +3,17 @@ import { useEffect } from "react";
 import { FxMappingToneToSpark } from "../core/fxMapping";
 import { Tone } from "../core/soundshedApi";
 import { DeviceViewModelContext } from "./app";
+import { HashRouter as Router, Route, NavLink, Switch } from "react-router-dom";
+import { Nav } from "react-bootstrap";
 
 const ToneBrowserControl = (props) => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
 
+  const [viewSelection, setViewSelection] = React.useState("my");
+
   const onApplyTone = (t) => {
-    if (!deviceViewModel.isConnected)
-    {
-      alert("the device is not yet connected, see Amp tab");
+    if (!deviceViewModel.isConnected) {
+      alert("The device is not yet connected, see Amp tab");
       return;
     }
     let p = new FxMappingToneToSpark().mapFrom(t);
@@ -27,15 +30,15 @@ const ToneBrowserControl = (props) => {
 
   useEffect(() => {}, [props.tones, props.favourites]);
 
-  const listItems = (t: Tone[]) => {
-    if (!t) {
-      return <div>None</div>;
+  const listItems = (t: Tone[], noneMsg: string = "none") => {
+    if (!t || t.length == 0) {
+      return <div>{noneMsg}</div>;
     }
 
     return t.map((tone: Tone) => (
       <div key={tone.toneId} className="tone">
         <div className="row">
-          <div className="col-md-2">
+          <div className="col-md-1">
             <button
               className="btn btn-sm btn-secondary"
               onClick={() => {
@@ -47,6 +50,7 @@ const ToneBrowserControl = (props) => {
           </div>
           <div className="col-md-6">
             <label>{tone.name}</label>
+            <p>{tone.description}</p>
           </div>
           <div className="col-md-2">
             {" "}
@@ -55,9 +59,7 @@ const ToneBrowserControl = (props) => {
             </span>
           </div>
         </div>
-        <div className="row">
-          <p>{tone.description}</p>
-        </div>
+        
       </div>
     ));
   };
@@ -69,21 +71,26 @@ const ToneBrowserControl = (props) => {
       <p>Browse and manage favourite tones.</p>
 
       <div className="info">
-        <h3>Favourites</h3>
-        {!props.favourites || props.favourites == [] ? (
-          <label>No favourite tones saved.</label>
+        <Nav
+          variant="pills"
+          activeKey={viewSelection}
+          onSelect={(selectedKey) => setViewSelection(selectedKey)}
+        >
+          <Nav.Item>
+            <Nav.Link eventKey="my">My Tones</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="community">Community</Nav.Link>
+          </Nav.Item>
+        </Nav>
+
+        {viewSelection == "my" ? (
+          <div className="m-2">
+            {listItems(props.favourites, "No favourite tones saved yet.")}
+          </div>
         ) : (
-          <div>{listItems(props.favourites)}</div>
+          <div  className="m-2">{listItems(props.tones, "No community tones available.")}</div>
         )}
-
-
-        <h3>Community</h3>
-        {!props.tones || props.tones == [] ? (
-          <label>Community tones not loaded.</label>
-        ) : (
-          <div>{listItems(props.tones)}</div>
-        )}
-
       </div>
     </div>
   );

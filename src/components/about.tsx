@@ -30,6 +30,7 @@ const AboutControl = () => {
         Spark communications code based on
         https://github.com/paulhamsh/Spark-Parser
       </p>
+      <p>Some preset information adapted from https://github.com/richtamblyn/PGSparkLite</p>
       <p>Burning Guitar Photo by Dark Rider on Unsplash</p>
       <p>Soundshed app by Christopher Cook</p>
     </div>

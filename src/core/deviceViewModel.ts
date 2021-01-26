@@ -34,8 +34,16 @@ export class DeviceViewModel {
 
     constructor() {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
-
         this.setupElectronIPCListeners();
+     
+    }
+
+    componentDidMount(){
+     
+      }
+
+    render() {
+        return null
     }
 
     addStateChangeListener(onViewModelStateChange) {
@@ -98,7 +106,7 @@ export class DeviceViewModel {
     }
 
     async scanForDevices(): Promise<boolean> {
-        await ipcRenderer.invoke('perform-action', { action: 'scan' });
+        await ipcRenderer.invoke('perform-action', { action: 'scan' }); 
         return true;
     }
 

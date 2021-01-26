@@ -84,8 +84,16 @@ const DeviceMainControl = () => {
     });
   };
 
-  const requestCurrentPreset = () => {
+  const requestCurrentPreset = async (reconnect:boolean = false) => {
     setConnectionInProgress(true);
+
+
+    if (reconnect && selectedDevice){
+      // 
+      console.log("Reconnecting..")
+      
+      await deviceViewModel.connectDevice(selectedDevice);
+    }
 
     deviceViewModel.requestPresetConfig().then((ok) => {
       setConnectionInProgress(false);

@@ -1,9 +1,10 @@
 import { DeviceController, BluetoothDeviceInfo } from "../../interfaces/deviceController";
-import { DeviceState, FxCatalogItem } from "../../interfaces/preset";
+import { DeviceState } from "../../interfaces/preset";
 import { SparkCommandMessage } from "./sparkCommandMessage";
 import { FxCatalogProvider } from "./sparkFxCatalog";
 import { SparkMessageReader } from "./sparkMessageReader";
 
+import * as bluetoothSerial from 'bluetooth-serial-port';
 export class SparkDeviceManager implements DeviceController {
     private btSerial;
 
@@ -17,11 +18,9 @@ export class SparkDeviceManager implements DeviceController {
 
     private reader = new SparkMessageReader();
 
-
-
     constructor() {
 
-        this.btSerial = new (require('bluetooth-serial-port')).BluetoothSerialPort();
+        this.btSerial = new bluetoothSerial.BluetoothSerialPort();
 
         this.btSerial.on('data', (buffer) => {
 
@@ -31,11 +30,8 @@ export class SparkDeviceManager implements DeviceController {
 
             this.latestStateReceived.push(buffer);
 
-
             if (buffer[buffer.length - 1] == 0xf7) {
                 // end message 
-
-
                 this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
 
                 //this.log(JSON.stringify(this.reader.deviceState))
@@ -43,15 +39,12 @@ export class SparkDeviceManager implements DeviceController {
                 this.readStateMessage().then(() => {
                     this.latestStateReceived = [];
                 });
-
             }
 
         });
     }
 
     public async scanForDevices(): Promise<any> {
-
-
 
         return new Promise((resolve, reject) => {
 
@@ -88,10 +81,6 @@ export class SparkDeviceManager implements DeviceController {
             } catch {
                 reject();
             }
-
-
-
-
         });
     }
 
@@ -132,7 +121,6 @@ export class SparkDeviceManager implements DeviceController {
     public async readStateMessage() {
 
         this.log("Reading state message"); //+ this.buf2hex(this.latestStateReceived));
-
 
         let reader = this.reader;
 
@@ -199,22 +187,22 @@ export class SparkDeviceManager implements DeviceController {
         let msgArray = [];
 
         if (type == "set_preset") {
-            this.log("Setting preset");
+            this.log("Setting preset " + JSON.stringify(data));
             msgArray = msg.create_preset(data);
         }
 
         if (type == "set_preset_from_model") {
-            this.log("Setting preset");
+            this.log("Setting preset" + JSON.stringify(data));
             msgArray = msg.create_preset_from_model(data);
         }
 
         if (type == "store_current_preset") {
-            this.log("Storing preset");
+            this.log("Storing preset" + JSON.stringify(data));
             msgArray = msg.store_current_preset(data);
         }
 
         if (type == "set_channel") {
-            this.log("Setting hardware channel");
+            this.log("Setting hardware channel " + JSON.stringify(data));
             msgArray = msg.change_hardware_preset(data);
         }
 
@@ -264,19 +252,17 @@ export class SparkDeviceManager implements DeviceController {
                 if (err) this.log(err);
 
                 // wait for ack
-               /* let currentStateTime = this.lastStateTime;
-                while (this.lastStateTime == currentStateTime) {
-                    await this.sleep(100);
-                    this.log("Waiting for ack..")
-                }*/
+                /* let currentStateTime = this.lastStateTime;
+                 while (this.lastStateTime == currentStateTime) {
+                     await this.sleep(100);
+                     this.log("Waiting for ack..")
+                 }*/
 
                 //this.log("Got ack..")
             });
-
         }
 
         this.log("Sent.: ");
-
     }
 
     private log(msg) {

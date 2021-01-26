@@ -1,27 +1,30 @@
 {
-  "name": "spork-ui",
+  "name": "soundshed",
   "version": "1.0.0",
   "description": "Browse and manage favourite tones, preview or store on your amp.",
-  "main": "./build/main.bundle.js",
+  "main": "./build/main.js",
   "scripts": {
     "build": "npx tsc && webpack --config ./webpack.config.js",
     "watch": "concurrently \"tsc -w\" \"webpack -w --config ./webpack.config.js\"",
-    "start": "npm run build && electron ./build/main.js",
+    "start": "npm run build && electron-forge start --inspect-electron",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "postinstall": "electron-builder install-app-deps"
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
-  "author": "",
+  "author": "https://soundshed.com",
   "license": "ISC",
   "devDependencies": {
+    "@electron-forge/cli": "^6.0.0-beta.54",
+    "@electron-forge/maker-deb": "^6.0.0-beta.54",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.54",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.54",
+    "@electron-forge/maker-zip": "^6.0.0-beta.54",
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
     "concurrently": "^5.3.0",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.0.1",
     "electron": "^11.1.1",
-    "electron-builder": "^22.9.1",
     "electron-devtools-installer": "^3.1.1",
     "electron-rebuild": "^2.3.4",
     "electron-reloader": "^1.1.0",
@@ -39,15 +42,18 @@
     "@webcomponents/webcomponentsjs": "^2.5.0",
     "bluetooth-serial-port": "",
     "bootstrap": "^5.0.0-beta1",
+    "electron-squirrel-startup": "^1.0.0",
     "install": "^0.13.0",
     "nanoid": "^3.1.20",
     "npm": "^6.14.11",
     "react-bootstrap": "^1.4.3",
+    "react-hooks-global-state": "^1.0.1",
     "react-router-dom": "^5.2.0"
   },
-  "build": {
-    "productName": "soundshed",
+  "buildOld": {
+    "productName": "Soundshed",
     "appId": "com.soundshed.tones",
+    "nodeGypRebuild": true,
     "files": [
       "build/",
       "node_modules/",
@@ -57,6 +63,33 @@
     "win": {
       "target": [
         "nsis"
+      ]
+    }
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {},
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "soundshed"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {}
+        },
+        {
+          "name": "@electron-forge/maker-rpm",
+          "config": {}
+        }
       ]
     }
   }

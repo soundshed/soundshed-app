@@ -44,6 +44,8 @@ const App = () => {
   useEffect(() => {}, [tones, favourites]);
 
   return (
+
+    
     <Router>
       <main>
         <ul className="nav nav-tabs">
@@ -85,22 +87,20 @@ const App = () => {
             </NavLink>
           </li>
         </ul>
+
+
         <AppViewModelContext.Provider value={appViewModel}>
           <DeviceViewModelContext.Provider value={deviceViewModel}>
             <Switch>
               <Route path="/" exact component={HomeControl} />
-              <Route
-                path="/device"
-                render={() => <DeviceMainControl></DeviceMainControl>}
-              />
-              <Route
-                path="/tones"
-                >
+              <Route path="/device"><DeviceMainControl></DeviceMainControl></Route>
+              <Route path="/tones">
+                  
                   <ToneBrowserControl
                     favourites={favourites}
                     tones={tones}
                   ></ToneBrowserControl>
-                
+
               </Route>
               <Route path="/about" exact component={AboutControl} />
             </Switch>
