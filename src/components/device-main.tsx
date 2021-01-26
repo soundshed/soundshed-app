@@ -8,28 +8,37 @@ import { BluetoothDeviceInfo } from "../spork/src/interfaces/deviceController";
 
 import { Preset } from "../spork/src/interfaces/preset";
 import { AppViewModelContext, DeviceViewModelContext } from "./app";
+import { deviceViewModel as vm } from "./app";
 
 const DeviceMainControl = () => {
   const appViewModel = React.useContext(AppViewModelContext);
-  const deviceViewModel = React.useContext(DeviceViewModelContext);
+  const deviceViewModel = vm; //React.useContext(DeviceViewModelContext);
 
   const onViewModelStateChange = () => {
     setCurrentPreset(deviceViewModel.preset);
     setConnected(deviceViewModel.isConnected);
     setDevices(deviceViewModel.devices);
-    setFavourites(deviceViewModel.storedPresets);
+
+    setSelectedChannel(deviceViewModel.selectedChannel);
   };
 
   // connection state
 
   const [connectionInProgress, setConnectionInProgress] = React.useState(false);
-  const [connected, setConnected] = React.useState(false);
-  const [currentPreset, setCurrentPreset] = React.useState({});
-  const [devices, setDevices] = React.useState<BluetoothDeviceInfo[]>([]);
+  const [connected, setConnected] = React.useState(deviceViewModel.isConnected);
+  const [currentPreset, setCurrentPreset] = React.useState(
+    deviceViewModel.preset
+  );
+  const [devices, setDevices] = React.useState<BluetoothDeviceInfo[]>(
+    deviceViewModel.devices ?? []
+  );
   const [deviceScanInProgress, setDeviceScanInProgress] = React.useState(false);
-  const [selectedChannel, setSelectedChannel] = React.useState(0);
-  const [presetConfig, setPresetConfig] = React.useState({});
-  const [favourites, setFavourites] = React.useState([]);
+  const [selectedChannel, setSelectedChannel] = React.useState(
+    deviceViewModel.selectedChannel
+  );
+  const [presetConfig, setPresetConfig] = React.useState(
+    deviceViewModel.preset
+  );
 
   const [
     selectedDevice,
@@ -74,24 +83,26 @@ const DeviceMainControl = () => {
     }
 
     console.log("Connecting device..");
-    deviceViewModel.connectDevice(currentDevice).then((ok) => {
+    return deviceViewModel.connectDevice(currentDevice).then((ok) => {
       setConnected(true);
       setConnectionInProgress(false);
 
       setTimeout(() => {
-        requestCurrentPreset();
+        if (deviceViewModel.isConnected) {
+          console.log("Connected, fefreshing preset..");
+          requestCurrentPreset();
+        }
       }, 1000);
     });
   };
 
-  const requestCurrentPreset = async (reconnect:boolean = false) => {
+  const requestCurrentPreset = async (reconnect: boolean = false) => {
     setConnectionInProgress(true);
 
+    if (reconnect && selectedDevice) {
+      //
+      console.log("Reconnecting..");
 
-    if (reconnect && selectedDevice){
-      // 
-      console.log("Reconnecting..")
-      
       await deviceViewModel.connectDevice(selectedDevice);
     }
 
@@ -128,7 +139,7 @@ const DeviceMainControl = () => {
     });
   };
 
-  const requestStoreFavourite = (includeUpload:boolean=false) => {
+  const requestStoreFavourite = (includeUpload: boolean = false) => {
     //save current preset
 
     appViewModel.storeFavourite(currentPreset, includeUpload);
@@ -155,7 +166,7 @@ const DeviceMainControl = () => {
 
     if (deviceViewModel) {
       deviceViewModel.addStateChangeListener(onViewModelStateChange);
-    
+
       // init state
       onViewModelStateChange();
     }

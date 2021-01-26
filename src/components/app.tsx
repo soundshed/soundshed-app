@@ -13,8 +13,8 @@ import HomeControl from "./home";
 import AboutControl from "./about";
 import DeviceViewModel from "../core/deviceViewModel";
 
-let appViewModel: AppViewModel = new AppViewModel();
-let deviceViewModel: DeviceViewModel = new DeviceViewModel();
+export const appViewModel: AppViewModel = new AppViewModel();
+export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
 
 // export context providers for view models
 export const AppViewModelContext = React.createContext(appViewModel);

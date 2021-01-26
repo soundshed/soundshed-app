@@ -12,11 +12,13 @@ const ToneBrowserControl = (props) => {
   const [viewSelection, setViewSelection] = React.useState("my");
 
   const onApplyTone = (t) => {
-    if (!deviceViewModel.isConnected) {
+   /* if (!deviceViewModel.isConnected) {
       alert("The device is not yet connected, see Amp tab");
       return;
-    }
+    }*/
     let p = new FxMappingToneToSpark().mapFrom(t);
+
+    //p.meta.id = "E39EE16A-DE10-4646-8257-67917B608B63";
     deviceViewModel.requestPresetChange(p);
   };
 
