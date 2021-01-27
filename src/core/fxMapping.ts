@@ -39,8 +39,8 @@ export class FxMappingSparkToTone {
         return {
             type: "pg.spark40."+source.dspId,
             name: source.name,
-            enabled: true,
-            params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, enabled: true })
+            enabled: source.active,
+            params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, name:p.name, enabled: true })
         };
     }
 

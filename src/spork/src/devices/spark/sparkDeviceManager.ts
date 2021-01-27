@@ -6,7 +6,7 @@ import { SparkMessageReader } from "./sparkMessageReader";
 
 import * as bluetoothSerial from 'bluetooth-serial-port';
 export class SparkDeviceManager implements DeviceController {
-    private btSerial;
+    private btSerial: bluetoothSerial.BluetoothSerialPort;
 
     private latestStateReceived = [];
     private stateInfo: any;
@@ -22,26 +22,7 @@ export class SparkDeviceManager implements DeviceController {
 
         this.btSerial = new bluetoothSerial.BluetoothSerialPort();
 
-        this.btSerial.on('data', (buffer) => {
 
-            let currentTime = new Date().getTime();
-            let timeDelta = currentTime - this.lastStateTime;
-            this.lastStateTime = currentTime;
-
-            this.latestStateReceived.push(buffer);
-
-            if (buffer[buffer.length - 1] == 0xf7) {
-                // end message 
-                this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
-
-                //this.log(JSON.stringify(this.reader.deviceState))
-
-                this.readStateMessage().then(() => {
-                    this.latestStateReceived = [];
-                });
-            }
-
-        });
     }
 
     public async scanForDevices(): Promise<any> {
@@ -86,7 +67,40 @@ export class SparkDeviceManager implements DeviceController {
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
+        this.btSerial.removeAllListeners();
+
+        // setup serial read listeners
+        this.btSerial.on('data', (buffer) => {
+
+            let currentTime = new Date().getTime();
+            let timeDelta = currentTime - this.lastStateTime;
+            this.lastStateTime = currentTime;
+
+            this.latestStateReceived.push(buffer);
+
+            if (buffer[buffer.length - 1] == 0xf7) {
+                // end message 
+                this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
+
+                //this.log(JSON.stringify(this.reader.deviceState))
+
+                this.readStateMessage().then(() => {
+                    this.latestStateReceived = [];
+                });
+            }
+
+        });
+
+        try {
+            // disconnect if already connected
+            await this.disconnect();
+        }
+        catch {
+
+        }
+
         return new Promise((resolve, reject) => {
+
 
             this.btSerial.connect(device.address, device.port, () => {
                 this.log('bluetooth device connected: ' + device.name);
@@ -109,7 +123,8 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     public async disconnect() {
-        if (this.btSerial) {
+        if (this.btSerial && this.btSerial.isOpen()) {
+            this.log("Disconnected");
             this.btSerial.close();
         }
     }
@@ -177,6 +192,7 @@ export class SparkDeviceManager implements DeviceController {
             setTimeout(resolve, ms);
         });
     }
+
 
     public async sendCommand(type, data) {
 
@@ -248,17 +264,8 @@ export class SparkDeviceManager implements DeviceController {
 
         for (let msg of msgArray) {
             this.log("Sending: " + this.buf2hex(msg));
-            this.btSerial.write(Buffer.from(msg), async (err, bytesWritten) => {
+            this.btSerial.write(Buffer.from(msg), async (err) => {
                 if (err) this.log(err);
-
-                // wait for ack
-                /* let currentStateTime = this.lastStateTime;
-                 while (this.lastStateTime == currentStateTime) {
-                     await this.sleep(100);
-                     this.log("Waiting for ack..")
-                 }*/
-
-                //this.log("Got ack..")
             });
         }
 

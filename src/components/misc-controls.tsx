@@ -80,11 +80,10 @@ const MiscControls = ({
           <button
             type="button"
             className="btn btn-sm btn-secondary"
-            id="applyPreset"
+            id="storePreset"
 
-            onClick={onSetPreset}
           >
-            Set Preset
+            Store Preset
           </button>
         </div>
         <div className="col-md-4">

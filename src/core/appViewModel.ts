@@ -3,7 +3,7 @@ import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 
 import { FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
-import { SoundshedApi, Tone } from './soundshedApi';
+import { Login, SoundshedApi, Tone } from './soundshedApi';
 
 export class AppViewModel {
 
@@ -20,6 +20,15 @@ export class AppViewModel {
         console.log(msg);
     }
 
+    async performSignIn(login: Login): Promise<boolean> {
+
+        try {
+            let loginResult = await this.soundshedApi.login(login);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
 
     loadFavourites(): Tone[] {
         let favourites: Tone[] = [];
@@ -47,7 +56,7 @@ export class AppViewModel {
         }
     }
 
-    async storeFavourite(preset: any, includeUpload: boolean =false): Promise<boolean> {
+    async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
 
         if (preset != null) {
 
@@ -59,12 +68,11 @@ export class AppViewModel {
                 favourites = JSON.parse(allPresets);
             }
 
-            if (favourites.find(t=>t.name==convertedTone.name))
-            {
+            if (favourites.find(t => t.name == convertedTone.name)) {
                 alert("You already have a preset stored with the same name.")
                 return false;
             }
-            
+
             favourites.push(convertedTone);
             localStorage.setItem("favourites", JSON.stringify(favourites));
 
@@ -74,11 +82,6 @@ export class AppViewModel {
             //attempt upload
             if (includeUpload) {
                 try {
-
-
-                    convertedTone.userId = "6009001158e7487ba4d7241f";
-                    convertedTone.artists = ["metallica"];
-                    convertedTone.categories = ["metal", "rock"];
 
                     this.soundshedApi.updateTone(convertedTone).then(() => {
                         //tone updated

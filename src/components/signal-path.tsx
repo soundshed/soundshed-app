@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Tone } from "../core/soundshedApi";
 import FxControl from "./fx-control";
 declare global {
   namespace JSX {
@@ -18,12 +19,12 @@ const SignalPathControl = ({
 }) => {
   React.useEffect(() => {}, [signalPathState, selectedChannel]);
 
-  const listItems = (signalPathState) => {
-    if (!signalPathState) {
+  const listItems = (t:Tone) => {
+    if (!t) {
       return <div>Not Connected</div>;
     } else {
-      return signalPathState.sigpath.map((fx) => (
-        <div key={fx.dspId.toString()} className="col-md-2">
+      return t.fx.map((fx) => (
+        <div key={fx.type.toString()} className="col-md-2">
           <FxControl
             fx={fx}
             onFxParamChange={onFxParamChange}
@@ -36,7 +37,7 @@ const SignalPathControl = ({
 
   return (
     <div>
-      {!signalPathState || !signalPathState.sigpath || signalPathState.sigpath.length == 0 ? (
+      {!signalPathState || !signalPathState.fx || signalPathState.fx.length == 0 ? (
         <div className="container">
           <label>
             No preset selected (amp not connected). Connect and refresh to get
@@ -50,13 +51,13 @@ const SignalPathControl = ({
           <div className="row">
             <div className="col-md-8">
               <h4 className="preset-name">
-                [{selectedChannel + 1}] {signalPathState.meta?.name}
+                {signalPathState.name}
               </h4>
             </div>
             <div className="col-md-2">
               <button
                 className="btn btn-sm btn-primary"
-                onClick={onStoreFavourite}
+                onClick={()=>{onStoreFavourite(false)}}
               >
                 ⭐ Favourite
               </button>

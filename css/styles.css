@@ -144,3 +144,7 @@ label.fx-type {
     padding: 1em;
     border-radius: 8px;
 }
+
+.modal-content{
+    background-color: #2d2d2dda;
+}

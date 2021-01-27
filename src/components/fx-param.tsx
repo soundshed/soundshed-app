@@ -16,12 +16,12 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
     console.log(
       `Changed param ${e.target.value} ${JSON.stringify(e.target.tag)} ${
         fx.name
-      } ${fx.dspId}`
+      } ${fx.type}`
     );
 
     onFxParamChange({
-      dspId: fx.dspId,
-      index: e.target.tag.index,
+      dspId: fx.type,
+      index: e.target.tag.paramId,
       value: e.target.value,
       type: type
     });
@@ -39,7 +39,7 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
   }, []);
 
   return (
-    <div key={p.index?.toString() ?? p.toString()}>
+    <div key={p.paramId?.toString() ?? p.toString()}>
       {type == "knob" ? (
         <div>
           <webaudio-knob
@@ -63,7 +63,7 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
               if (customElement) customElement.tag = p;
             }}
             src="./lib/webaudio-controls/knobs/switch_toggle.png"
-            value={fx.active == true ? "1" : "0"}
+            value={fx.enabled == true ? "1" : "0"}
           ></webaudio-switch>
         </div>
       )}

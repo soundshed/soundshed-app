@@ -18,7 +18,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   }, [fx]);
 
   const paramControls = fx.params.map((p) => (
-    <FxParam key={p.index.toString()} p={p} fx={fx} onFxParamChange={onFxParamChange}></FxParam>
+    <FxParam key={p.paramId.toString()} p={p} fx={fx} onFxParamChange={onFxParamChange}></FxParam>
   ));
 
   return (
@@ -32,7 +32,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
 
         <FxParam type="switch" p="toggle" fx={fx} onFxParamChange={onFxToggle}></FxParam>
     
-        {fx.active ? <label>On</label> : <label>Off</label>}
+        {fx.enabled ? <label>On</label> : <label>Off</label>}
       </div>
       {/*<pre>{JSON.stringify(fx)}</pre>*/}
     </div>

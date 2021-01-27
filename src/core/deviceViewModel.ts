@@ -1,7 +1,9 @@
 import { ipcRenderer } from 'electron';
-import { appendFileSync } from 'fs';
+import { Store } from "pullstate";
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 import { FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
+import { FxMappingSparkToTone } from './fxMapping';
+import { Tone } from './soundshedApi';
 
 const debounce = (func, delay) => {
     let timerId;
@@ -11,16 +13,20 @@ const debounce = (func, delay) => {
         timerId = setTimeout(boundFunc, delay);
     }
 }
+
+
+export const DeviceStore = new Store({
+    isConnected: false,
+    isConnectionInProgress: false,
+    selectedChannel: -1,
+    devices: [],
+    connectedDevice: null,
+    isDeviceScanInProgress: false,
+    presetTone: null
+});
+
 export class DeviceViewModel {
 
-    public isConnected: boolean = false;
-    public preset: Preset = {};
-    public selectedChannel: number = -1;
-    public devices: BluetoothDeviceInfo[];
-
-    public storedPresets: Preset[] = [];
-
-    public messages = [];
     public statusMessage = "";
 
     // attached handler to be called by app model state changes and UI may have to react
@@ -35,15 +41,7 @@ export class DeviceViewModel {
     constructor() {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
         this.setupElectronIPCListeners();
-     
-    }
 
-    componentDidMount(){
-     
-      }
-
-    render() {
-        return null
     }
 
     addStateChangeListener(onViewModelStateChange) {
@@ -60,16 +58,26 @@ export class DeviceViewModel {
             this.log("got device state update from main.");
 
             if (args.presetConfig) {
-                this.preset = args.presetConfig;
+                // got a preset, convert to Tone object model as required, 
+                let t: Tone = args.presetConfig;
+                if (args.presetConfig.meta) {
+                    t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
+                }
+
+                DeviceStore.update(s => { s.presetTone = t });
             }
 
             if (args.lastMessageReceived) {
-                this.messages.push(args.lastMessageReceived);
 
-                if (args.lastMessageReceived.presetNumber && args.lastMessageReceived.presetNumber != this.selectedChannel) {
-                    this.selectedChannel = args.lastMessageReceived.presetNumber;
-                    // preset number has changed, refresh the details
-                    this.requestPresetConfig();
+                if (args.lastMessageReceived.presetNumber!=null) {
+
+                    if (DeviceStore.getRawState().selectedChannel != args.lastMessageReceived.presetNumber) {
+
+                        DeviceStore.update(s => { s.selectedChannel = args.lastMessageReceived.presetNumber });
+
+                        // preset number has changed, refresh the details
+                        this.requestPresetConfig();
+                    }
                 }
             }
 
@@ -81,11 +89,11 @@ export class DeviceViewModel {
             this.log("got connection event from main:" + args);
 
             if (args == "connected") {
-                this.isConnected = true;
+                DeviceStore.update(s => { s.isConnected = true });
             }
 
             if (args == "failed") {
-                this.isConnected = false;
+                DeviceStore.update(s => { s.isConnected = false });
             }
 
             this.onStateChangeHandler();
@@ -95,8 +103,11 @@ export class DeviceViewModel {
 
             this.log("got refreshed list of devices:" + args);
 
-            this.devices = args;
+            DeviceStore.update(s => { s.devices = args });
 
+            if (args.length > 0) {
+                localStorage.setItem("lastKnownDevices", JSON.stringify(args));
+            }
             this.onStateChangeHandler();
         });
     }
@@ -105,8 +116,24 @@ export class DeviceViewModel {
         console.log(msg);
     }
 
+    getLastKnownDevices() {
+        let d = localStorage.getItem("lastKnownDevices");
+
+        if (d) {
+            return JSON.parse(d);
+        } else {
+            return [];
+        }
+    }
+
     async scanForDevices(): Promise<boolean> {
-        await ipcRenderer.invoke('perform-action', { action: 'scan' }); 
+
+        DeviceStore.update(s => { s.isDeviceScanInProgress = true });
+
+        await ipcRenderer.invoke('perform-action', { action: 'scan' });
+
+        DeviceStore.update(s => { s.isDeviceScanInProgress = false });
+
         return true;
     }
 
@@ -120,19 +147,25 @@ export class DeviceViewModel {
     }
 
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
-        if (device == null) return;
+        if (device == null) return false;
 
+        DeviceStore.update(s => { s.isConnectionInProgress = true });
         try {
             return await ipcRenderer.invoke('perform-action', { action: 'connect', data: device }).then(() => {
 
                 // store last connected devices
-                this.isConnected = true;
+
+                DeviceStore.update(s => { s.isConnected = true });
+
+                DeviceStore.update(s => s.connectedDevice = device);
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 
+                DeviceStore.update(s => { s.isConnectionInProgress = false });
                 return true;
             });
         } catch (err) {
+            DeviceStore.update(s => { s.isConnectionInProgress = false });
             return false;
         }
 
@@ -154,8 +187,14 @@ export class DeviceViewModel {
         return true;
     }
 
+    private normalizeDspId(dspId: string) {
+        return dspId?.replace("pg.spark40.", "") ?? dspId;
+    }
 
     async requestAmpChange(args: FxChangeMessage) {
+        args.dspIdOld = this.normalizeDspId(args.dspIdOld);
+        args.dspIdNew = this.normalizeDspId(args.dspIdNew);
+
         return ipcRenderer.invoke('perform-action', { action: 'changeAmp', data: args }).then(
             () => {
 
@@ -164,6 +203,10 @@ export class DeviceViewModel {
     }
 
     async requestFxChange(args: FxChangeMessage) {
+
+        args.dspIdOld = this.normalizeDspId(args.dspIdOld);
+        args.dspIdNew = this.normalizeDspId(args.dspIdNew);
+
         return ipcRenderer.invoke('perform-action', { action: 'changeFx', data: args }).then(
             () => {
 
@@ -172,6 +215,9 @@ export class DeviceViewModel {
     }
 
     private async requestFxParamChangeImmediate(args) {
+
+        args.dspId = this.normalizeDspId(args.dspId);
+
         return ipcRenderer.invoke('perform-action', { action: 'setFxParam', data: args }).then(
             () => {
 
@@ -191,6 +237,9 @@ export class DeviceViewModel {
     }
 
     async requestFxToggle(args): Promise<boolean> {
+
+        args.dspId = this.normalizeDspId(args.dspId);
+
         await ipcRenderer.invoke('perform-action', { action: 'setFxToggle', data: args }).then(
             () => {
                 this.log("Sent fx toggle change");
@@ -201,7 +250,8 @@ export class DeviceViewModel {
     async setChannel(channelNum: number): Promise<boolean> {
         await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
-                this.log("Completed preset query");
+                this.log("Completed setting channel");
+                DeviceStore.update(s => { s.selectedChannel == channelNum });
             });
         return true;
     }

@@ -27,6 +27,7 @@ export interface ToneFxParam {
     paramId: string;
     value: number;
     enabled: boolean;
+    name?: string;
 }
 export interface ToneFx {
     /**  fx unit type being used */
@@ -65,8 +66,6 @@ export class SoundshedApi {
     baseUrl: string = "http://localhost:3000/api/v1/";
     currentToken: string;
 
-
-
     async registerUser(registration: UserRegistration): Promise<ActionResult<UserRegistrationResult>> {
 
         let url = this.baseUrl + "user/register";
@@ -103,7 +102,7 @@ export class SoundshedApi {
     async updateTone(tone: Tone): Promise<ActionResult<any>> {
 
         let url = this.baseUrl + "tones/upload";
-        let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tone) });
+        let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.currentToken}` }, body: JSON.stringify(tone) });
         let result = await <any>response.json();
 
         if (result.error == null) {
@@ -120,7 +119,7 @@ export class SoundshedApi {
     async getTones(): Promise<ActionResult<Tone[]>> {
         let url = this.baseUrl + "tones/";
 
-        let response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' }});
+        let response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
         let result = await <any>response.json();
 
         if (result.error == null) {
