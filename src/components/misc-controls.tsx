@@ -149,6 +149,7 @@ const MiscControls = ({
             >
               4
             </button>
+            {selectedChannel}
           </div>
         </div>
       </div>

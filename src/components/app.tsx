@@ -8,14 +8,21 @@ import "../../css/styles.css";
 
 import DeviceMainControl from "./device-main";
 import ToneBrowserControl from "./tone-browser";
-import AppViewModel from "../core/appViewModel";
+import AppViewModel, {
+  AppStateStore,
+  TonesStateStore,
+} from "../core/appViewModel";
 import HomeControl from "./home";
 import AboutControl from "./about";
 import DeviceViewModel, { DeviceStore } from "../core/deviceViewModel";
-import { Modal } from "react-bootstrap";
+import { Button, Modal, Navbar } from "react-bootstrap";
 import LoginControl from "./soundshed/login";
 import LessonsControl from "./lessons";
 import { Login } from "../core/soundshedApi";
+import AmpOfflineControl from "./soundshed/amp-offline";
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faUser } from '@fortawesome/free-solid-svg-icons'
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -25,27 +32,32 @@ export const AppViewModelContext = React.createContext(appViewModel);
 export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
-  const [favourites, setFavourites] = React.useState(
-    appViewModel.storedPresets
-  );
+  const favourites = TonesStateStore.useState((s) => s.storedPresets);
+  const tones = TonesStateStore.useState((s) => s.toneResults);
 
-  const [tones, setTones] = React.useState(appViewModel.tones ?? []);
+  const isNativeMode = AppStateStore.useState((s) => s.isNativeMode);
+  const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
 
-  const [signInRequired, setSignInRequired] = React.useState(false);
+  const signInRequired = AppStateStore.useState((s) => s.isSignInRequired);
 
   const requireSignIn = async () => {
-    setSignInRequired(true);
+    AppStateStore.update((s) => {
+      s.isSignInRequired = true;
+    });
   };
 
   const performSignIn = (login: Login) => {
-    appViewModel.performSignIn(login).then((loggedIn) => {
-      if (loggedIn) {
-        setSignInRequired(false);
-      } else {
-        // sign in failed
+    return appViewModel.performSignIn(login).then((loggedInOk) => {
+      if (loggedInOk == true) {
+        AppStateStore.update((s) => {
+          s.isSignInRequired = true;
+        });
       }
+
+      return loggedInOk;
     });
   };
+
   // perform startup
   useEffect(() => {
     console.log("App startup..");
@@ -57,14 +69,13 @@ const App = () => {
       });
     }
 
-    let f = appViewModel.loadFavourites();
+    appViewModel.init();
 
-    setFavourites(f);
+    // load locally stored favourites
+    appViewModel.loadFavourites();
 
     // get latest tones from soundshed api
-    appViewModel.loadLatestTones().then((tones) => {
-      setTones(tones);
-    });
+    appViewModel.loadLatestTones();
   }, []);
 
   useEffect(() => {}, [tones, favourites]);
@@ -119,6 +130,20 @@ const App = () => {
               About
             </NavLink>
           </li>
+
+          <li className="nav-item justify-content-end">
+            {isUserSignedIn?"Signed In":(
+ <Button
+ onClick={() => {
+   requireSignIn();
+ }}
+>
+<FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+</Button>
+
+            )}
+           
+          </li>
         </ul>
 
         <LoginControl
@@ -131,7 +156,11 @@ const App = () => {
             <Switch>
               <Route path="/" exact component={HomeControl} />
               <Route path="/device">
-                <DeviceMainControl></DeviceMainControl>
+                {isNativeMode ? (
+                  <DeviceMainControl></DeviceMainControl>
+                ) : (
+                  <AmpOfflineControl></AmpOfflineControl>
+                )}
               </Route>
               <Route path="/tones">
                 <ToneBrowserControl

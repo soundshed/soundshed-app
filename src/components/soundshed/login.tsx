@@ -1,15 +1,31 @@
 import * as React from "react";
-import { Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { AppStateStore } from "../../core/appViewModel";
 
 const LoginControl = ({ signInRequired, onSignIn }) => {
   const [email, setEmail] = React.useState("");
   const [pwd, setPwd] = React.useState("");
 
+  const [signInFailed, setSignInFailed] = React.useState(false);
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    onSignIn({email:email,password:pwd});
-    
+    onSignIn({ email: email, password: pwd }).then((loggedIn) => {
+      if (!loggedIn) {
+        setSignInFailed(true);
+      } else {
+        setSignInFailed(false);
+      }
+    });
+
+   
+  };
+
+  const handleCancel = () => {
+    AppStateStore.update((s) => {
+      s.isSignInRequired = false;
+    });
   };
 
   return (
@@ -46,6 +62,17 @@ const LoginControl = ({ signInRequired, onSignIn }) => {
               />
             </Form.Group>
 
+            {signInFailed ? (
+              <Alert variant="danger">
+                Sign In failed. Check email address and password are correct.
+              </Alert>
+            ) : (
+              ""
+            )}
+
+            <Button variant="secondary" type="button" onClick={handleCancel}>
+              Cancel
+            </Button>
             <Button variant="primary" type="submit">
               Sign In
             </Button>

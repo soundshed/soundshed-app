@@ -1,19 +1,35 @@
-import { ipcRenderer } from 'electron';
-import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 
-import { FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
+import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone } from './soundshedApi';
 
+export const AppStateStore = new Store({
+    isUserSignedIn: false,
+    isSignInRequired: false,
+    isNativeMode:false
+});
+
+export const TonesStateStore = new Store({
+    toneResults: [],
+    storedPresets: []
+});
+
 export class AppViewModel {
 
-    public storedPresets: Tone[] = [];
-    public tones: Tone[] = [];
 
     private soundshedApi = new SoundshedApi();
 
     constructor() {
 
+    }
+
+    init() {
+
+        if (this.soundshedApi.isUserSignedIn()) {
+            AppStateStore.update(s => { s.isUserSignedIn = true; });
+        } else {
+            AppStateStore.update(s => { s.isUserSignedIn = false; });
+        }
     }
 
     log(msg: string) {
@@ -24,7 +40,7 @@ export class AppViewModel {
 
         try {
             let loginResult = await this.soundshedApi.login(login);
-            return true;
+            return loginResult.completedOk;
         } catch (err) {
             return false;
         }
@@ -37,10 +53,9 @@ export class AppViewModel {
             favourites = JSON.parse(allPresets);
         }
 
-        this.storedPresets = favourites;
+        TonesStateStore.update(s => { s.storedPresets = favourites });
 
-
-        return this.storedPresets;
+        return favourites;
 
     }
 
@@ -48,15 +63,22 @@ export class AppViewModel {
         try {
             const result = await this.soundshedApi.getTones();
 
-            this.tones = result.result ?? [];
-
-            return this.tones;
+            TonesStateStore.update(s => { s.toneResults =  result.result ?? [] });
+            
+            return  result.result ?? [];
         } catch (err) {
             return [];
         }
     }
 
     async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
+
+        if (includeUpload && !this.soundshedApi.isUserSignedIn())
+        {
+            // force sign in before uploading
+            AppStateStore.update(s=>{s.isSignInRequired=true});
+            return;
+        }
 
         if (preset != null) {
 
@@ -76,11 +98,10 @@ export class AppViewModel {
             favourites.push(convertedTone);
             localStorage.setItem("favourites", JSON.stringify(favourites));
 
-
-            this.storedPresets = favourites;
+            TonesStateStore.update(s => { s.storedPresets = favourites });
 
             //attempt upload
-            if (includeUpload) {
+            if (includeUpload==true) {
                 try {
 
                     this.soundshedApi.updateTone(convertedTone).then(() => {

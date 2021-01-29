@@ -251,7 +251,7 @@ export class DeviceViewModel {
         await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
                 this.log("Completed setting channel");
-                DeviceStore.update(s => { s.selectedChannel == channelNum });
+               // DeviceStore.update(s => { s.selectedChannel == channelNum });
             });
         return true;
     }

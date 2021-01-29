@@ -32,6 +32,17 @@ const ToneBrowserControl = (props) => {
 
   useEffect(() => {}, [props.tones, props.favourites]);
 
+
+
+  const formatCategoryTags = (items: string[]) => {
+    return items.map(i=>{
+      <span className="badge rounded-pill bg-primary">
+      {i}
+    </span>
+    });
+  
+  }
+
   const listItems = (t: Tone[], noneMsg: string = "none") => {
     if (!t || t.length == 0) {
       return <div>{noneMsg}</div>;
@@ -55,7 +66,10 @@ const ToneBrowserControl = (props) => {
             <p>{tone.description}</p>
           </div>
           <div className="col-md-2">
-            {" "}
+
+          {formatCategoryTags(tone.artists)}
+          {formatCategoryTags(tone.categories)}
+         
             <span className="badge rounded-pill bg-secondary">
               {mapDeviceType(tone.deviceType)}
             </span>
