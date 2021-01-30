@@ -6,12 +6,22 @@ import { Login, SoundshedApi, Tone } from './soundshedApi';
 export const AppStateStore = new Store({
     isUserSignedIn: false,
     isSignInRequired: false,
-    isNativeMode:false
+    isNativeMode: false,
+    userInfo: null
 });
 
 export const TonesStateStore = new Store({
     toneResults: [],
     storedPresets: []
+});
+
+export interface IToneEditStore {
+    isToneEditorOpen: boolean,
+    tone: Tone;
+}
+export const ToneEditStore = new Store<IToneEditStore>({
+    isToneEditorOpen: false,
+    tone: null
 });
 
 export class AppViewModel {
@@ -26,9 +36,9 @@ export class AppViewModel {
     init() {
 
         if (this.soundshedApi.isUserSignedIn()) {
-            AppStateStore.update(s => { s.isUserSignedIn = true; });
+            AppStateStore.update(s => { s.isUserSignedIn = true; s.userInfo = this.soundshedApi.getCurrentUserInfo() });
         } else {
-            AppStateStore.update(s => { s.isUserSignedIn = false; });
+            AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo= null; });
         }
     }
 
@@ -63,9 +73,9 @@ export class AppViewModel {
         try {
             const result = await this.soundshedApi.getTones();
 
-            TonesStateStore.update(s => { s.toneResults =  result.result ?? [] });
-            
-            return  result.result ?? [];
+            TonesStateStore.update(s => { s.toneResults = result.result ?? [] });
+
+            return result.result ?? [];
         } catch (err) {
             return [];
         }
@@ -73,10 +83,9 @@ export class AppViewModel {
 
     async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
 
-        if (includeUpload && !this.soundshedApi.isUserSignedIn())
-        {
+        if (includeUpload && !this.soundshedApi.isUserSignedIn()) {
             // force sign in before uploading
-            AppStateStore.update(s=>{s.isSignInRequired=true});
+            AppStateStore.update(s => { s.isSignInRequired = true });
             return;
         }
 
@@ -101,7 +110,7 @@ export class AppViewModel {
             TonesStateStore.update(s => { s.storedPresets = favourites });
 
             //attempt upload
-            if (includeUpload==true) {
+            if (includeUpload == true) {
                 try {
 
                     this.soundshedApi.updateTone(convertedTone).then(() => {

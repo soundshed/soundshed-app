@@ -1,3 +1,4 @@
+import jwt_decode from "jwt-decode";
 export interface UserRegistration {
 
 }
@@ -62,9 +63,15 @@ export interface ActionResult<T> {
     result?: T;
 }
 
+export interface UserInfo {
+    id: string;
+    name: string;
+}
+
 export class SoundshedApi {
     baseUrl: string = "https://api.soundshed.com/app/v1/" //"http://localhost:3000/api/v1/";
     currentToken: string;
+
 
     constructor() {
         let authToken = localStorage.getItem("_authtoken");
@@ -73,6 +80,19 @@ export class SoundshedApi {
         }
     }
 
+    getCurrentUserInfo(): UserInfo {
+        if (this.currentToken) {
+            let decoded = <any>jwt_decode(this.currentToken);
+            return {
+                id: decoded.id,
+                name: decoded.name
+            };
+
+        } else {
+            return null;
+        }
+    }
+    
     isUserSignedIn() {
         if (this.currentToken) {
             return true;
@@ -105,6 +125,7 @@ export class SoundshedApi {
         if (result.error == null) {
             this.currentToken = result.data.token;
             localStorage.setItem("_authtoken", this.currentToken);
+
 
             return { completedOk: true, message: "OK", result: result };
         } else {

@@ -21,8 +21,9 @@ import LessonsControl from "./lessons";
 import { Login } from "../core/soundshedApi";
 import AmpOfflineControl from "./soundshed/amp-offline";
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUser } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUser } from "@fortawesome/free-solid-svg-icons";
+import EditToneControl from "./soundshed/edit-tone";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -39,6 +40,8 @@ const App = () => {
   const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
 
   const signInRequired = AppStateStore.useState((s) => s.isSignInRequired);
+
+  const userInfo = AppStateStore.useState(s=> s.userInfo);
 
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
@@ -131,18 +134,18 @@ const App = () => {
             </NavLink>
           </li>
 
-          <li className="nav-item justify-content-end">
-            {isUserSignedIn?"Signed In":(
- <Button
- onClick={() => {
-   requireSignIn();
- }}
->
-<FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
-</Button>
-
+          <li className="my-2">
+            {isUserSignedIn ? (
+              <span className="badge rounded-pill bg-primary"> <FontAwesomeIcon icon={faUser}></FontAwesomeIcon> {userInfo?.name}</span>
+            ) : (
+              <Button
+                onClick={() => {
+                  requireSignIn();
+                }}
+              >
+                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+              </Button>
             )}
-           
           </li>
         </ul>
 
@@ -150,6 +153,8 @@ const App = () => {
           signInRequired={signInRequired}
           onSignIn={performSignIn}
         ></LoginControl>
+
+        <EditToneControl></EditToneControl>
 
         <AppViewModelContext.Provider value={appViewModel}>
           <DeviceViewModelContext.Provider value={deviceViewModel}>

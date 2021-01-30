@@ -5,6 +5,8 @@ import { Tone } from "../core/soundshedApi";
 import { DeviceViewModelContext } from "./app";
 import { HashRouter as Router, Route, NavLink, Switch } from "react-router-dom";
 import { Nav } from "react-bootstrap";
+import EditToneControl from "./soundshed/edit-tone";
+import { ToneEditStore } from "../core/appViewModel";
 
 const ToneBrowserControl = (props) => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -22,6 +24,10 @@ const ToneBrowserControl = (props) => {
     deviceViewModel.requestPresetChange(p);
   };
 
+  const onEditTone = (t) => {
+    ToneEditStore.update(s=>{s.tone=t; s.isToneEditorOpen=true;});
+  }
+
   const mapDeviceType = (t) => {
     if (t == "pg.spark40") {
       return "Spark 40";
@@ -35,11 +41,11 @@ const ToneBrowserControl = (props) => {
 
 
   const formatCategoryTags = (items: string[]) => {
-    return items.map(i=>{
-      <span className="badge rounded-pill bg-primary">
+    return items.map(i=>(
+      <span key={i} className="badge rounded-pill bg-secondary">
       {i}
     </span>
-    });
+    ));
   
   }
 
@@ -60,12 +66,22 @@ const ToneBrowserControl = (props) => {
             >
               ▶
             </button>
+</div>
+            <div className="col-md-1">
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => {
+                onEditTone(tone);
+              }}
+            >
+              📝
+            </button>
           </div>
           <div className="col-md-6">
             <label>{tone.name}</label>
             <p>{tone.description}</p>
           </div>
-          <div className="col-md-2">
+          <div className="col-md-4">
 
           {formatCategoryTags(tone.artists)}
           {formatCategoryTags(tone.categories)}
@@ -102,6 +118,9 @@ const ToneBrowserControl = (props) => {
 
         {viewSelection == "my" ? (
           <div className="m-2">
+
+
+
             {listItems(props.favourites, "No favourite tones saved yet.")}
           </div>
         ) : (
