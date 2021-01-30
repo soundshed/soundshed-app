@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Browse and manage favourite tones, preview or store on your amp.",
   "main": "./build/main.js",
+  "repository": "https://github.com/soundshed/soundshed-app",
   "scripts": {
     "build": "npx tsc && webpack --config ./webpack.config.js",
     "watch": "concurrently \"tsc -w\" \"webpack -w --config ./webpack.config.js\"",
@@ -55,23 +56,8 @@
     "react-bootstrap": "^1.4.3",
     "react-hooks-global-state": "^1.0.1",
     "react-player": "^2.8.1",
-    "react-router-dom": "^5.2.0"
-  },
-  "buildOld": {
-    "productName": "Soundshed",
-    "appId": "com.soundshed.tones",
-    "nodeGypRebuild": true,
-    "files": [
-      "build/",
-      "node_modules/",
-      "index.html",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    }
+    "react-router-dom": "^5.2.0",
+    "update-electron-app": "^2.0.1"
   },
   "config": {
     "forge": {

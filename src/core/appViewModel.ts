@@ -6,7 +6,7 @@ import { Login, SoundshedApi, Tone } from './soundshedApi';
 export const AppStateStore = new Store({
     isUserSignedIn: false,
     isSignInRequired: false,
-    isNativeMode: false,
+    isNativeMode: true,
     userInfo: null
 });
 
