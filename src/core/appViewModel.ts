@@ -3,11 +3,14 @@ import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone } from './soundshedApi';
 
+import {  remote } from 'electron';
+
 export const AppStateStore = new Store({
     isUserSignedIn: false,
     isSignInRequired: false,
     isNativeMode: true,
-    userInfo: null
+    userInfo: null,
+    appInfo: null
 });
 
 export const TonesStateStore = new Store({
@@ -38,8 +41,10 @@ export class AppViewModel {
         if (this.soundshedApi.isUserSignedIn()) {
             AppStateStore.update(s => { s.isUserSignedIn = true; s.userInfo = this.soundshedApi.getCurrentUserInfo() });
         } else {
-            AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo= null; });
+            AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
+
+     
     }
 
     log(msg: string) {
@@ -131,6 +136,18 @@ export class AppViewModel {
             return false;
         }
 
+    }
+
+    public refreshAppInfo() {
+        
+
+        try {
+           
+            const info ={ version:  remote.app.getVersion(), name:remote.app.getName() };
+            AppStateStore.update(s => { s.appInfo = info });
+        } catch (err) {
+            this.log("Failed to get app version info: " + err)
+        }
     }
 }
 

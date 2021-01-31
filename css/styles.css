@@ -14,6 +14,10 @@ body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
 }
+
+a, a:visited{
+    color:white;
+}
 h1 {
     font-size: 140%;
 }
