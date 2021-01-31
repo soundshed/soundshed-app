@@ -4,6 +4,7 @@ import { shell } from "electron";
 
 import { AppStateStore } from "../core/appViewModel";
 import { appViewModel } from "./app";
+import { Button } from "react-bootstrap";
 
 const AboutControl = () => {
   React.useEffect(() => {
@@ -16,6 +17,10 @@ const AboutControl = () => {
     e.preventDefault();
     shell.openExternal(linkUrl, {});
   };
+
+  const checkForUpdates = () =>{
+    appViewModel.checkForUpdates();
+  }
 
   return (
     <div className="about-intro">
@@ -32,7 +37,7 @@ const AboutControl = () => {
         </a>
       </p>
       <p>Browse and manage favourite tones, preview or store on your amp.</p>
-      <p>App Version: {appInfo?.name} {appInfo?.version}</p>
+      <p>App Version: {appInfo?.name} {appInfo?.version} <Button onClick={checkForUpdates}>Check For Updates</Button></p>
       <h3>Credits</h3>
       <p>
         Spark communications code based on

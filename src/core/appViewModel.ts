@@ -3,7 +3,7 @@ import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone } from './soundshedApi';
 
-import {  remote } from 'electron';
+import {  remote, autoUpdater } from 'electron';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -148,6 +148,12 @@ export class AppViewModel {
         } catch (err) {
             this.log("Failed to get app version info: " + err)
         }
+    }
+
+    public checkForUpdates(){
+        try{
+        autoUpdater.checkForUpdates();
+        } catch{}
     }
 }
 

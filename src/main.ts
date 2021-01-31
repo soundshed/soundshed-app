@@ -14,6 +14,8 @@ try {
 if (handleSquirrelEvent()) {
     // squirrel event handled and app will exit in 1000ms, so don't do anything else
     //return;
+
+    app.exit();
 }
 else {
 
