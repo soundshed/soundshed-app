@@ -49,7 +49,7 @@ function initApp(){
             console.log("attempting to connect:: " + JSON.stringify(args));
 
             try {
-                deviceManager.connect(args.data).then(connectedOk => {
+                return deviceManager.connect(args.data).then(connectedOk => {
                     if (connectedOk) {
                         sendMessageToApp("device-connection-changed", "connected")
 
@@ -60,6 +60,7 @@ function initApp(){
                         sendMessageToApp("device-connection-changed", "failed")
                     }
 
+                    return connectedOk;
                 }).catch(err => {
                     sendMessageToApp("device-connection-changed", "failed")
                 });
@@ -108,6 +109,11 @@ function initApp(){
 
         if (args.action == 'changeFx') {
             deviceManager.sendCommand("change_fx", args.data);
+
+            setTimeout(() => {
+                //apply preset to virtual channel 127
+                deviceManager.sendCommand("set_channel", 127);
+            }, 1000);
         }
 
         if (args.action == 'changeAmp') {

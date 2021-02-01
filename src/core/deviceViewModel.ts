@@ -4,6 +4,7 @@ import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 import { FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Tone } from './soundshedApi';
+import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 
 const debounce = (func, delay) => {
     let timerId;
@@ -21,8 +22,10 @@ export const DeviceStore = new Store({
     selectedChannel: -1,
     devices: [],
     connectedDevice: null,
+    lastAttemptedDevice: null,
     isDeviceScanInProgress: false,
-    presetTone: null
+    presetTone: null,
+    fxCatalog: null
 });
 
 export class DeviceViewModel {
@@ -34,6 +37,7 @@ export class DeviceViewModel {
 
     private debouncedFXUpdate;
 
+
     private defaultStateChangeHandler() {
         this.log("UI Device state change handler called but not set.")
     }
@@ -42,6 +46,7 @@ export class DeviceViewModel {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
         this.setupElectronIPCListeners();
 
+        DeviceStore.update(s => { s.fxCatalog = this.getFxCatalog() });
     }
 
     addStateChangeListener(onViewModelStateChange) {
@@ -69,7 +74,7 @@ export class DeviceViewModel {
 
             if (args.lastMessageReceived) {
 
-                if (args.lastMessageReceived.presetNumber!=null) {
+                if (args.lastMessageReceived.presetNumber != null) {
 
                     if (DeviceStore.getRawState().selectedChannel != args.lastMessageReceived.presetNumber) {
 
@@ -93,7 +98,7 @@ export class DeviceViewModel {
             }
 
             if (args == "failed") {
-                DeviceStore.update(s => { s.isConnected = false });
+                DeviceStore.update(s => { s.isConnected = false, s.connectedDevice = null });
             }
 
             this.onStateChangeHandler();
@@ -103,7 +108,7 @@ export class DeviceViewModel {
 
             this.log("got refreshed list of devices:" + args);
 
-            DeviceStore.update(s => { s.devices = args });
+            DeviceStore.update(s => { s.devices = args, s.isDeviceScanInProgress=false });
 
             if (args.length > 0) {
                 localStorage.setItem("lastKnownDevices", JSON.stringify(args));
@@ -132,7 +137,7 @@ export class DeviceViewModel {
 
         await ipcRenderer.invoke('perform-action', { action: 'scan' });
 
-        DeviceStore.update(s => { s.isDeviceScanInProgress = false });
+      
 
         return true;
     }
@@ -149,20 +154,32 @@ export class DeviceViewModel {
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
         if (device == null) return false;
 
-        DeviceStore.update(s => { s.isConnectionInProgress = true });
+        DeviceStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
         try {
-            return await ipcRenderer.invoke('perform-action', { action: 'connect', data: device }).then(() => {
-
-                // store last connected devices
-
-                DeviceStore.update(s => { s.isConnected = true });
-
-                DeviceStore.update(s => s.connectedDevice = device);
-
-                localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
+            return await ipcRenderer.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
 
                 DeviceStore.update(s => { s.isConnectionInProgress = false });
-                return true;
+
+                if (ok) {
+                    // store last connected devices
+
+                    DeviceStore.update(s => { s.isConnected = true });
+
+                    DeviceStore.update(s => { s.connectedDevice = device });
+
+                    DeviceStore.update(s => { s.lastAttemptedDevice = null });
+
+                    localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
+
+                    return true;
+                } else {
+                    const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStore.getRawState().lastAttemptedDevice);
+                    if (attemptedDevice) {
+                   attemptedDevice.connectionFailed=true;
+                        DeviceStore.update(s => { s.lastAttemptedDevice= attemptedDevice });
+                    }
+                    return false;
+                }
             });
         } catch (err) {
             DeviceStore.update(s => { s.isConnectionInProgress = false });
@@ -251,7 +268,7 @@ export class DeviceViewModel {
         await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
                 this.log("Completed setting channel");
-               // DeviceStore.update(s => { s.selectedChannel == channelNum });
+                // DeviceStore.update(s => { s.selectedChannel == channelNum });
             });
         return true;
     }
@@ -270,6 +287,14 @@ export class DeviceViewModel {
 
             });
         return true;
+    }
+
+    getFxCatalog() {
+        let db = FxCatalogProvider.db;
+        for (var fx of db.catalog) {
+            if (!fx.dspId.startsWith("pg.spark40.")) fx.dspId = "pg.spark40." + fx.dspId;
+        }
+        return db;
     }
 }
 

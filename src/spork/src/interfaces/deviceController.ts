@@ -9,4 +9,5 @@ export interface BluetoothDeviceInfo {
     address: string;
     port: number;
     description?: string;
+    connectionFailed?:boolean
 }

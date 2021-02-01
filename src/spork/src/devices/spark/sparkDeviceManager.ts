@@ -41,7 +41,7 @@ export class SparkDeviceManager implements DeviceController {
 
                     address = address.replace(name, "").replace("(", "").replace(")", "");
                     if (!devices.find(d => d.address == address)) {
-                        devices.push({ name: name, address: address, port: 2 });
+                        devices.push({ name: name, address: address, port: 2, connectionFailed:false });
                     }
 
                 }

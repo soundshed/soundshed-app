@@ -24,6 +24,7 @@ import AmpOfflineControl from "./soundshed/amp-offline";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import EditToneControl from "./soundshed/edit-tone";
+import DeviceSelectorControl from "./device-selector";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -41,7 +42,9 @@ const App = () => {
 
   const signInRequired = AppStateStore.useState((s) => s.isSignInRequired);
 
-  const userInfo = AppStateStore.useState(s=> s.userInfo);
+  const userInfo = AppStateStore.useState((s) => s.userInfo);
+
+  const isConnected = DeviceStore.useState((s) => s.isConnected);
 
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
@@ -136,7 +139,11 @@ const App = () => {
 
           <li className="my-2">
             {isUserSignedIn ? (
-              <span className="badge rounded-pill bg-primary"> <FontAwesomeIcon icon={faUser}></FontAwesomeIcon> {userInfo?.name}</span>
+              <span className="badge rounded-pill bg-primary">
+                {" "}
+                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
+                {userInfo?.name}
+              </span>
             ) : (
               <Button
                 onClick={() => {
@@ -162,7 +169,14 @@ const App = () => {
               <Route path="/" exact component={HomeControl} />
               <Route path="/device">
                 {isNativeMode ? (
-                  <DeviceMainControl></DeviceMainControl>
+                  isConnected ? (
+                    
+                    
+                    <DeviceMainControl></DeviceMainControl>
+                    
+                  ) : (
+                    <DeviceSelectorControl></DeviceSelectorControl>
+                  )
                 ) : (
                   <AmpOfflineControl></AmpOfflineControl>
                 )}

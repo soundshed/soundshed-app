@@ -1,6 +1,7 @@
 import * as React from "react";
 import FxParam from "./fx-param";
-
+import { deviceViewModel } from "./app";
+import { DeviceStore } from "../core/deviceViewModel";
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -11,31 +12,70 @@ declare global {
 }
 
 const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
-
+  const fxCatalog = DeviceStore.useState((s) => s.fxCatalog);
+  const [fxList, setFxList] = React.useState([]);
 
   React.useEffect(() => {
-    
-  }, [fx]);
+    const fxDefinition = fxCatalog.catalog.find((t) => t.dspId == fx.type);
+    if (fxDefinition) {
+      const listOfSameTypeFx = fxCatalog.catalog.filter(
+        (t) => t.type == fxDefinition.type
+      );
+      setFxList(listOfSameTypeFx);
+    }
+  }, [fx, fxCatalog]);
 
   const paramControls = fx.params.map((p) => (
-    <FxParam key={p.paramId.toString()} p={p} fx={fx} onFxParamChange={onFxParamChange}></FxParam>
+    <FxParam
+      key={p.paramId.toString()}
+      p={p}
+      fx={fx}
+      onFxParamChange={onFxParamChange}
+    ></FxParam>
   ));
+
+  const handleFxChange = (e) => {
+    //this.setState({value: event.target.value});
+    deviceViewModel.requestFxChange({ dspIdOld:fx.type,dspIdNew:e.target.value})
+    .then(()=>{
+
+      deviceViewModel.requestPresetConfig();
+    });
+  };
+
+  const mapFxTypeIdToName=(t)=>{
+    if (fxCatalog){
+      return fxCatalog.types.find(i=>i.id==t)?.name;
+    } else {
+      return t;
+    }
+  }
 
   return (
     <div>
-    <label className="fx-type">{fx.type}</label>
-    <div className="fx">
-     
-      <h4 className="preset-name">{fx.name}</h4>
-      <div className="fx-controls">
-        {paramControls}
+      <label className="fx-type">{mapFxTypeIdToName(fx.type)}</label>
+      <div className="fx">
+        <h4 className="preset-name">{fx.name}</h4>
+       
+        <select value={fx.type} onChange={handleFxChange}>
+            {fxList.map((e, key) => {
+            return <option key={key} value={e.dspId}>{e.name}</option>;
+        })}
+         
+        </select>
+        <div className="fx-controls">
+          {paramControls}
 
-        <FxParam type="switch" p="toggle" fx={fx} onFxParamChange={onFxToggle}></FxParam>
-    
-        {fx.enabled ? <label>On</label> : <label>Off</label>}
+          <FxParam
+            type="switch"
+            p="toggle"
+            fx={fx}
+            onFxParamChange={onFxToggle}
+          ></FxParam>
+
+          {fx.enabled ? <label>On</label> : <label>Off</label>}
+        </div>
       </div>
-      {/*<pre>{JSON.stringify(fx)}</pre>*/}
-    </div>
     </div>
   );
 };

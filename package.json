@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Browse and manage favourite tones, preview or store on your amp.",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
