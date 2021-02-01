@@ -1,6 +1,7 @@
 import jwt_decode from "jwt-decode";
 export interface UserRegistration {
-
+    email: string;
+    password: string;
 }
 
 export interface UserRegistrationResult {
@@ -69,6 +70,7 @@ export interface UserInfo {
 }
 
 export class SoundshedApi {
+ 
     baseUrl: string = "https://api.soundshed.com/app/v1/" //"http://localhost:3000/api/v1/";
     currentToken: string;
 
@@ -100,6 +102,12 @@ export class SoundshedApi {
             return false;
         }
     }
+
+    signOut() {
+       this.currentToken=null;
+       localStorage.removeItem("_authtoken");
+    }
+
     async registerUser(registration: UserRegistration): Promise<ActionResult<UserRegistrationResult>> {
 
         let url = this.baseUrl + "user/register";

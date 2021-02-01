@@ -18,7 +18,7 @@ import DeviceViewModel, { DeviceStore } from "../core/deviceViewModel";
 import { Button, Modal, Navbar } from "react-bootstrap";
 import LoginControl from "./soundshed/login";
 import LessonsControl from "./lessons";
-import { Login } from "../core/soundshedApi";
+import { Login, UserRegistration } from "../core/soundshedApi";
 import AmpOfflineControl from "./soundshed/amp-offline";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -46,8 +46,6 @@ const App = () => {
 
   const isConnected = DeviceStore.useState((s) => s.isConnected);
 
-
-
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
       s.isSignInRequired = true;
@@ -58,12 +56,29 @@ const App = () => {
     return appViewModel.performSignIn(login).then((loggedInOk) => {
       if (loggedInOk == true) {
         AppStateStore.update((s) => {
-          s.isSignInRequired = true;
+          s.isSignInRequired = false;
         });
       }
 
       return loggedInOk;
     });
+  };
+
+  const performRegistration= (reg: UserRegistration) => {
+    return appViewModel.performRegistration(reg).then((loggedInOk) => {
+      if (loggedInOk == true) {
+        AppStateStore.update((s) => {
+          s.isSignInRequired = false;
+        });
+      }
+
+      return loggedInOk;
+    });
+  };
+
+
+  const performSignOut = () => {
+    appViewModel.signOut();
   };
 
   // perform startup
@@ -102,7 +117,7 @@ const App = () => {
               Home
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
             <NavLink
               to="/tones"
@@ -142,13 +157,13 @@ const App = () => {
 
           <li className="my-2">
             {isUserSignedIn ? (
-              <span className="badge rounded-pill bg-primary">
+              <span className="badge rounded-pill bg-primary" onClick={performSignOut}>
                 {" "}
                 <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
                 {userInfo?.name}
               </span>
             ) : (
-              <Button
+              <Button className="btn btn-sm"
                 onClick={() => {
                   requireSignIn();
                 }}
@@ -162,6 +177,7 @@ const App = () => {
         <LoginControl
           signInRequired={signInRequired}
           onSignIn={performSignIn}
+          onRegistration={performRegistration}
         ></LoginControl>
 
         <EditToneControl></EditToneControl>
@@ -173,10 +189,7 @@ const App = () => {
               <Route path="/device">
                 {isNativeMode ? (
                   isConnected ? (
-                    
-                    
                     <DeviceMainControl></DeviceMainControl>
-                    
                   ) : (
                     <DeviceSelectorControl></DeviceSelectorControl>
                   )

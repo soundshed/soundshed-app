@@ -1,7 +1,7 @@
 
 import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
-import { Login, SoundshedApi, Tone } from './soundshedApi';
+import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 
 import { remote, autoUpdater } from 'electron';
 
@@ -61,8 +61,31 @@ export class AppViewModel {
     async performSignIn(login: Login): Promise<boolean> {
 
         try {
+
             let loginResult = await this.soundshedApi.login(login);
+
+            if (loginResult.completedOk){
+                AppStateStore.update(s => { s.isUserSignedIn = true; s.userInfo = this.soundshedApi.getCurrentUserInfo() });
+            }
             return loginResult.completedOk;
+
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async performRegistration(reg: UserRegistration): Promise<boolean> {
+
+        try {
+
+            let regResult = await this.soundshedApi.registerUser(reg);
+
+            if (regResult.completedOk){
+                // now login
+                return await this.performSignIn({email:reg.email,password:reg.password});
+            }
+            return regResult.completedOk;
+
         } catch (err) {
             return false;
         }
@@ -161,6 +184,13 @@ export class AppViewModel {
         try {
             autoUpdater.checkForUpdates();
         } catch { }
+    }
+
+    public signOut() {
+        if (confirm("Sign out of your profile?")) {
+            this.soundshedApi.signOut();
+            AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
+        }
     }
 }
 

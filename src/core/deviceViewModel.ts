@@ -204,9 +204,14 @@ export class DeviceViewModel {
         return true;
     }
 
-    private normalizeDspId(dspId: string) {
+    public normalizeDspId(dspId: string) {
         return dspId?.replace("pg.spark40.", "") ?? dspId;
     }
+
+    public expandedDspId(dspId: string) {
+        return "pg.spark40."+dspId;
+    }
+
 
     async requestAmpChange(args: FxChangeMessage) {
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);

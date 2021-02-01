@@ -45,7 +45,12 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
 
   const mapFxTypeIdToName=(t)=>{
     if (fxCatalog){
-      return fxCatalog.types.find(i=>i.id==t)?.name;
+      var fxItem= fxCatalog.catalog.find((f) => f.dspId == t);
+      if (fxItem){
+        return fxCatalog.types.find(i=>i.id==fxItem.type)?.name ?? t.replace("pg.spark40.","");
+      } else {
+        return t.replace("pg.spark40.","");
+      }
     } else {
       return t;
     }
@@ -53,6 +58,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
 
   return (
     <div className="fx">
+
       <label className="fx-type">{mapFxTypeIdToName(fx.type)}</label>
       <div >
         <h4 className="preset-name">{fx.name}</h4>
