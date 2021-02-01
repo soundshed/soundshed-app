@@ -37,7 +37,7 @@ const AboutControl = () => {
         </a>
       </p>
       <p>Browse and manage favourite tones, preview or store on your amp.</p>
-      <p>App Version: {appInfo?.name} {appInfo?.version} <Button onClick={checkForUpdates}>Check For Updates</Button></p>
+      <p> <span className="badge rounded-pill bg-secondary">{appInfo?.name} {appInfo?.version}</span> <Button className="btn btn-sm ms-2" onClick={checkForUpdates}>Check For Updates</Button></p>
       <h3>Credits</h3>
       <p>
         Spark communications code based on

@@ -13,6 +13,7 @@ html, body {
 body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
+    padding-top: 1em;
 }
 
 a, a:visited{
@@ -112,7 +113,8 @@ label.fx-type {
     background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
     background-size: cover;
     width: 100%;
-    min-height: 900px;
+    height: 900px;
+    overflow-y:auto;
     background-position-x: center;
     padding: 2em;
 
