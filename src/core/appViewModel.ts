@@ -3,7 +3,7 @@ import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone } from './soundshedApi';
 
-import {  remote, autoUpdater } from 'electron';
+import { remote, autoUpdater } from 'electron';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -27,6 +27,13 @@ export const ToneEditStore = new Store<IToneEditStore>({
     tone: null
 });
 
+export const UIFeatureToggleStore = new Store({
+    enableCommunityTones: true,
+    enableMyTones: true,
+    enableToneEditor: false,
+    enableLessons: false,
+});
+
 export class AppViewModel {
 
 
@@ -44,7 +51,7 @@ export class AppViewModel {
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
 
-     
+
     }
 
     log(msg: string) {
@@ -139,21 +146,21 @@ export class AppViewModel {
     }
 
     public refreshAppInfo() {
-        
+
 
         try {
-           
-            const info ={ version:  remote.app.getVersion(), name:remote.app.getName() };
+
+            const info = { version: remote.app.getVersion(), name: remote.app.getName() };
             AppStateStore.update(s => { s.appInfo = info });
         } catch (err) {
             this.log("Failed to get app version info: " + err)
         }
     }
 
-    public checkForUpdates(){
-        try{
-        autoUpdater.checkForUpdates();
-        } catch{}
+    public checkForUpdates() {
+        try {
+            autoUpdater.checkForUpdates();
+        } catch { }
     }
 }
 

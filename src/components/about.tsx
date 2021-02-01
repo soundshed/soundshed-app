@@ -48,7 +48,11 @@ const AboutControl = () => {
         https://github.com/richtamblyn/PGSparkLite
       </p>
       <p>Burning Guitar Photo by Dark Rider on Unsplash</p>
+      <p>Pedal Board + Red Shoe Photo by Jarrod Reed on Unsplash</p>
+      <p>Wooden Pedal Board Photo by Luana Azevedo on Unsplash</p>
       <p>Soundshed app by Christopher Cook</p>
+      
+      
     </div>
   );
 };

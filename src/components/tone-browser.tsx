@@ -3,18 +3,25 @@ import { useEffect } from "react";
 import { FxMappingToneToSpark } from "../core/fxMapping";
 import { Tone } from "../core/soundshedApi";
 import { DeviceViewModelContext } from "./app";
-import { HashRouter as Router, Route, NavLink, Switch } from "react-router-dom";
 import { Nav } from "react-bootstrap";
-import EditToneControl from "./soundshed/edit-tone";
-import { ToneEditStore } from "../core/appViewModel";
+
+import { ToneEditStore, UIFeatureToggleStore } from "../core/appViewModel";
 
 const ToneBrowserControl = (props) => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
 
   const [viewSelection, setViewSelection] = React.useState("my");
 
+  const enableMyTones = UIFeatureToggleStore.useState((s) => s.enableMyTones);
+  const enableCommunityTones = UIFeatureToggleStore.useState(
+    (s) => s.enableCommunityTones
+  );
+  const enableToneEditor = UIFeatureToggleStore.useState(
+    (s) => s.enableToneEditor
+  );
+
   const onApplyTone = (t) => {
-   /* if (!deviceViewModel.isConnected) {
+    /* if (!deviceViewModel.isConnected) {
       alert("The device is not yet connected, see Amp tab");
       return;
     }*/
@@ -25,8 +32,13 @@ const ToneBrowserControl = (props) => {
   };
 
   const onEditTone = (t) => {
-    ToneEditStore.update(s=>{s.tone=t; s.isToneEditorOpen=true;});
-  }
+    if (enableToneEditor) {
+      ToneEditStore.update((s) => {
+        s.tone = t;
+        s.isToneEditorOpen = true;
+      });
+    }
+  };
 
   const mapDeviceType = (t) => {
     if (t == "pg.spark40") {
@@ -38,16 +50,13 @@ const ToneBrowserControl = (props) => {
 
   useEffect(() => {}, [props.tones, props.favourites]);
 
-
-
   const formatCategoryTags = (items: string[]) => {
-    return items.map(i=>(
+    return items.map((i) => (
       <span key={i} className="badge rounded-pill bg-secondary">
-      {i}
-    </span>
+        {i}
+      </span>
     ));
-  
-  }
+  };
 
   const listItems = (t: Tone[], noneMsg: string = "none") => {
     if (!t || t.length == 0) {
@@ -66,32 +75,36 @@ const ToneBrowserControl = (props) => {
             >
               ▶
             </button>
-</div>
-            <div className="col-md-1">
-            <button
-              className="btn btn-sm btn-secondary"
-              onClick={() => {
-                onEditTone(tone);
-              }}
-            >
-              📝
-            </button>
           </div>
+
+          {enableToneEditor ? (
+            <div className="col-md-1">
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => {
+                  onEditTone(tone);
+                }}
+              >
+                📝
+              </button>
+            </div>
+          ) : (
+            ""
+          )}
+
           <div className="col-md-6">
             <label>{tone.name}</label>
             <p>{tone.description}</p>
           </div>
           <div className="col-md-4">
+            {formatCategoryTags(tone.artists)}
+            {formatCategoryTags(tone.categories)}
 
-          {formatCategoryTags(tone.artists)}
-          {formatCategoryTags(tone.categories)}
-         
             <span className="badge rounded-pill bg-secondary">
               {mapDeviceType(tone.deviceType)}
             </span>
           </div>
         </div>
-        
       </div>
     ));
   };
@@ -108,23 +121,28 @@ const ToneBrowserControl = (props) => {
           activeKey={viewSelection}
           onSelect={(selectedKey) => setViewSelection(selectedKey)}
         >
-          <Nav.Item>
+
+          {enableMyTones?(
+            <Nav.Item>
             <Nav.Link eventKey="my">My Tones</Nav.Link>
           </Nav.Item>
+          ):("")}
+          
+          {enableCommunityTones?(
           <Nav.Item>
             <Nav.Link eventKey="community">Community</Nav.Link>
           </Nav.Item>
+          ):("")}
         </Nav>
 
         {viewSelection == "my" ? (
           <div className="m-2">
-
-
-
             {listItems(props.favourites, "No favourite tones saved yet.")}
           </div>
         ) : (
-          <div  className="m-2">{listItems(props.tones, "No community tones available.")}</div>
+          <div className="m-2">
+            {listItems(props.tones, "No community tones available.")}
+          </div>
         )}
       </div>
     </div>

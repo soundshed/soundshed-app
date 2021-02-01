@@ -59,7 +59,7 @@ const SignalPathControl = ({
                 className="btn btn-sm btn-primary"
                 onClick={()=>{onStoreFavourite(false)}}
               >
-                ⭐ Favourite
+                ⭐
               </button>
             </div>
             <div className="col-md-2">

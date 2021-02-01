@@ -46,6 +46,8 @@ const App = () => {
 
   const isConnected = DeviceStore.useState((s) => s.isConnected);
 
+
+
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
       s.isSignInRequired = true;
@@ -100,6 +102,7 @@ const App = () => {
               Home
             </NavLink>
           </li>
+          
           <li className="nav-item">
             <NavLink
               to="/tones"

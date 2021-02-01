@@ -10,9 +10,9 @@ const MiscControls = ({
   onScanForDevices,
   devices,
   selectedChannel,
-  onSetPreset
+  onSetPreset,
 }) => {
-
+  const enableStorePreset = false;
   React.useEffect(() => {
     // watch for changes
   }, [
@@ -26,31 +26,33 @@ const MiscControls = ({
   return (
     <div className="container ">
       <div className="row control-strip">
-       
-        
         <div className="col-md-2">
           <button
             type="button"
             className="btn btn-sm btn-secondary"
-            onClick={()=>requestCurrentPreset(true)}
+            onClick={() => requestCurrentPreset(true)}
           >
             Refresh
           </button>
         </div>
-        <div className="col-md-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-secondary"
-            id="storePreset"
+        {enableStorePreset ? (
+          <div className="col-md-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              id="storePreset"
+            >
+              Store Preset
+            </button>
+          </div>
+        ) : (
+          ""
+        )}
 
-          >
-            Store Preset
-          </button>
-        </div>
         <div className="col-md-4">
-          <label>Channel - </label>
+          <label>Channel  </label>
           <div
-            className="btn-group"
+            className="btn-group ms-2"
             role="group"
             aria-label="Channel Selection"
           >
@@ -110,7 +112,6 @@ const MiscControls = ({
             >
               4
             </button>
-            {selectedChannel}
           </div>
         </div>
       </div>

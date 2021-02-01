@@ -52,9 +52,9 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   }
 
   return (
-    <div>
+    <div className="fx">
       <label className="fx-type">{mapFxTypeIdToName(fx.type)}</label>
-      <div className="fx">
+      <div >
         <h4 className="preset-name">{fx.name}</h4>
        
         <select value={fx.type} onChange={handleFxChange}>
