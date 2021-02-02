@@ -9,15 +9,17 @@ Suported amps:
 
 ## Build
 
-- Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. Cloned and building bluetooth-serial-port module which you will later link to. Bluetooth node module may have other requirements.
+- Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. 
+
+- Building the bluetooth-serial-port node module has various requirements depending on the platform you are developing for: https://github.com/tinyprinter/node-bluetooth-serial-port - we are using a custom fork with minor fixes.
+
 - VS Code is the recommended editor
 
 - Clone this repository
 - run `npm install` on the repo path
-- npm link to the clone of the bluetooth module code (required after every npm install) `npm link bluetooth-serial-port` - Uses the https://github.com/tinyprinter/node-bluetooth-serial-port variant of npm module with some minor fixes to get Scan (inquire) to work.
 
 ## Run
-- Run `npm run watch` in one terminal to continuously rebuild the UI code
+- Run `npm run watch` in one terminal to continuously rebuild the UI code or `npm run build` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
 - Run `npm run start` to launch the UI
 
 

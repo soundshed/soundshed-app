@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Browse and manage favourite tones, preview or store on your amp.",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
@@ -45,7 +45,7 @@
     "@fortawesome/react-fontawesome": "^0.1.14",
     "@webcomponents/webcomponentsjs": "^2.5.0",
     "@yaireo/tagify": "^3.22.1",
-    "bluetooth-serial-port": "",
+    "bluetooth-serial-port": "github:webprofusion-chrisc/node-bluetooth-serial-port",
     "bootstrap": "^5.0.0-beta1",
     "electron-squirrel-startup": "^1.0.0",
     "install": "^0.13.0",
