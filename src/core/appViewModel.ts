@@ -4,6 +4,7 @@ import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 
 import { remote, autoUpdater } from 'electron';
+import { Utils } from './utils';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -30,7 +31,7 @@ export const ToneEditStore = new Store<IToneEditStore>({
 export const UIFeatureToggleStore = new Store({
     enableCommunityTones: true,
     enableMyTones: true,
-    enableToneEditor: false,
+    enableToneEditor: true,
     enableLessons: false,
 });
 
@@ -64,7 +65,7 @@ export class AppViewModel {
 
             let loginResult = await this.soundshedApi.login(login);
 
-            if (loginResult.completedOk){
+            if (loginResult.completedOk) {
                 AppStateStore.update(s => { s.isUserSignedIn = true; s.userInfo = this.soundshedApi.getCurrentUserInfo() });
             }
             return loginResult.completedOk;
@@ -80,9 +81,9 @@ export class AppViewModel {
 
             let regResult = await this.soundshedApi.registerUser(reg);
 
-            if (regResult.completedOk){
+            if (regResult.completedOk) {
                 // now login
-                return await this.performSignIn({email:reg.email,password:reg.password});
+                return await this.performSignIn({ email: reg.email, password: reg.password });
             }
             return regResult.completedOk;
 
@@ -116,7 +117,32 @@ export class AppViewModel {
         }
     }
 
+    async deleteFavourite(tone: Tone) {
+        if (confirm("Are you sure you wish to delete this tone ["+tone.name+"]?"))
+        {
+            let favourites: Tone[] = [];
+            let allPresets = localStorage.getItem("favourites");
+            if (allPresets != null) {
+                favourites = JSON.parse(allPresets);
+                favourites = favourites.filter(f=>f.toneId!=tone.toneId);
+
+                localStorage.setItem("favourites", JSON.stringify(favourites));
+
+                TonesStateStore.update(s => { s.storedPresets = favourites });
+
+                // todo: offer to delete from tone community?
+            }
+        }
+      }
+  
     async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
+
+
+        // if tone is already favourite, overwrite
+
+        // if tone is also a community tone, fgl as modified and offer to update
+
+        // if tone is a community tone decide whether to also save new version to API
 
         if (includeUpload && !this.soundshedApi.isUserSignedIn()) {
             // force sign in before uploading
@@ -134,12 +160,43 @@ export class AppViewModel {
                 favourites = JSON.parse(allPresets);
             }
 
-            if (favourites.find(t => t.name == convertedTone.name)) {
-                alert("You already have a preset stored with the same name.")
-                return false;
+            let presetStored = false;
+            if (favourites.find(t => t.name.toLowerCase() == convertedTone.name.toLowerCase())) {
+                if (confirm("You already have a preset stored with the same name. Do you wish to overwrite it with this one?")) {
+                    // update existing
+                    favourites = favourites.filter(f => f.name.toLowerCase() != convertedTone.name.toLowerCase());
+                    favourites.push(convertedTone);
+                    presetStored = true;
+                } else {
+                    //save new
+                    convertedTone.toneId = Utils.generateUUID();
+                    favourites.push(convertedTone);
+                    presetStored = true;
+                }
+
             }
 
-            favourites.push(convertedTone);
+            if (favourites.find(t => t.name.toLowerCase() != convertedTone.name.toLowerCase() && t.toneId.toLowerCase() == convertedTone.toneId.toLowerCase())) {
+                if (confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
+                    // add new
+                    convertedTone.toneId = Utils.generateUUID();
+                    favourites.push(convertedTone);
+                    presetStored = true;
+                } else {
+                    // update existing
+                    favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
+                    favourites.push(convertedTone);
+                    presetStored = true;
+                }
+
+            }
+
+            if (!presetStored) {
+                //add new
+                convertedTone.toneId = Utils.generateUUID();
+                favourites.push(convertedTone);
+            }
+
             localStorage.setItem("favourites", JSON.stringify(favourites));
 
             TonesStateStore.update(s => { s.storedPresets = favourites });

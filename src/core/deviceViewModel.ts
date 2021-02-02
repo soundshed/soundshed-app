@@ -238,6 +238,12 @@ export class DeviceViewModel {
 
     private async requestFxParamChangeImmediate(args) {
 
+        let presetState:Tone = DeviceStore.getRawState().presetTone;
+        
+        // find param to change and set it in our model before sending to amp
+        //presetState.fx.find(args.)
+        //DeviceStore.update(s=>{s.presetTone})
+
         args.dspId = this.normalizeDspId(args.dspId);
 
         return ipcRenderer.invoke('perform-action', { action: 'setFxParam', data: args }).then(

@@ -4,6 +4,7 @@ import { AppStateStore, ToneEditStore } from "../../core/appViewModel";
 import Tags from "@yaireo/tagify/dist/react.tagify"; // React-wrapper file
 import "@yaireo/tagify/dist/tagify.css"; // Tagify CSS
 import { Tone } from "../../core/soundshedApi";
+import { appViewModel } from "../app";
 
 const EditToneControl = () => {
   const openToneEdit: boolean = ToneEditStore.useState(
@@ -19,10 +20,23 @@ const EditToneControl = () => {
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    // if tone is a community tone decide whether to also save new version to API
+    // save tone.
+
+    appViewModel.storeFavourite(tone);
+
+    ToneEditStore.update((s) => {
+      s.isToneEditorOpen = false;
+    });
   };
 
   const handleCancel = () => {
+    ToneEditStore.update((s) => {
+      s.isToneEditorOpen = false;
+    });
+  };
+
+  const handleDelete = () => {
+    appViewModel.deleteFavourite(tone);
     ToneEditStore.update((s) => {
       s.isToneEditorOpen = false;
     });
@@ -57,7 +71,7 @@ const EditToneControl = () => {
   if (!openToneEdit) return <div></div>;
   else
     return (
-      <Modal show={openToneEdit}>
+      <Modal show={openToneEdit} onHide={() => {}}>
         <Modal.Body>
           <div>
             <p>Edit Tone</p>
@@ -70,7 +84,9 @@ const EditToneControl = () => {
                   placeholder="Enter a title for this tone"
                   value={tone.name}
                   onChange={(event) => {
-                    tone.name = event.target.value;
+                    ToneEditStore.update((s) => {
+                      s.tone.name = event.target.value;
+                    });
                   }}
                 />
               </Form.Group>
@@ -82,19 +98,26 @@ const EditToneControl = () => {
                   placeholder="Enter an optional description for this tone"
                   value={tone.description}
                   onChange={(event) => {
-                    tone.description = event.target.value;
+                    ToneEditStore.update((s) => {
+                      s.tone.description = event.target.value;
+                    });
                   }}
                 />
               </Form.Group>
-
 
               <Form.Group controlId="formArtists">
                 <Form.Label>Artists</Form.Label>
                 <Tags
                   value={tone.artists}
-                  onChange={(e) => (
-                    e.persist(), console.log("CHANGED:", e.target.value)
-                  )}
+                  onChange={(e) => {
+                    e.persist();
+                    if (e.target.value.length > 0) {
+                      let list = JSON.parse(e.target.value).map((t) => t.value);
+                      ToneEditStore.update((s) => {
+                        s.tone.artists = list;
+                      });
+                    }
+                  }}
                 />
               </Form.Group>
 
@@ -102,9 +125,15 @@ const EditToneControl = () => {
                 <Form.Label>Categories</Form.Label>
                 <Tags
                   value={tone.categories}
-                  onChange={(e) => (
-                    e.persist(), console.log("CHANGED:", e.target.value)
-                  )}
+                  onChange={(e) => {
+                    e.persist();
+                    if (e.target.value.length > 0) {
+                      let list = JSON.parse(e.target.value).map((t) => t.value);
+                      ToneEditStore.update((s) => {
+                        s.tone.categories = list;
+                      });
+                    }
+                  }}
                 />
               </Form.Group>
               {saveFailed ? (
@@ -112,11 +141,19 @@ const EditToneControl = () => {
               ) : (
                 ""
               )}
-
               <Button variant="secondary" type="button" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button variant="primary" type="submit">
+              <Button
+                variant="danger"
+                type="button"
+                className="ms-4"
+                onClick={handleDelete}
+              >
+                Delete
+              </Button>
+
+              <Button variant="primary" type="submit" className="float-end">
                 Save
               </Button>
             </Form>
