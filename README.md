@@ -9,7 +9,7 @@ Suported amps:
 
 ## Build
 
-- Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. 
+- Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. Windows, macOS or Linux
 
 - Building the bluetooth-serial-port node module has various requirements depending on the platform you are developing for: https://github.com/tinyprinter/node-bluetooth-serial-port - we are using a custom fork with minor fixes.
 
