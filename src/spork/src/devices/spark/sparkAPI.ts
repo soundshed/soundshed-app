@@ -1,11 +1,34 @@
 const fetch = require('node-fetch');
 
+
+export interface PGPResetQuery{
+        preset_for:string;
+        license_tier:string;
+        keyword:string;
+        category:string;
+        page:number;
+        page_size:number;
+        order:string;
+        tag:string;
+}
 export class SparkAPI {
 
     public access_token = "";
     public userInfo = null;
 
-    api_base = "https://api.positivegrid.com/v2/"
+    
+    public presetQueryParams:PGPResetQuery = {
+        "preset_for": "jamup",
+        "license_tier": null,
+        "keyword": null,
+        "category": null,
+        "page": 1,
+        "page_size": 20,
+        "order": "latest", //latest,popular, alphabet
+        "tag": null
+    }
+
+    api_base = "https://api.positivegrid.com/v2"
 
     log(msg) {
         console.log(msg);
@@ -71,13 +94,13 @@ export class SparkAPI {
     }
 
     async getToneCloudPresets() {
-        // get user info
-        let url = this.api_base + "/user";
+        // get preset results
+        let url = this.api_base + "/preset";
 
         //post to API as JSON
         let response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'JWT ' + this.access_token },
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json'},
             body: null, credentials: 'include'
         });
         let data = <any>response.json();
@@ -85,4 +108,23 @@ export class SparkAPI {
         return data;
         // example json response: 
     }
+
+    
+    async getToneCloudPreset(id) {
+        // get preset info
+        let url = this.api_base + "/preset/"+id;
+
+        //post to API as JSON
+        let response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: null, credentials: 'include'
+        });
+        let data = <any>response.json();
+
+        return data;
+        // example json response: 
+    }
+
+  
 }

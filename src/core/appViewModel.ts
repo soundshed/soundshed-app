@@ -5,6 +5,7 @@ import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
+import { SparkAPI } from '../spork/src/devices/spark/sparkAPI';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -16,6 +17,7 @@ export const AppStateStore = new Store({
 
 export const TonesStateStore = new Store({
     toneResults: [],
+    toneCloudResults: [],
     storedPresets: []
 });
 
@@ -30,6 +32,7 @@ export const ToneEditStore = new Store<IToneEditStore>({
 
 export const UIFeatureToggleStore = new Store({
     enableCommunityTones: true,
+    enabledPGToneCloud: true,
     enableMyTones: true,
     enableToneEditor: true,
     enableLessons: false,
@@ -39,6 +42,7 @@ export class AppViewModel {
 
 
     private soundshedApi = new SoundshedApi();
+    private toneCloudApi = new SparkAPI();
 
     constructor() {
 
@@ -105,26 +109,15 @@ export class AppViewModel {
 
     }
 
-    async loadLatestTones(): Promise<Tone[]> {
-        try {
-            const result = await this.soundshedApi.getTones();
 
-            TonesStateStore.update(s => { s.toneResults = result.result ?? [] });
-
-            return result.result ?? [];
-        } catch (err) {
-            return [];
-        }
-    }
 
     async deleteFavourite(tone: Tone) {
-        if (confirm("Are you sure you wish to delete this tone ["+tone.name+"]?"))
-        {
+        if (confirm("Are you sure you wish to delete this tone [" + tone.name + "]?")) {
             let favourites: Tone[] = [];
             let allPresets = localStorage.getItem("favourites");
             if (allPresets != null) {
                 favourites = JSON.parse(allPresets);
-                favourites = favourites.filter(f=>f.toneId!=tone.toneId);
+                favourites = favourites.filter(f => f.toneId != tone.toneId);
 
                 localStorage.setItem("favourites", JSON.stringify(favourites));
 
@@ -133,8 +126,8 @@ export class AppViewModel {
                 // todo: offer to delete from tone community?
             }
         }
-      }
-  
+    }
+
     async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
 
 
@@ -224,6 +217,77 @@ export class AppViewModel {
         }
 
     }
+
+    async loadLatestTones(): Promise<Tone[]> {
+        try {
+            const result = await this.soundshedApi.getTones();
+
+            TonesStateStore.update(s => { s.toneResults = result.result ?? [] });
+
+            return result.result ?? [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    async loadToneCloudPreset(id) {
+        try {
+            const result = await this.toneCloudApi.getToneCloudPreset(id);
+
+            // update our cached info and state info
+            if (result != null) {
+              //  TonesStateStore.update(s => { s.toneResults = result ?? [] });
+
+                return result;
+            } else {
+                return null;
+            }
+
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async loadLatestToneCloudTones(preferCached: boolean = true): Promise<Tone[]> {
+        try {
+
+            let cached = localStorage.getItem("_tcResults");
+
+            if (cached != null) {
+                let cachedTones = JSON.parse(cached);
+                TonesStateStore.update(s => { s.toneCloudResults = cachedTones });
+
+                return cachedTones;
+            }
+
+            const result = await this.toneCloudApi.getToneCloudPresets();
+
+            // convert results to tone
+            let tones: Tone[] = result.map(p => <Tone>{
+                toneId: "pg.tc." + p.id,
+                name: p.name,
+                categories: [p.category],
+                description: p.description,
+                userId: null,
+                deviceType: "pg.spark40",
+                fx: null,
+                bpm: null,
+                artists: [],
+                version: p.version,
+                timeSig: null,
+                schemaVersion: "pg.preset.summary"
+            });
+
+            TonesStateStore.update(s => { s.toneCloudResults = tones });
+
+            localStorage.setItem("_tcResults", JSON.stringify(tones));
+            return tones;
+
+        } catch (err) {
+            return [];
+        }
+    }
+
 
     public refreshAppInfo() {
 

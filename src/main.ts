@@ -167,6 +167,8 @@ function createWindow() {
         }
     })
 
+    win.webContents.setUserAgent("Dalvik/2.1.0 (Linux; U; Android 11; Pixel 3 Build/RQ1A.210105.003)");
+    
     if (app.isPackaged) {
         win.removeMenu();
     }

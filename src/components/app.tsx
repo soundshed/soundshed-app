@@ -11,6 +11,7 @@ import ToneBrowserControl from "./tone-browser";
 import AppViewModel, {
   AppStateStore,
   TonesStateStore,
+  UIFeatureToggleStore,
 } from "../core/appViewModel";
 import HomeControl from "./home";
 import AboutControl from "./about";
@@ -34,8 +35,7 @@ export const AppViewModelContext = React.createContext(appViewModel);
 export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
-  const favourites = TonesStateStore.useState((s) => s.storedPresets);
-  const tones = TonesStateStore.useState((s) => s.toneResults);
+
 
   const isNativeMode = AppStateStore.useState((s) => s.isNativeMode);
   const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
@@ -99,9 +99,13 @@ const App = () => {
 
     // get latest tones from soundshed api
     appViewModel.loadLatestTones();
-  }, []);
 
-  useEffect(() => {}, [tones, favourites]);
+    if (UIFeatureToggleStore.getRawState().enabledPGToneCloud)
+    {
+      appViewModel.loadLatestToneCloudTones();
+    }
+    
+  }, []);
 
   return (
     <Router>
@@ -198,10 +202,7 @@ const App = () => {
                 )}
               </Route>
               <Route path="/tones">
-                <ToneBrowserControl
-                  favourites={favourites}
-                  tones={tones}
-                ></ToneBrowserControl>
+                <ToneBrowserControl></ToneBrowserControl>
               </Route>
               <Route path="/lessons">
                 <LessonsControl></LessonsControl>

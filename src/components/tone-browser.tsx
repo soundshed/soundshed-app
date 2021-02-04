@@ -1,13 +1,20 @@
 import * as React from "react";
 import { useEffect } from "react";
-import { FxMappingToneToSpark } from "../core/fxMapping";
-import { Tone } from "../core/soundshedApi";
-import { DeviceViewModelContext } from "./app";
+import { FxMappingSparkToTone, FxMappingToneToSpark } from "../core/fxMapping";
+import { Tone, ToneFx, ToneFxParam } from "../core/soundshedApi";
+import { appViewModel, DeviceViewModelContext } from "./app";
 import { Nav } from "react-bootstrap";
 
-import { ToneEditStore, UIFeatureToggleStore } from "../core/appViewModel";
+import {
+  ToneEditStore,
+  TonesStateStore,
+  UIFeatureToggleStore,
+} from "../core/appViewModel";
+import { DeviceStore } from "../core/deviceViewModel";
+import { Utils } from "../core/utils";
+import { FxParam, SignalPath } from "../spork/src/interfaces/preset";
 
-const ToneBrowserControl = (props) => {
+const ToneBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
 
   const [viewSelection, setViewSelection] = React.useState("my");
@@ -16,18 +23,77 @@ const ToneBrowserControl = (props) => {
   const enableCommunityTones = UIFeatureToggleStore.useState(
     (s) => s.enableCommunityTones
   );
+
+  const enableToneCloud = UIFeatureToggleStore.useState(
+    (s) => s.enabledPGToneCloud
+  );
+
   const enableToneEditor = UIFeatureToggleStore.useState(
     (s) => s.enableToneEditor
   );
 
-  const onApplyTone = (t) => {
-    /* if (!deviceViewModel.isConnected) {
-      alert("The device is not yet connected, see Amp tab");
+  const isDeviceConnected = DeviceStore.useState((s) => s.isConnected);
+
+  const favourites = TonesStateStore.useState((s) => s.storedPresets);
+  const tones = TonesStateStore.useState((s) => s.toneResults);
+  const tonecloud = TonesStateStore.useState((s) => s.toneCloudResults);
+
+  const onApplyTone = async (tone) => {
+    let t = Object.assign({}, tone);
+    /*if (!isDeviceConnected) {
+      alert("The device is not yet connected, see the Amp tab");
       return;
-    }*/
+    }
+*/
+
+    if (t.schemaVersion == "pg.preset.summary" && t.fx == null) {
+      //need to fetch the preset details
+      let result = await appViewModel.loadToneCloudPreset(
+        t.toneId.replace("pg.tc.", "")
+      );
+
+      if (result != null) {
+        //convert xml to json
+        let xmlString = result.preset_data;
+        let xml = Utils.GetXmlDocumentFromString(xmlString);
+        let parsed = Utils.XmlToJson(xml);
+
+        let fx = xml.firstChild.firstChild.childNodes;
+        console.log(fx);
+
+        t.fx = [];
+        for (var f of fx) {
+          let n: any = f;
+          // parse each fx entry
+          let sp: ToneFx = {
+            enabled: n.getAttribute("active") == "true",
+            type: n.getAttribute("descriptor"),
+            params: [],
+            name: n.getAttribute("descriptor"),
+          };
+
+          let params = f.firstChild.childNodes;
+          for (let p of params) {
+            let pfx: any = p;
+
+            let fxParam: ToneFxParam = {
+              paramId: pfx.getAttribute("index"),
+              value: pfx.getAttribute("value"),
+              enabled: true,
+            };
+            sp.params.push(fxParam);
+          }
+
+          t.fx.push(sp);
+        }
+      } else {
+        // can't load this tone
+        return;
+      }
+    }
+
     let p = new FxMappingToneToSpark().mapFrom(t);
 
-    //p.meta.id = "E39EE16A-DE10-4646-8257-67917B608B63";
     deviceViewModel.requestPresetChange(p);
   };
 
@@ -48,7 +114,7 @@ const ToneBrowserControl = (props) => {
     }
   };
 
-  useEffect(() => {}, [props.tones, props.favourites]);
+  useEffect(() => {}, [tones, favourites, tonecloud]);
 
   const formatCategoryTags = (items: string[]) => {
     return items.map((i) => (
@@ -109,6 +175,32 @@ const ToneBrowserControl = (props) => {
     ));
   };
 
+  const renderTonesView = () => {
+    switch (viewSelection) {
+      case "my":
+        return (
+          <div className="m-2">
+            {listItems(favourites, "No favourite tones saved yet.")}
+          </div>
+        );
+      case "community":
+        return (
+          <div className="m-2">
+            <p>Tones shared by the Soundshed Community:</p>
+            {listItems(tones, "No community tones available.")}
+          </div>
+        );
+
+      case "tonecloud":
+        return (
+          <div className="m-2">
+            <p>Tones from the PG Tone Cloud:</p>
+            {listItems(tonecloud, "No PG tonecloud tones available.")}
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="tones-intro">
       <h1>Tones</h1>
@@ -121,29 +213,32 @@ const ToneBrowserControl = (props) => {
           activeKey={viewSelection}
           onSelect={(selectedKey) => setViewSelection(selectedKey)}
         >
-
-          {enableMyTones?(
+          {enableMyTones ? (
             <Nav.Item>
-            <Nav.Link eventKey="my">My Tones</Nav.Link>
-          </Nav.Item>
-          ):("")}
-          
-          {enableCommunityTones?(
-          <Nav.Item>
-            <Nav.Link eventKey="community">Community</Nav.Link>
-          </Nav.Item>
-          ):("")}
+              <Nav.Link eventKey="my">My Tones</Nav.Link>
+            </Nav.Item>
+          ) : (
+            ""
+          )}
+
+          {enableCommunityTones ? (
+            <Nav.Item>
+              <Nav.Link eventKey="community">Community</Nav.Link>
+            </Nav.Item>
+          ) : (
+            ""
+          )}
+
+          {enableToneCloud ? (
+            <Nav.Item>
+              <Nav.Link eventKey="tonecloud">ToneCloud</Nav.Link>
+            </Nav.Item>
+          ) : (
+            ""
+          )}
         </Nav>
 
-        {viewSelection == "my" ? (
-          <div className="m-2">
-            {listItems(props.favourites, "No favourite tones saved yet.")}
-          </div>
-        ) : (
-          <div className="m-2">
-            {listItems(props.tones, "No community tones available.")}
-          </div>
-        )}
+        {renderTonesView()}
       </div>
     </div>
   );
