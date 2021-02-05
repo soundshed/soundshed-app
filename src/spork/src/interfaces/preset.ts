@@ -40,7 +40,7 @@ export interface FxToggleMessage {
 export interface SignalPath {
     active: boolean;
     params: FxParam[];
-    type: string;
+    type?: string;
     dspId: string;
     name?: string;
     description?: string;

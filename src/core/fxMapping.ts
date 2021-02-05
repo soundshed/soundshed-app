@@ -1,3 +1,4 @@
+import YouTubePlayer from "react-player/youtube";
 import { FxParam, Preset, SignalPath } from "../spork/src/interfaces/preset";
 import { Tone, ToneFx, ToneFxParam } from "./soundshedApi";
 import { Utils } from "./utils";
@@ -7,6 +8,9 @@ export class FxMappingToneToSpark {
         return type;
     }
     mapFxId(type) {
+        if (type == "Noisegate") return "bias.noisegate";
+        if (type == "FreeVerb") return "reverb";
+        if (type == "AcousticReverb") return "reverb";
         return type;
     }
 
@@ -15,21 +19,24 @@ export class FxMappingToneToSpark {
         let type = source.type.replace("pg.spark40.", "");
         return {
             active: source.enabled == true,
-            params: source.params.map((p => { return <FxParam>{ index: 0, value: p.value, name: "" } })),
-            type: this.mapFxCategory(type),
+            params: source.params.map((p => { return <FxParam>{ index: parseInt(p.paramId), value: typeof (p.value) == "string" ? parseFloat(p.value) : p.value } })),
+            // type: this.mapFxCategory(type),
             dspId: this.mapFxId(type),
-            name: source.name
+            // name: source.name
         }
     }
 
     /** map from soundshed tone to a spark preset */
     mapFrom(source: Tone) {
         let dest: Preset = {
-            meta: { name: source.name, description: source.description, id: source.toneId, version: source.version, icon: "icon.png" },
+            meta: { name: source.name, description: source.description, id: source.toneId.replace("pg.tc.", ""), version: source.version, icon: "icon.png" },
             sigpath: source.fx.map(fx => this.mapFx(fx)),
             type: "jamup_speaker",
             bpm: source.bpm ?? 120
         }
+
+        // remove unsupported FX types
+        dest.sigpath = dest.sigpath.filter(f => f.dspId != "GraphicalEQ7");
         return dest;
     }
 }

@@ -60,7 +60,7 @@ const ToneBrowserControl = () => {
 
         let fx = xml.firstChild.firstChild.childNodes;
         console.log(fx);
-
+        t.toneId = Utils.generateUUID();
         t.fx = [];
         for (var f of fx) {
           let n: any = f;
@@ -69,7 +69,6 @@ const ToneBrowserControl = () => {
             enabled: n.getAttribute("active") == "true",
             type: n.getAttribute("descriptor"),
             params: [],
-            name: n.getAttribute("descriptor"),
           };
 
           let params = f.firstChild.childNodes;

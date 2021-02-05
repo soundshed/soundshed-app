@@ -95,7 +95,7 @@ export class SparkAPI {
 
     async getToneCloudPresets() {
         // get preset results
-        let url = this.api_base + "/preset";
+        let url = this.api_base + "/preset?preset_for=jamup&keyword=Spark";
 
         //post to API as JSON
         let response = await fetch(url, {

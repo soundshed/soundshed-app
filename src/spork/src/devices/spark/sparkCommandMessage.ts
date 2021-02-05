@@ -333,7 +333,7 @@ export class SparkCommandMessage {
         this.add_bytes(bytes([0x00, 0x7f]))
         this.add_long_string(preset.meta.id)
         this.add_string(preset.meta.name)
-        this.add_string(preset.meta.version)
+        this.add_string(preset.meta.version ??"1")
 
         let descr = preset.meta.description;
 
@@ -344,11 +344,11 @@ export class SparkCommandMessage {
             this.add_string(descr)
         }
 
-        this.add_string(preset.meta.icon)
-        this.add_float(preset.bpm)
-        this.add_bytes(bytes(0x90 + 7))        //  always 7 pedals
+        this.add_string(preset.meta.icon ??"icon.png")
+        this.add_float(preset.bpm ?? 120)
+        this.add_bytes(bytes(0x90 + preset.sigpath.length))        //  always 7 pedals
 
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < preset.sigpath.length; i++) {
             let fx = preset.sigpath[i];
             this.add_string(fx.dspId)
             this.add_onoff(fx.active)

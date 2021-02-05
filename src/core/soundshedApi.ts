@@ -35,7 +35,7 @@ export interface ToneFx {
     /**  fx unit type being used */
     type: string;
     /**  patch name for this param collection */
-    name: string;
+    name?: string;
     /** set of parameters for this fx */
     params: ToneFxParam[];
     /** toggle this fx off/on */
