@@ -35,6 +35,14 @@ Communication with the device works by connection/handling serial bluetooth comm
 
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
 
+### Known Issues
+- Reverb controls don't work
+- Device controls (summary level) not hooked up
+- No keyword search/paging etc
+- Amp sometimes returns garbled info
+- Invalid settings may crash amp, requiring amp to be switched off and on again.
+
+
 ### Roadmap
 
 - More reliable amp communication

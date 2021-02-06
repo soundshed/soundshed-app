@@ -275,7 +275,8 @@ export class AppViewModel {
                 artists: [],
                 version: p.version,
                 timeSig: null,
-                schemaVersion: "pg.preset.summary"
+                schemaVersion: "pg.preset.summary",
+                imageUrl:p.thumb_url
             });
 
             TonesStateStore.update(s => { s.toneCloudResults = tones });

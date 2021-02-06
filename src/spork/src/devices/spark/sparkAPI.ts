@@ -1,24 +1,24 @@
 const fetch = require('node-fetch');
 
 
-export interface PGPResetQuery{
-        preset_for:string;
-        license_tier:string;
-        keyword:string;
-        category:string;
-        page:number;
-        page_size:number;
-        order:string;
-        tag:string;
+export interface PGPResetQuery {
+    preset_for: string;
+    license_tier: string;
+    keyword: string;
+    category: string;
+    page: number;
+    page_size: number;
+    order: string;
+    tag: string;
 }
 export class SparkAPI {
 
     public access_token = "";
     public userInfo = null;
 
-    
-    public presetQueryParams:PGPResetQuery = {
-        "preset_for": "jamup",
+
+    public presetQueryParams: PGPResetQuery = {
+        "preset_for": "spark",  // spark, jamup, bias
         "license_tier": null,
         "keyword": null,
         "category": null,
@@ -95,24 +95,17 @@ export class SparkAPI {
 
     async getToneCloudPresets() {
         // get preset results
-        let url = this.api_base + "/preset?preset_for=jamup&keyword=Spark";
+        let params = "?";
 
-        //post to API as JSON
-        let response = await fetch(url, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json'},
-            body: null, credentials: 'include'
-        });
-        let data = <any>response.json();
+        for (const [key, value] of Object.entries(this.presetQueryParams)) {
+            if (value!=null){
+            params += `${key}=${value}&`;
+            }
+        }
+        params=params.substr(0,params.length-1);
 
-        return data;
-        // example json response: 
-    }
-
-    
-    async getToneCloudPreset(id) {
-        // get preset info
-        let url = this.api_base + "/preset/"+id;
+        let url = this.api_base + "/preset" + params;
+        console.log(url);
 
         //post to API as JSON
         let response = await fetch(url, {
@@ -126,5 +119,22 @@ export class SparkAPI {
         // example json response: 
     }
 
-  
+
+    async getToneCloudPreset(id) {
+        // get preset info
+        let url = this.api_base + "/preset/" + id;
+
+        //post to API as JSON
+        let response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: null, credentials: 'include'
+        });
+        let data = <any>response.json();
+
+        return data;
+        // example json response: 
+    }
+
+
 }

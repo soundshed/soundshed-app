@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useEffect } from "react";
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../core/fxMapping";
-import { Tone, ToneFx, ToneFxParam } from "../core/soundshedApi";
+import { Tone } from "../core/soundshedApi";
 import { appViewModel, DeviceViewModelContext } from "./app";
-import { Nav } from "react-bootstrap";
+import { Nav, Image } from "react-bootstrap";
 
 import {
   ToneEditStore,
@@ -11,8 +11,6 @@ import {
   UIFeatureToggleStore,
 } from "../core/appViewModel";
 import { DeviceStore } from "../core/deviceViewModel";
-import { Utils } from "../core/utils";
-import { FxParam, SignalPath } from "../spork/src/interfaces/preset";
 
 const ToneBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -54,37 +52,10 @@ const ToneBrowserControl = () => {
 
       if (result != null) {
         //convert xml to json
-        let xmlString = result.preset_data;
-        let xml = Utils.GetXmlDocumentFromString(xmlString);
-        let parsed = Utils.XmlToJson(xml);
-
-        let fx = xml.firstChild.firstChild.childNodes;
-        console.log(fx);
-        t.toneId = Utils.generateUUID();
-        t.fx = [];
-        for (var f of fx) {
-          let n: any = f;
-          // parse each fx entry
-          let sp: ToneFx = {
-            enabled: n.getAttribute("active") == "true",
-            type: n.getAttribute("descriptor"),
-            params: [],
-          };
-
-          let params = f.firstChild.childNodes;
-          for (let p of params) {
-            let pfx: any = p;
-
-            let fxParam: ToneFxParam = {
-              paramId: pfx.getAttribute("index"),
-              value: pfx.getAttribute("value"),
-              enabled: true,
-            };
-            sp.params.push(fxParam);
-          }
-
-          t.fx.push(sp);
-        }
+        let presetData = JSON.parse(result.preset_data);
+        let toneData = new FxMappingSparkToTone().mapFrom(presetData);
+        Object.assign(t, toneData);
+        t.imageUrl = result.thumb_url;
       } else {
         // can't load this tone
         return;
@@ -131,7 +102,23 @@ const ToneBrowserControl = () => {
     return t.map((tone: Tone) => (
       <div key={tone.toneId} className="tone">
         <div className="row">
-          <div className="col-md-1">
+          {tone.imageUrl ? (
+            <div className="col-md-1">
+
+<button
+              className="btn btn-sm btn-secondary"
+              onClick={() => {
+                onApplyTone(tone);
+              }}
+            >
+              ▶
+            </button>
+            
+              <img src={tone.imageUrl} width="128px"/>
+              
+            </div>
+          ) : (
+            <div className="col-md-1">
             <button
               className="btn btn-sm btn-secondary"
               onClick={() => {
@@ -142,8 +129,10 @@ const ToneBrowserControl = () => {
             </button>
           </div>
 
+          )}
+         
           {enableToneEditor ? (
-            <div className="col-md-1">
+            <div className="col-md-1 ms-2">
               <button
                 className="btn btn-sm btn-secondary"
                 onClick={() => {
@@ -157,7 +146,7 @@ const ToneBrowserControl = () => {
             ""
           )}
 
-          <div className="col-md-6">
+          <div className="col-md-4">
             <label>{tone.name}</label>
             <p>{tone.description}</p>
           </div>

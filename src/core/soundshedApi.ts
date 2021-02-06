@@ -54,6 +54,7 @@ export interface Tone {
     version: string;
     bpm: number;
     timeSig: string;
+    imageUrl?:string;
     schemaVersion: string;
     datecreated: Date;
 }
