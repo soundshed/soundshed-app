@@ -8,6 +8,30 @@ on:
     branches: [ main ]
 
 jobs:
+  build_windows:
+
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+    -  env: 
+        WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
+        WIN_CODE_SIGN_PWD: ${{ secrets.WIN_CODE_SIGNING_PWD }} 
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - run: npm ci
+    - run: npm run build --if-present
+    - run: ECHO %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded
+    - run: certutil -f -decode win_cert_encoded win_cert.p12 
+    - run: SET WIN_CODE_SIGNING_P12 = win_cert.p12
+    - run: npm run make
+   
   build_linux_ubuntu:
 
     runs-on: ubuntu-latest
@@ -45,28 +69,4 @@ jobs:
     - run: npm run build --if-present
     - run: npm run make
       
-  build_windows:
 
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        node-version: [14.x]
-
-    steps:
-    -  env: 
-        WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
-        WIN_CODE_SIGN_PWD: ${{ secrets.WIN_CODE_SIGNING_PWD }} 
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: 
-        ECHO %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded
-        certutil -f -decode win_cert_encoded win_cert.p12 
-        SET WIN_CODE_SIGNING_P12 = win_cert.p12
-    - run: npm run make
-   
