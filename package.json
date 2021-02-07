@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Browse and manage favourite tones, preview or store on your amp.",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
@@ -60,22 +60,6 @@
     "update-electron-app": "^2.0.1"
   },
   "config": {
-    "forge": {
-      "packagerConfig": {},
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "soundshed"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin","linux"
-          ]
-        }
-      ]
-    }
+    "forge": "./forge.config.js"
   }
 }
