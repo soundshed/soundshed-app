@@ -56,8 +56,8 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@v2
       with: 
-          name: soundshed-linux
-          path: out/make/zip/linux/*.zip
+          name: soundshed-linux-x64
+          path: out/make/zip/linux/x64/*.zip
      
   build_macos:
 
@@ -80,7 +80,7 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@v2
       with: 
-          name: soundshed-macos
-          path: out/make/zip/darwin/*.zip
+          name: soundshed-macos-x64
+          path: out/make/zip/darwin/x64/*.zip
       
 
