@@ -2,13 +2,13 @@
 
 Desktop UI to connect to amp via bluetooth, manage basic settings and set presets.
 
-Suported amps:
+Supported amps:
 - Positive Grid Spark 40
 
 ![](docs/screens/ui.png)
 
 ## Build
-
+![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
 - Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. Windows, macOS or Linux
 
 - Building the bluetooth-serial-port node module has various requirements depending on the platform you are developing for: https://github.com/tinyprinter/node-bluetooth-serial-port - we are using a custom fork with minor fixes.
