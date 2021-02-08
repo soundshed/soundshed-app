@@ -5,7 +5,7 @@ import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
-import { SparkAPI } from '../spork/src/devices/spark/sparkAPI';
+import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -236,7 +236,7 @@ export class AppViewModel {
 
             // update our cached info and state info
             if (result != null) {
-              //  TonesStateStore.update(s => { s.toneResults = result ?? [] });
+                //  TonesStateStore.update(s => { s.toneResults = result ?? [] });
 
                 return result;
             } else {
@@ -248,19 +248,20 @@ export class AppViewModel {
         }
     }
 
-    async loadLatestToneCloudTones(preferCached: boolean = true): Promise<Tone[]> {
+    async loadLatestToneCloudTones(preferCached: boolean = true, query: PGPresetQuery = null): Promise<Tone[]> {
         try {
+            if (preferCached) {
+                let cached = localStorage.getItem("_tcResults");
 
-            let cached = localStorage.getItem("_tcResults");
+                if (cached != null) {
+                    let cachedTones = JSON.parse(cached);
+                    TonesStateStore.update(s => { s.toneCloudResults = cachedTones });
 
-            if (cached != null) {
-                let cachedTones = JSON.parse(cached);
-                TonesStateStore.update(s => { s.toneCloudResults = cachedTones });
-
-                return cachedTones;
+                    return cachedTones;
+                }
             }
-
-            const result = await this.toneCloudApi.getToneCloudPresets();
+            
+            const result = await this.toneCloudApi.getToneCloudPresets(query);
 
             // convert results to tone
             let tones: Tone[] = result.map(p => <Tone>{
@@ -276,7 +277,8 @@ export class AppViewModel {
                 version: p.version,
                 timeSig: null,
                 schemaVersion: "pg.preset.summary",
-                imageUrl:p.thumb_url
+                imageUrl: p.thumb_url,
+                externalId: p.id
             });
 
             TonesStateStore.update(s => { s.toneCloudResults = tones });

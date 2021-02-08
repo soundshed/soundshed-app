@@ -1,15 +1,15 @@
 const fetch = require('node-fetch');
 
 
-export interface PGPResetQuery {
-    preset_for: string;
-    license_tier: string;
-    keyword: string;
-    category: string;
-    page: number;
-    page_size: number;
-    order: string;
-    tag: string;
+export interface PGPresetQuery {
+    preset_for?: string;
+    license_tier?: string;
+    keyword?: string;
+    category?: string;
+    page?: number;
+    page_size?: number;
+    order?: string;
+    tag?: string;
 }
 export class SparkAPI {
 
@@ -17,7 +17,7 @@ export class SparkAPI {
     public userInfo = null;
 
 
-    public presetQueryParams: PGPResetQuery = {
+    public presetQueryParams: PGPresetQuery = {
         "preset_for": "spark",  // spark, jamup, bias
         "license_tier": null,
         "keyword": null,
@@ -93,16 +93,22 @@ export class SparkAPI {
         // edit profile: https://account.positivegrid.com/profile
     }
 
-    async getToneCloudPresets() {
+    async getToneCloudPresets(query: PGPresetQuery) {
+
+        let queryParams = Object.assign(this.presetQueryParams, query);
+
+        this.presetQueryParams = queryParams;
+
+        if (this.presetQueryParams.keyword=="") this.presetQueryParams.keyword=null;
         // get preset results
         let params = "?";
 
         for (const [key, value] of Object.entries(this.presetQueryParams)) {
-            if (value!=null){
-            params += `${key}=${value}&`;
+            if (value != null) {
+                params += `${key}=${value}&`;
             }
         }
-        params=params.substr(0,params.length-1);
+        params = params.substr(0, params.length - 1);
 
         let url = this.api_base + "/preset" + params;
         console.log(url);

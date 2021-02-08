@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../core/fxMapping";
 import { Tone } from "../core/soundshedApi";
 import { appViewModel, DeviceViewModelContext } from "./app";
-import { Nav, Image } from "react-bootstrap";
+import { Nav } from "react-bootstrap";
 
 import {
   ToneEditStore,
@@ -11,6 +11,8 @@ import {
   UIFeatureToggleStore,
 } from "../core/appViewModel";
 import { DeviceStore } from "../core/deviceViewModel";
+import TcBrowserControl from "./external/tc-browser";
+import ToneListControl from "./tone-list";
 
 const ToneBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -76,106 +78,24 @@ const ToneBrowserControl = () => {
     }
   };
 
-  const mapDeviceType = (t) => {
-    if (t == "pg.spark40") {
-      return "Spark 40";
-    } else {
-      return "Unknown Device Type";
-    }
-  };
-
-  useEffect(() => {}, [tones, favourites, tonecloud]);
-
-  const formatCategoryTags = (items: string[]) => {
-    return items.map((i) => (
-      <span key={i} className="badge rounded-pill bg-secondary">
-        {i}
-      </span>
-    ));
-  };
-
-  const listItems = (t: Tone[], noneMsg: string = "none") => {
-    if (!t || t.length == 0) {
-      return <div>{noneMsg}</div>;
-    }
-
-    return t.map((tone: Tone) => (
-      <div key={tone.toneId} className="tone">
-        <div className="row">
-          {tone.imageUrl ? (
-            <div className="col-md-1">
-
-<button
-              className="btn btn-sm btn-secondary"
-              onClick={() => {
-                onApplyTone(tone);
-              }}
-            >
-              ▶
-            </button>
-            
-              <img src={tone.imageUrl} width="128px"/>
-              
-            </div>
-          ) : (
-            <div className="col-md-1">
-            <button
-              className="btn btn-sm btn-secondary"
-              onClick={() => {
-                onApplyTone(tone);
-              }}
-            >
-              ▶
-            </button>
-          </div>
-
-          )}
-         
-          {enableToneEditor ? (
-            <div className="col-md-1 ms-2">
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => {
-                  onEditTone(tone);
-                }}
-              >
-                📝
-              </button>
-            </div>
-          ) : (
-            ""
-          )}
-
-          <div className="col-md-4">
-            <label>{tone.name}</label>
-            <p>{tone.description}</p>
-          </div>
-          <div className="col-md-4">
-            {formatCategoryTags(tone.artists)}
-            {formatCategoryTags(tone.categories)}
-
-            <span className="badge rounded-pill bg-secondary">
-              {mapDeviceType(tone.deviceType)}
-            </span>
-          </div>
-        </div>
-      </div>
-    ));
-  };
+  useEffect(() => { }, [tones, favourites, tonecloud]);
 
   const renderTonesView = () => {
     switch (viewSelection) {
       case "my":
         return (
           <div className="m-2">
-            {listItems(favourites, "No favourite tones saved yet.")}
+
+            <ToneListControl toneList={favourites} favourites={favourites} onApplyTone={onApplyTone} onEditTone={onEditTone} noneMsg="No favourite tones saved yet." enableToneEditor={enableToneEditor}></ToneListControl>
+
           </div>
         );
       case "community":
         return (
           <div className="m-2">
             <p>Tones shared by the Soundshed Community:</p>
-            {listItems(tones, "No community tones available.")}
+            <ToneListControl toneList={tones} favourites={favourites} onApplyTone={onApplyTone} onEditTone={() => { }} noneMsg="No community tones available." enableToneEditor={false}></ToneListControl>
+
           </div>
         );
 
@@ -183,7 +103,7 @@ const ToneBrowserControl = () => {
         return (
           <div className="m-2">
             <p>Tones from the PG Tone Cloud:</p>
-            {listItems(tonecloud, "No PG tonecloud tones available.")}
+            <TcBrowserControl></TcBrowserControl>
           </div>
         );
     }
@@ -197,7 +117,7 @@ const ToneBrowserControl = () => {
 
       <div className="info">
         <Nav
-          variant="pills"
+          variant="tabs"
           activeKey={viewSelection}
           onSelect={(selectedKey) => setViewSelection(selectedKey)}
         >
@@ -206,24 +126,24 @@ const ToneBrowserControl = () => {
               <Nav.Link eventKey="my">My Tones</Nav.Link>
             </Nav.Item>
           ) : (
-            ""
-          )}
+              ""
+            )}
 
           {enableCommunityTones ? (
             <Nav.Item>
               <Nav.Link eventKey="community">Community</Nav.Link>
             </Nav.Item>
           ) : (
-            ""
-          )}
+              ""
+            )}
 
           {enableToneCloud ? (
             <Nav.Item>
               <Nav.Link eventKey="tonecloud">ToneCloud</Nav.Link>
             </Nav.Item>
           ) : (
-            ""
-          )}
+              ""
+            )}
         </Nav>
 
         {renderTonesView()}

@@ -54,9 +54,10 @@ export interface Tone {
     version: string;
     bpm: number;
     timeSig: string;
-    imageUrl?:string;
+    imageUrl?: string;
     schemaVersion: string;
     datecreated: Date;
+    externalId?: string;
 }
 
 export interface ActionResult<T> {
@@ -71,7 +72,7 @@ export interface UserInfo {
 }
 
 export class SoundshedApi {
- 
+
     baseUrl: string = "https://api.soundshed.com/app/v1/" //"http://localhost:3000/api/v1/";
     currentToken: string;
 
@@ -95,7 +96,7 @@ export class SoundshedApi {
             return null;
         }
     }
-    
+
     isUserSignedIn() {
         if (this.currentToken) {
             return true;
@@ -105,8 +106,8 @@ export class SoundshedApi {
     }
 
     signOut() {
-       this.currentToken=null;
-       localStorage.removeItem("_authtoken");
+        this.currentToken = null;
+        localStorage.removeItem("_authtoken");
     }
 
     async registerUser(registration: UserRegistration): Promise<ActionResult<UserRegistrationResult>> {
