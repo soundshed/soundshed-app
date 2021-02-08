@@ -53,6 +53,11 @@ jobs:
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with: 
+          name: soundshed-linux
+          path: out/make/zip/linux/*.zip
      
   build_macos:
 
@@ -76,6 +81,6 @@ jobs:
       uses: actions/upload-artifact@v2
       with: 
           name: soundshed-macos
-          path: out/**/*.zip
+          path: out/make/zip/darwin/*.zip
       
 
