@@ -5,8 +5,8 @@ import SpotifyWebApi from "spotify-web-api-node";
 export class ArtistInfoApi {
     // credentials are optional
     spotifyApi = new SpotifyWebApi({
-        clientId: '9017d7403a0e435da54ffb34da08d16e',
-        clientSecret: '53093554842248499d2dc69bc4374fbe ',
+        clientId: '',
+        clientSecret: '',
         redirectUri: 'https://api.soundshed.com//v1/spotifycallback'
     });
 
