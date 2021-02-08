@@ -1,10 +1,11 @@
 import { ipcRenderer } from 'electron';
 import { Store } from "pullstate";
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
-import { FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
+import { FxCatalog, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Tone } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
+import { Utils } from './utils';
 
 const debounce = (func, delay) => {
     let timerId;
@@ -37,6 +38,7 @@ export class DeviceViewModel {
 
     private debouncedFXUpdate;
 
+    private lastCommandType ="";
 
     private defaultStateChangeHandler() {
         this.log("UI Device state change handler called but not set.")
@@ -62,7 +64,8 @@ export class DeviceViewModel {
         ipcRenderer.on('device-state-changed', (event, args) => {
             this.log("got device state update from main.");
 
-            if (args.presetConfig) {
+            // change to preset config update, ignore if is in response to fx change/toggle etc
+            if (args.presetConfig && !this.lastCommandType.startsWith("requestFx")) {
                 // got a preset, convert to Tone object model as required, 
                 let t: Tone = args.presetConfig;
                 if (args.presetConfig.meta) {
@@ -108,7 +111,7 @@ export class DeviceViewModel {
 
             this.log("got refreshed list of devices:" + args);
 
-            DeviceStore.update(s => { s.devices = args, s.isDeviceScanInProgress=false });
+            DeviceStore.update(s => { s.devices = args, s.isDeviceScanInProgress = false });
 
             if (args.length > 0) {
                 localStorage.setItem("lastKnownDevices", JSON.stringify(args));
@@ -137,7 +140,7 @@ export class DeviceViewModel {
 
         await ipcRenderer.invoke('perform-action', { action: 'scan' });
 
-      
+
 
         return true;
     }
@@ -175,8 +178,8 @@ export class DeviceViewModel {
                 } else {
                     const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStore.getRawState().lastAttemptedDevice);
                     if (attemptedDevice) {
-                   attemptedDevice.connectionFailed=true;
-                        DeviceStore.update(s => { s.lastAttemptedDevice= attemptedDevice });
+                        attemptedDevice.connectionFailed = true;
+                        DeviceStore.update(s => { s.lastAttemptedDevice = attemptedDevice });
                     }
                     return false;
                 }
@@ -189,6 +192,7 @@ export class DeviceViewModel {
     }
 
     async requestPresetConfig(): Promise<boolean> {
+        this.lastCommandType="requestPresetConfig";
         await ipcRenderer.invoke('perform-action', { action: 'getPreset', data: 0 }).then(
             () => {
                 this.log("Completed preset query");
@@ -197,6 +201,7 @@ export class DeviceViewModel {
     }
 
     async requestPresetChange(args: Preset) {
+        this.lastCommandType="requestPresetChange";
         return ipcRenderer.invoke('perform-action', { action: 'applyPreset', data: args }).then(
             () => {
 
@@ -209,11 +214,12 @@ export class DeviceViewModel {
     }
 
     public expandedDspId(dspId: string) {
-        return "pg.spark40."+dspId;
+        return "pg.spark40." + dspId;
     }
 
 
     async requestAmpChange(args: FxChangeMessage) {
+        this.lastCommandType="requestAmpChange";
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
 
@@ -224,7 +230,20 @@ export class DeviceViewModel {
         return true;
     }
 
+
     async requestFxChange(args: FxChangeMessage) {
+
+        this.lastCommandType="requestFxChange";
+        var currentTone: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
+
+        let newFx = (<FxCatalog>DeviceStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
+
+        var fx = currentTone.fx.find(f => f.type == args.dspIdOld);
+        fx.type = args.dspIdNew;
+        fx.name = newFx.name;
+        // TODO: also copy default params for new fx?
+
+        DeviceStore.update(s => { s.presetTone = currentTone });
 
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
@@ -237,12 +256,13 @@ export class DeviceViewModel {
     }
 
     private async requestFxParamChangeImmediate(args) {
+        this.lastCommandType="requestFxParamChange";
+        let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
-        let presetState:Tone = DeviceStore.getRawState().presetTone;
-        
         // find param to change and set it in our model before sending to amp
-        //presetState.fx.find(args.)
-        //DeviceStore.update(s=>{s.presetTone})
+        var fx = presetState.fx.find(f => f.type == args.dspId);
+        fx.params.find(p => p.paramId == args.index).value = args.value;
+        DeviceStore.update(s => { s.presetTone = presetState });
 
         args.dspId = this.normalizeDspId(args.dspId);
 
@@ -266,6 +286,14 @@ export class DeviceViewModel {
 
     async requestFxToggle(args): Promise<boolean> {
 
+        this.lastCommandType="requestFxToggle";
+
+        let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
+
+        // find param to change and set it in our model before sending to amp
+        presetState.fx.find(f => f.type == args.dspId).enabled = (args.value == 1);
+        DeviceStore.update(s => { s.presetTone = presetState });
+
         args.dspId = this.normalizeDspId(args.dspId);
 
         await ipcRenderer.invoke('perform-action', { action: 'setFxToggle', data: args }).then(
@@ -276,6 +304,7 @@ export class DeviceViewModel {
     }
 
     async setChannel(channelNum: number): Promise<boolean> {
+        this.lastCommandType="setChannel";
         await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
                 this.log("Completed setting channel");

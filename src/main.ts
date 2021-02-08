@@ -112,7 +112,7 @@ function initApp(){
 
             setTimeout(() => {
                 //apply preset to virtual channel 127
-                deviceManager.sendCommand("set_channel", 127);
+              //  deviceManager.sendCommand("set_channel", 127);
             }, 1000);
         }
 

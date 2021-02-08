@@ -14,6 +14,7 @@ declare global {
 const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   const fxCatalog = DeviceStore.useState((s) => s.fxCatalog);
   const [fxList, setFxList] = React.useState([]);
+  const fxTypeId = React.useMemo(() => {return fx.type}, [fx]);
 
   React.useEffect(() => {
     const fxDefinition = fxCatalog.catalog.find((t) => t.dspId == fx.type);
@@ -39,7 +40,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
     deviceViewModel.requestFxChange({ dspIdOld:fx.type,dspIdNew:e.target.value})
     .then(()=>{
 
-      deviceViewModel.requestPresetConfig();
+     // deviceViewModel.requestPresetConfig();
     });
   };
 
@@ -59,11 +60,11 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   return (
     <div className="fx">
 
-      <label className="fx-type">{mapFxTypeIdToName(fx.type)}</label>
+      <label className="fx-type">{mapFxTypeIdToName(fxTypeId)}</label>
       <div >
         <h4 className="preset-name">{fx.name}</h4>
        
-        <select value={fx.type} onChange={handleFxChange}>
+        <select value={fxTypeId} onChange={handleFxChange}>
             {fxList.map((e, key) => {
             return <option key={key} value={e.dspId}>{e.name}</option>;
         })}
@@ -79,7 +80,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
             onFxParamChange={onFxToggle}
           ></FxParam>
 
-          {fx.enabled ? <label>On</label> : <label>Off</label>}
+          {fx.enabled ? <span className="badge rounded-pill bg-success">On</span> : <span className="badge rounded-pill bg-danger">Off</span>}
         </div>
       </div>
     </div>

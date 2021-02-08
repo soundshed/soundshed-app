@@ -83,7 +83,7 @@ const DeviceSelectorControl = () => {
       return <div>No devices found. Scan to check for devices.</div>;
     } else {
       return list.map((d) => (
-        <div key={d.address.toString()} className="row">
+        <div key={d.address.toString()} className="row m-2">
           <div className="col-md-6">
             <span className="badge rounded-pill bg-secondary">{d.name}</span> (
             {d.address})

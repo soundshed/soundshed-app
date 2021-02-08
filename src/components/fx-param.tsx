@@ -38,6 +38,11 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
     };
   }, []);
 
+  React.useEffect(()=>{
+
+
+  },[fx]);
+
   return (
     <div key={p.paramId?.toString() ?? p.toString()}>
       {type == "knob" ? (
@@ -65,6 +70,7 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
             src="./lib/webaudio-controls/knobs/switch_toggle.png"
             value={fx.enabled == true ? "1" : "0"}
           ></webaudio-switch>
+        
         </div>
       )}
     </div>

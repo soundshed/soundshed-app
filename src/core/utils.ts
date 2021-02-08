@@ -16,15 +16,19 @@ export class Utils {
         });
     }
 
-    static GetXmlDocumentFromString(xmlString)
-    {
+    static deepClone(val) {
+        // simple way to clone a read only object
+        return JSON.parse(JSON.stringify(val));
+    }
+
+    static GetXmlDocumentFromString(xmlString) {
         let xml = (new DOMParser()).parseFromString(xmlString, "text/xml");
         return xml;
     }
-    
+
     static XmlToJson(xml) {
         // https://stackoverflow.com/questions/1773550/convert-xml-to-json-and-back-using-javascript
-    
+
         try {
             var obj = {};
             if (xml.children.length > 0) {

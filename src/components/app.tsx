@@ -105,6 +105,7 @@ const App = () => {
       appViewModel.loadLatestToneCloudTones();
     }
     
+    //appViewModel.performArtistSearch("Metallica");
   }, []);
 
   return (

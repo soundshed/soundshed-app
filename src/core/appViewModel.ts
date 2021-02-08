@@ -2,6 +2,7 @@
 import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
+import {ArtistInfoApi} from './artistInfoApi';
 
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
@@ -43,6 +44,7 @@ export class AppViewModel {
 
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
+    private artistInfoApi = new ArtistInfoApi();
 
     constructor() {
 
@@ -291,6 +293,10 @@ export class AppViewModel {
         }
     }
 
+
+    async performArtistSearch(query:string){
+        return await this.artistInfoApi.search(query);
+    }
 
     public refreshAppInfo() {
 
