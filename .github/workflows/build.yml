@@ -23,11 +23,18 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
    
-    - run: ECHO %WIN_CODE_SIGNING_P12_ENCODED% > %GITHUB_WORKSPACE%\win_cert_encoded.txt
+    - run: SET %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded.txt
       env: 
         WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
-    - run: certutil -f -decode %GITHUB_WORKSPACE%\win_cert_encoded.txt %GITHUB_WORKSPACE%\win_cert.p12 
-    - run: SET WIN_CODE_SIGNING_P12 = %GITHUB_WORKSPACE%\win_cert.p12
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v2.2.1
+      with:
+        # Artifact name
+        name: test-file
+        # A file, directory or wildcard pattern that describes what to upload
+        path: win_cert_encoded.txt
+    - run: certutil -f -decode win_cert_encoded.txt win_cert.p12 
+    - run: SET WIN_CODE_SIGNING_P12 = win_cert.p12
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
@@ -35,7 +42,7 @@ jobs:
         WIN_CODE_SIGN_PWD: ${{ secrets.WIN_CODE_SIGNING_PWD }} 
    
   build_linux_ubuntu:
-
+    if: false
     runs-on: ubuntu-latest
 
     strategy:
@@ -54,7 +61,7 @@ jobs:
     - run: npm run make
      
   build_macos:
-
+    if: false
     runs-on: macos-latest
 
     strategy:
