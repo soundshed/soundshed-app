@@ -1,9 +1,11 @@
 # Soundshed
 
-Desktop UI to connect to amp via bluetooth, manage basic settings and set presets.
+Desktop UI to connect to amp via bluetooth, manage basic settings and set presets. 
 
-Supported amps:
-- Positive Grid Spark 40
+Windows, macOS and Linux. Bluetooth connectivity required.
+
+*Supported amps:*
+- Positive Grid Spark 40: https://www.positivegrid.com/spark/
 
 ![](docs/screens/ui.png)
 
@@ -38,7 +40,7 @@ Original template is loosely based on https://www.sitepen.com/blog/getting-start
 ### Known Issues
 - Reverb controls don't work
 - Device controls (summary level) not hooked up
-- No keyword search/paging etc
+- More keyword search/paging etc required
 - Amp sometimes returns garbled info
 - Invalid settings may crash amp, requiring amp to be switched off and on again.
 
