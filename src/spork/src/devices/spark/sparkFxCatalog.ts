@@ -1711,8 +1711,44 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "0",
+                "dspId": "bias.reverb.0",
                 "name": "Room Studio A",
+                "params": [
+                    {
+                        "name": "Level",
+                        "index": 0,
+                        "value": null
+                    },
+                    {
+                        "name": "Damping",
+                        "index": 1,
+                        "value": null
+                    },
+                    {
+                        "name": "Low Cut",
+                        "index": 2,
+                        "value": null
+                    },
+                    {
+                        "name": "High Cut",
+                        "index": 3,
+                        "value": null
+                    },
+                    {
+                        "name": "Dwell",
+                        "index": 4,
+                        "value": null
+                    },
+                    {
+                        "name": "Time",
+                        "index": 5,
+                        "value": null
+                    }
+                ]
+            }, {
+                "type": "reverb",
+                "dspId": "bias.reverb.1",
+                "name": "Room Studio B",
                 "params": [
                     {
                         "name": "Level",
@@ -1748,7 +1784,7 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "2",
+                "dspId": "bias.reverb.2",
                 "name": "Chamber",
                 "params": [
                     {
@@ -1785,7 +1821,7 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "3",
+                "dspId": "bias.reverb.3",
                 "name": "Hall Natural",
                 "params": [
                     {
@@ -1822,8 +1858,8 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "6",
-                "name": "Plate Short",
+                "dspId": "bias.reverb.4",
+                "name": "Hall Medium",
                 "params": [
                     {
                         "name": "Level",
@@ -1859,7 +1895,7 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "5",
+                "dspId": "bias.reverb.5",
                 "name": "Hall Ambient",
                 "params": [
                     {
@@ -1896,8 +1932,8 @@ export class FxCatalogProvider {
             },
             {
                 "type": "reverb",
-                "dspId": "7",
-                "name": "Classic Plate",
+                "dspId": "bias.reverb.6",
+                "name": "Plate Short",
                 "params": [
                     {
                         "name": "Level",
@@ -1931,10 +1967,11 @@ export class FxCatalogProvider {
                     }
                 ]
             },
+
             {
                 "type": "reverb",
-                "dspId": "4",
-                "name": "Holy Grail",
+                "dspId": "bias.reverb.7",
+                "name": "Plate Rich",
                 "params": [
                     {
                         "name": "Level",
@@ -1968,47 +2005,11 @@ export class FxCatalogProvider {
                     }
                 ]
             },
+
             {
                 "type": "reverb",
-                "dspId": "8",
-                "name": "Reflection",
-                "params": [
-                    {
-                        "name": "Level",
-                        "index": 0,
-                        "value": null
-                    },
-                    {
-                        "name": "Damping",
-                        "index": 1,
-                        "value": null
-                    },
-                    {
-                        "name": "Low Cut",
-                        "index": 2,
-                        "value": null
-                    },
-                    {
-                        "name": "High Cut",
-                        "index": 3,
-                        "value": null
-                    },
-                    {
-                        "name": "Dwell",
-                        "index": 4,
-                        "value": null
-                    },
-                    {
-                        "name": "Time",
-                        "index": 5,
-                        "value": null
-                    }
-                ]
-            },
-            {
-                "type": "reverb",
-                "dspId": "1",
-                "name": "Room Studio B",
+                "dspId": "bias.reverb.8",
+                "name": "Plate Long",
                 "params": [
                     {
                         "name": "Level",

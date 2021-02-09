@@ -17,7 +17,10 @@ const SignalPathControl = ({
   selectedChannel,
   onStoreFavourite,
 }) => {
-  React.useEffect(() => {}, [signalPathState, selectedChannel]);
+  React.useEffect(() => {
+console.log("Signal Path UI updated.");
+
+  }, [signalPathState, selectedChannel]);
 
   const listItems = (t:Tone) => {
     if (!t) {

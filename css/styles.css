@@ -1,4 +1,5 @@
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
 }
@@ -16,8 +17,9 @@ body {
     padding-top: 1em;
 }
 
-a, a:visited{
-    color:white;
+a,
+a:visited {
+    color: white;
 }
 h1 {
     font-size: 140%;
@@ -26,10 +28,9 @@ h1 {
 .preset-name {
     font-family: "digital";
     background-color: rgba(0, 0, 0, 0.473);
-    padding: 0.2em;
+    padding: 0.4em 0.2em;
     color: rgb(252, 235, 0);
     text-shadow: 2px 2px 2px rgba(128, 128, 128, 0.644);
-    border-radius: 8px;
 }
 
 .control-strip {
@@ -43,11 +44,11 @@ h1 {
     min-width: 160px;
     box-shadow: -1px 1px 9px 0px #020202cf;
     background-color: #2d2d2da9;
-    background: linear-gradient(141deg, rgba(65,65,65,1) 0%, rgba(0,0,0,1) 47%, rgba(56,56,56,1) 100%);
+    background: linear-gradient(141deg, rgba(65, 65, 65, 1) 0%, rgba(0, 0, 0, 1) 47%, rgba(56, 56, 56, 1) 100%);
     padding-bottom: 1em;
 }
 .fx .preset-name {
-    color: aliceblue;
+    color: #cacaca;
 }
 
 .fx .fx-controls {
@@ -73,12 +74,12 @@ h1 {
     margin: 0.6em;
 }
 
-.fx .bg-success{
+.fx .bg-success {
     box-shadow: 0px 1px 8px 6px #319a218c;
     text-shadow: 2px 2px 0px #000;
     margin-left: 1em;
 }
-.fx .bg-danger{
+.fx .bg-danger {
     text-shadow: 2px 2px 0px #000;
     margin-left: 1em;
 }
@@ -125,53 +126,49 @@ label.fx-type {
     border-bottom: 1px solid #5a5a5a;
 }
 
-.home-intro{
+.home-intro {
     background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
     background-size: cover;
     width: 100%;
     height: 900px;
-    overflow-y:auto;
+    overflow-y: auto;
     background-position-x: center;
     padding: 2em;
-
 }
 
-.tones-intro{
+.tones-intro {
     background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
     background-size: cover;
     width: 100%;
     min-height: 900px;
     background-position-x: center;
     padding: 2em;
-
 }
 
-.amp-intro{
+.amp-intro {
     background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
     background-size: cover;
     width: 100%;
     min-height: 900px;
     background-position-x: center;
     padding: 2em;
-
 }
 
-.about-intro{
+.about-intro {
     background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
     background-size: cover;
     width: 100%;
     min-height: 900px;
     background-position-x: center;
     padding: 2em;
-
 }
-.info{
+.info {
     background-color: #2d2d2da9;
-    color:white;
+    color: white;
     padding: 1em;
     border-radius: 8px;
 }
 
-.modal-content{
+.modal-content {
     background-color: #2d2d2dda;
 }

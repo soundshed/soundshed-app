@@ -7,16 +7,16 @@ export class FxMappingToneToSpark {
     mapFxCategory(type) {
         return type;
     }
+    
     mapFxId(type) {
-        if (type == "Noisegate") return "bias.noisegate";
-        if (type == "FreeVerb") return "reverb";
-        if (type == "AcousticReverb") return "reverb";
         return type;
     }
 
     mapFx(source: ToneFx): SignalPath {
 
         let type = source.type.replace("pg.spark40.", "");
+
+        //TODO: map reverb type
         return {
             active: source.enabled == true,
             params: source.params.map((p => { return <FxParam>{ index: parseInt(p.paramId), value: typeof (p.value) == "string" ? parseFloat(p.value) : p.value } })),
@@ -43,13 +43,54 @@ export class FxMappingToneToSpark {
 
 export class FxMappingSparkToTone {
 
-    mapFx(source: SignalPath): ToneFx {
-        return {
-            type: "pg.spark40." + source.dspId,
+    mapFxReverb(source: SignalPath): ToneFx {
+        // reverbs are stored as bias.reverb with param 0-6, param6 is a float indicating reverb type variant
+        let reverbVariant = parseFloat((source.params[6].value).toFixed(2));
+
+        let dspId = "bias.reverb";
+        switch (reverbVariant) {
+            case 0.0: dspId = "bias.reverb.0"; //room studio a
+                break;
+            case 0.1: dspId = "bias.reverb.1"; // room studio b
+                break;
+            case 0.2: dspId = "bias.reverb.2"; // chamber
+                break;
+            case 0.3: dspId = "bias.reverb.3"; // hall natural
+                break;
+            case 0.4: dspId = "bias.reverb.4"; // hall medium
+                break;
+            case 0.5: dspId = "bias.reverb.5"; // hall ambient
+                break;
+            case 0.6: dspId = "bias.reverb.6"; // plate short
+                break;
+            case 0.7: dspId = "bias.reverb.7"; // plate rich
+                break;
+            case 0.8: dspId = "bias.reverb.8"; // plate long
+                break;
+        }
+        var val = {
+            type: "pg.spark40." + dspId,
             name: source.name,
             enabled: source.active == true,
             params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, name: p.name, enabled: true })
         };
+
+      
+        return val;
+    }
+
+    mapFx(source: SignalPath): ToneFx {
+
+        if (source.dspId == "bias.reverb") {
+            return this.mapFxReverb(source);
+        } else {
+            return {
+                type: "pg.spark40." + source.dspId,
+                name: source.name,
+                enabled: source.active == true,
+                params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, name: p.name, enabled: true })
+            };
+        }
     }
 
 

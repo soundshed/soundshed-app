@@ -23,9 +23,8 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
       dspId: fx.type,
       index: e.target.tag.paramId,
       value: e.target.value,
-      type: type
+      type: type,
     });
-
   };
 
   React.useEffect(() => {
@@ -33,15 +32,25 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
     customElement?.addEventListener("change", setParamValue);
 
     return () => {
-     // customElement?.removeEventListener("input", setParamValue);
-     customElement?.removeEventListener("change", setParamValue);
+      // customElement?.removeEventListener("input", setParamValue);
+      customElement?.removeEventListener("change", setParamValue);
     };
   }, []);
 
-  React.useEffect(()=>{
-
-
-  },[fx]);
+  React.useEffect(() => {
+    var newVal = p.value ?? null;
+    if (newVal != null) {
+      newVal = newVal.toFixed(newVal);
+    }
+    if (customElement.value != newVal && newVal != null) {
+      console.log(
+        "Control Strip UI updated. " + customElement.value + " :: " + newVal
+      );
+      customElement?.setValue(newVal);
+    } else {
+      console.log(JSON.stringify(p));
+    }
+  }, [fx, p]);
 
   return (
     <div key={p.paramId?.toString() ?? p.toString()}>
@@ -57,6 +66,8 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
             value={p.value}
             max="1"
             step="0.01"
+            diameter="64"
+            tooltip={p.name + " %s"}
           ></webaudio-knob>
           <label>{p.name}</label>
         </div>
@@ -70,7 +81,6 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
             src="./lib/webaudio-controls/knobs/switch_toggle.png"
             value={fx.enabled == true ? "1" : "0"}
           ></webaudio-switch>
-        
         </div>
       )}
     </div>

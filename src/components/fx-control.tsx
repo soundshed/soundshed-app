@@ -57,6 +57,15 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
     }
   }
 
+  const fxToggle=()=>{
+   
+      onFxToggle({
+        dspId: fx.type,
+        value: fx.enabled == true ? "0" : "1",
+        type: "toggle",
+      });
+  }
+
   return (
     <div className="fx">
 
@@ -80,7 +89,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
             onFxParamChange={onFxToggle}
           ></FxParam>
 
-          {fx.enabled ? <span className="badge rounded-pill bg-success">On</span> : <span className="badge rounded-pill bg-danger">Off</span>}
+          {fx.enabled ? <span className="badge rounded-pill bg-success" onClick={fxToggle}>On</span> : <span className="badge rounded-pill bg-danger" onClick={fxToggle}>Off</span>}
         </div>
       </div>
     </div>

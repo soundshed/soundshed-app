@@ -1,7 +1,7 @@
 import { ipcRenderer } from 'electron';
 import { Store } from "pullstate";
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
-import { FxCatalog, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
+import { FxCatalog, FxCatalogItem, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Tone } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
@@ -38,7 +38,7 @@ export class DeviceViewModel {
 
     private debouncedFXUpdate;
 
-    private lastCommandType ="";
+    private lastCommandType = "";
 
     private defaultStateChangeHandler() {
         this.log("UI Device state change handler called but not set.")
@@ -85,6 +85,44 @@ export class DeviceViewModel {
 
                         // preset number has changed, refresh the details
                         this.requestPresetConfig();
+                    }
+                } else {
+                    if (args.lastMessageReceived.dspId != null) {
+                        //fx param change received from amp
+                        // TODO: debounce this?
+
+                        // find param to change and set it in our model before sending to amp
+                        let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
+
+                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
+                        if (!fx) {
+                            this.log("Cannot update device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
+                        } else {
+
+
+                            fx.params.find(p => p.paramId == args.lastMessageReceived.index).value = args.lastMessageReceived.value;
+                            DeviceStore.update(s => { s.presetTone = presetState });
+                        }
+
+                    } else if (args.lastMessageReceived.dspIdOld != null) {
+                        //fx type change received from amp
+                        // TODO: debounce this? this doesn't work if you update faster than the UI state as the current preset state doesn't match
+
+                        // find param to change and set it in our model before sending to amp
+                        let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
+
+                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspIdOld));
+                        if (!fx) {
+                            this.log("Cannot update device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
+                        } else {
+
+
+                            fx.type = this.expandedDspId(args.lastMessageReceived.dspIdNew);
+                            let catalog:FxCatalogItem[] = DeviceStore.getRawState().fxCatalog.catalog;
+                            fx.name = catalog.find(c => c.dspId == fx.type).name;
+                            DeviceStore.update(s => { s.presetTone = presetState });
+                        }
+
                     }
                 }
             }
@@ -192,7 +230,7 @@ export class DeviceViewModel {
     }
 
     async requestPresetConfig(): Promise<boolean> {
-        this.lastCommandType="requestPresetConfig";
+        this.lastCommandType = "requestPresetConfig";
         await ipcRenderer.invoke('perform-action', { action: 'getPreset', data: 0 }).then(
             () => {
                 this.log("Completed preset query");
@@ -201,7 +239,7 @@ export class DeviceViewModel {
     }
 
     async requestPresetChange(args: Preset) {
-        this.lastCommandType="requestPresetChange";
+        this.lastCommandType = "requestPresetChange";
         return ipcRenderer.invoke('perform-action', { action: 'applyPreset', data: args }).then(
             () => {
 
@@ -210,7 +248,8 @@ export class DeviceViewModel {
     }
 
     public normalizeDspId(dspId: string) {
-        return dspId?.replace("pg.spark40.", "") ?? dspId;
+        var d= dspId?.replace("pg.spark40.", "") ?? dspId;
+        return d;
     }
 
     public expandedDspId(dspId: string) {
@@ -219,7 +258,7 @@ export class DeviceViewModel {
 
 
     async requestAmpChange(args: FxChangeMessage) {
-        this.lastCommandType="requestAmpChange";
+        this.lastCommandType = "requestAmpChange";
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
 
@@ -233,7 +272,7 @@ export class DeviceViewModel {
 
     async requestFxChange(args: FxChangeMessage) {
 
-        this.lastCommandType="requestFxChange";
+        this.lastCommandType = "requestFxChange";
         var currentTone: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
         let newFx = (<FxCatalog>DeviceStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
@@ -256,7 +295,7 @@ export class DeviceViewModel {
     }
 
     private async requestFxParamChangeImmediate(args) {
-        this.lastCommandType="requestFxParamChange";
+        this.lastCommandType = "requestFxParamChange";
         let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
         // find param to change and set it in our model before sending to amp
@@ -265,6 +304,14 @@ export class DeviceViewModel {
         DeviceStore.update(s => { s.presetTone = presetState });
 
         args.dspId = this.normalizeDspId(args.dspId);
+
+        if (typeof (args.value) == "string") {
+            args.value = parseInt(args.value);
+        }
+
+        if (typeof (args.index) == "string") {
+            args.index = parseInt(args.index);
+        }
 
         return ipcRenderer.invoke('perform-action', { action: 'setFxParam', data: args }).then(
             () => {
@@ -276,7 +323,7 @@ export class DeviceViewModel {
     async requestFxParamChange(args): Promise<boolean> {
 
         if (this.debouncedFXUpdate == null) {
-            this.debouncedFXUpdate = debounce((args) => this.requestFxParamChangeImmediate(args), 250);
+            this.debouncedFXUpdate = debounce((args) => this.requestFxParamChangeImmediate(args), 50);
         }
 
         this.debouncedFXUpdate(args);
@@ -286,7 +333,7 @@ export class DeviceViewModel {
 
     async requestFxToggle(args): Promise<boolean> {
 
-        this.lastCommandType="requestFxToggle";
+        this.lastCommandType = "requestFxToggle";
 
         let presetState: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
@@ -304,11 +351,13 @@ export class DeviceViewModel {
     }
 
     async setChannel(channelNum: number): Promise<boolean> {
-        this.lastCommandType="setChannel";
+        this.lastCommandType = "setChannel";
         await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
                 this.log("Completed setting channel");
                 // DeviceStore.update(s => { s.selectedChannel == channelNum });
+
+                this.requestPresetConfig();
             });
         return true;
     }
