@@ -104,6 +104,9 @@ const TcBrowserControl = () => {
                 </Form.Group>
             </Form>
             <button className="btn btn-sm btn-success" onClick={onSearch}>Search</button>
+
+            <button className="btn btn-sm btn-primary" onClick={previous}>Previous</button> <button className="btn btn-sm btn-primary" onClick={next}>Next</button>
+
             <ToneListControl toneList={tcResults} favourites={favourites} onApplyTone={onApplyTone} onEditTone={() => { }} noneMsg="No PG ToneCloud Results" enableToneEditor={false}></ToneListControl>
 
             <button className="btn btn-sm btn-primary" onClick={previous}>Previous</button> <button className="btn btn-sm btn-primary" onClick={next}>Next</button>
