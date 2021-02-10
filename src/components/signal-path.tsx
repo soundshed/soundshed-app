@@ -45,6 +45,7 @@ console.log("Signal Path UI updated.");
           <label>
             No preset selected (amp not connected). Connect and refresh to get
             current amp settings.
+            {JSON.stringify(signalPathState)}
           </label>
         </div>
       ) : (

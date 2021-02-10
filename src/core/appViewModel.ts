@@ -132,6 +132,7 @@ export class AppViewModel {
 
     async storeFavourite(preset: any, includeUpload: boolean = false): Promise<boolean> {
 
+        preset = Utils.deepClone(preset);
 
         // if tone is already favourite, overwrite
 
@@ -147,7 +148,58 @@ export class AppViewModel {
 
         if (preset != null) {
 
+     
+           
             let convertedTone = new FxMappingSparkToTone().mapFrom(preset);
+
+            if (preset.schemaVersion == "pg.preset.summary" && preset.fx == null) {
+                //need to fetch the preset details
+                let result = await this.loadToneCloudPreset(preset.externalId);
+    
+                if (result != null) {
+                    
+                    let presetData = JSON.parse(result.preset_data);
+                    let toneData = new FxMappingSparkToTone().mapFrom(presetData);
+                    Object.assign(preset, toneData);
+                    preset.imageUrl = result.thumb_url;
+                } else {
+                    // can't load this tone
+                    return;
+                }
+            }
+
+            if (preset.schemaVersion == "pg.preset.summary" && preset.fx == null) {
+                //need to fetch the preset details
+                let result = await this.loadToneCloudPreset(preset.externalId);
+    
+                if (result != null) {
+                    
+                    let presetData = JSON.parse(result.preset_data);
+                    let toneData = new FxMappingSparkToTone().mapFrom(presetData);
+                    Object.assign(preset, toneData);
+                    t.imageUrl = result.thumb_url;
+                } else {
+                    // can't load this tone
+                    return;
+                }
+            }
+
+            if (preset.schemaVersion == "pg.preset.summary" && preset.fx == null) {
+                //need to fetch the preset details
+                let result = await this.loadToneCloudPreset(preset.externalId);
+    
+                if (result != null) {
+                    
+                    let presetData = JSON.parse(result.preset_data);
+                    let toneData = new FxMappingSparkToTone().mapFrom(presetData);
+                    Object.assign(preset, toneData);
+                    t.imageUrl = result.thumb_url;
+                } else {
+                    // can't load this tone
+                    return;
+                }
+            }
+
 
             let favourites: Tone[] = [];
             let allPresets = localStorage.getItem("favourites");
