@@ -5,6 +5,7 @@ import { FxCatalogProvider } from "./sparkFxCatalog";
 import { SparkMessageReader } from "./sparkMessageReader";
 
 import * as bluetoothSerial from 'bluetooth-serial-port';
+import { FxMappingSparkToTone } from "../../../../core/fxMapping";
 export class SparkDeviceManager implements DeviceController {
     private btSerial: bluetoothSerial.BluetoothSerialPort;
 
@@ -161,7 +162,15 @@ export class SparkDeviceManager implements DeviceController {
         // populate metadata about fx etc
         if (deviceState.presetConfig) {
             for (let fx of deviceState.presetConfig.sigpath) {
-                let dsp = fxCatalog.catalog.find(f => f.dspId == fx.dspId);
+                let dspId = fx.dspId;
+                if (dspId=="bias.reverb")
+                {
+                    //map mode variant to our config dspId
+                     dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
+                }
+
+                let dsp = fxCatalog.catalog.find(f => f.dspId == dspId);
+                
                 if (dsp != null) {
                     fx.type = dsp.type;
                     fx.name = dsp.name;

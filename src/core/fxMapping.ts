@@ -16,13 +16,35 @@ export class FxMappingToneToSpark {
 
         let type = source.type.replace("pg.spark40.", "");
 
-        //TODO: map reverb type
-        return {
-            active: source.enabled == true,
-            params: source.params.map((p => { return <FxParam>{ index: parseInt(p.paramId), value: typeof (p.value) == "string" ? parseFloat(p.value) : p.value } })),
-            // type: this.mapFxCategory(type),
-            dspId: this.mapFxId(type),
-            // name: source.name
+        if (type.indexOf("bias.reverb")>-1 && type!="bias.reverb")
+        {
+
+            let i:SignalPath={
+                active: source.enabled == true,
+                params:source.params.map(p => { return <FxParam>{ index: parseInt(p.paramId), value: typeof (p.value) == "string" ? parseFloat(p.value) : p.value } }),
+                dspId:null
+            };
+
+            let reverbTypeParam =0.0;
+            let reverbTypeParamStr = type.substr(type.length-1,1);
+            if (reverbTypeParamStr!="0")
+            {
+                reverbTypeParam = parseFloat(reverbTypeParamStr)/10;
+            }
+            i.params.push({index: 6, value:reverbTypeParam}); // reverb model
+            i.params.push({index:7,value:source.enabled?1:0}); //on.off param
+
+            i.dspId="bias.reverb";
+            return i;
+        } else {
+           
+            return {
+                active: source.enabled == true,
+                params: source.params.map((p => { return <FxParam>{ index: parseInt(p.paramId), value: typeof (p.value) == "string" ? parseFloat(p.value) : p.value } })),
+                // type: this.mapFxCategory(type),
+                dspId: this.mapFxId(type),
+                // name: source.name
+            }
         }
     }
 
@@ -43,9 +65,9 @@ export class FxMappingToneToSpark {
 
 export class FxMappingSparkToTone {
 
-    mapFxReverb(source: SignalPath): ToneFx {
-        // reverbs are stored as bias.reverb with param 0-6, param6 is a float indicating reverb type variant
-        let reverbVariant = parseFloat((source.params[6].value).toFixed(2));
+    static getReverbDspId(modeParam)
+    {
+        let reverbVariant = parseFloat((modeParam).toFixed(2));
 
         let dspId = "bias.reverb";
         switch (reverbVariant) {
@@ -67,7 +89,17 @@ export class FxMappingSparkToTone {
                 break;
             case 0.8: dspId = "bias.reverb.8"; // plate long
                 break;
+            default:
+                    dspId = "bias.reverb.0";
+                    break;
         }
+        return dspId;
+    }
+
+    mapFxReverb(source: SignalPath): ToneFx {
+        // reverbs are stored as bias.reverb with param 0-6, param6 is a float indicating reverb type variant
+        let dspId = FxMappingSparkToTone.getReverbDspId(source.params[6].value);
+
         var val = {
             type: "pg.spark40." + dspId,
             name: source.name,
@@ -75,6 +107,9 @@ export class FxMappingSparkToTone {
             params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, name: p.name, enabled: true })
         };
 
+        // trim last two params (reverb model and on/off)
+        val.params.pop();
+        val.params.pop();
       
         return val;
     }
