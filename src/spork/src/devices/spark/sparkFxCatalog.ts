@@ -1488,6 +1488,43 @@ export class FxCatalogProvider {
                 ]
             },
             {
+                "type": "drive",
+                "dspId": "MetalZoneMT2",
+                "name": "Metal Zone MT2",
+                "params": [
+                    {
+                        "name": "P1",
+                        "index": 0,
+                        "value": 0.8
+                    },
+                    {
+                        "name": "P2",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "P3",
+                        "index": 2,
+                        "value": 0.19
+                    },
+                    {
+                        "name": "P3",
+                        "index": 3,
+                        "value": 0.37
+                    },
+                    {
+                        "name": "P4",
+                        "index": 4,
+                        "value": 0.59
+                    },
+                    {
+                        "name": "P5",
+                        "index": 5,
+                        "value": 0.74
+                    }
+                ]
+            },
+            {
                 "type": "gate",
                 "dspId": "bias.noisegate",
                 "name": "Gate",
@@ -1706,6 +1743,33 @@ export class FxCatalogProvider {
                         "name": "Level",
                         "index": 2,
                         "value": 0.6
+                    }
+                ]
+            },
+            {
+                "type": "modulation",
+                "dspId": "AutoWah01",
+                "name": "Auto Wah",
+                "params": [
+                    {
+                        "name": "Something",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Depth",
+                        "index": 1,
+                        "value": 1
+                    },
+                    {
+                        "name": "Level",
+                        "index": 2,
+                        "value": 1
+                    },
+                    {
+                        "name": "Mode",
+                        "index": 3,
+                        "value": 1
                     }
                 ]
             },

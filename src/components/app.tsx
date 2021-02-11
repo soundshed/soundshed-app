@@ -107,11 +107,11 @@ const App = () => {
     
     //appViewModel.performArtistSearch("Metallica");
     // mock amp connection and current preset
-    DeviceStore.update(s=>{
+   /* DeviceStore.update(s=>{
       s.isConnected=true; 
       s.presetTone=TonesStateStore.getRawState().storedPresets[0];
       s.connectedDevice= {name:"Mock Amp", address:"A1:B2:C3:D4:E5"};
-    });
+    });*/
     
   }, []);
 

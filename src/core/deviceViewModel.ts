@@ -3,7 +3,7 @@ import { Store } from "pullstate";
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 import { FxCatalog, FxCatalogItem, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
-import { Tone } from './soundshedApi';
+import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 import { Utils } from './utils';
 
@@ -118,7 +118,7 @@ export class DeviceViewModel {
 
 
                             fx.type = this.expandedDspId(args.lastMessageReceived.dspIdNew);
-                            let catalog:FxCatalogItem[] = DeviceStore.getRawState().fxCatalog.catalog;
+                            let catalog: FxCatalogItem[] = DeviceStore.getRawState().fxCatalog.catalog;
                             fx.name = catalog.find(c => c.dspId == fx.type).name;
                             DeviceStore.update(s => { s.presetTone = presetState });
                         }
@@ -248,7 +248,11 @@ export class DeviceViewModel {
     }
 
     public normalizeDspId(dspId: string) {
-        var d= dspId?.replace("pg.spark40.", "") ?? dspId;
+        var d = dspId?.replace("pg.spark40.", "") ?? dspId;
+
+        if (d.startsWith("bias.reverb")) {
+            d = "bias.reverb";
+        }
         return d;
     }
 
@@ -273,6 +277,13 @@ export class DeviceViewModel {
     async requestFxChange(args: FxChangeMessage) {
 
         this.lastCommandType = "requestFxChange";
+        
+        // TODO: special case for reverb
+        if(args.dspIdOld=="bias.reverb"){
+            return this.requestFxParamChange({"dspId":"bias.reverb", "index":6,value:0.4});
+        }
+
+       
         var currentTone: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
         let newFx = (<FxCatalog>DeviceStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
@@ -280,6 +291,9 @@ export class DeviceViewModel {
         var fx = currentTone.fx.find(f => f.type == args.dspIdOld);
         fx.type = args.dspIdNew;
         fx.name = newFx.name;
+
+        // repopulate fx params with defaults from fx catalog: pedal could have different parameters
+        fx.params=newFx.params.map(p=><ToneFxParam>{paramId:p.index.toString(),value:p.value, name:p.name, enabled:true})
         // TODO: also copy default params for new fx?
 
         DeviceStore.update(s => { s.presetTone = currentTone });
