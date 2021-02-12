@@ -96,13 +96,28 @@ export class DeviceViewModel {
 
                         var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
                         if (!fx) {
-                            this.log("Cannot update device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
-                        } else {
+                            this.log("Updating device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
 
+                            // we didn't know the preset had this fx selected,attempt to use default params from fx catalog
+                            let newFx = (<FxCatalog>DeviceStore.getRawState().fxCatalog).catalog.find(f => f.dspId == this.expandedDspId(args.lastMessageReceived.dspId));
 
+                            // get whatever we have in this category and update it
+                            /*
+                            var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
+                            fx.type = args.dspIdNew;
+                            fx.name = newFx.name;
+                    
+                            // repopulate fx params with defaults from fx catalog: pedal could have different parameters
+                            fx.params=newFx.params.map(p=><ToneFxParam>{paramId:p.index.toString(),value:p.value, name:p.name, enabled:true})
+                            */
+
+                        }
+
+                        if (fx) {
                             fx.params.find(p => p.paramId == args.lastMessageReceived.index).value = args.lastMessageReceived.value;
                             DeviceStore.update(s => { s.presetTone = presetState });
                         }
+
 
                     } else if (args.lastMessageReceived.dspIdOld != null) {
                         //fx type change received from amp
@@ -277,13 +292,13 @@ export class DeviceViewModel {
     async requestFxChange(args: FxChangeMessage) {
 
         this.lastCommandType = "requestFxChange";
-        
+
         // TODO: special case for reverb
-        if(args.dspIdOld=="bias.reverb"){
-            return this.requestFxParamChange({"dspId":"bias.reverb", "index":6,value:0.4});
+        if (args.dspIdOld == "bias.reverb") {
+            return this.requestFxParamChange({ "dspId": "bias.reverb", "index": 6, value: 0.4 });
         }
 
-       
+
         var currentTone: Tone = Utils.deepClone(DeviceStore.getRawState().presetTone);
 
         let newFx = (<FxCatalog>DeviceStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
@@ -293,7 +308,7 @@ export class DeviceViewModel {
         fx.name = newFx.name;
 
         // repopulate fx params with defaults from fx catalog: pedal could have different parameters
-        fx.params=newFx.params.map(p=><ToneFxParam>{paramId:p.index.toString(),value:p.value, name:p.name, enabled:true})
+        fx.params = newFx.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, name: p.name, enabled: true })
         // TODO: also copy default params for new fx?
 
         DeviceStore.update(s => { s.presetTone = currentTone });

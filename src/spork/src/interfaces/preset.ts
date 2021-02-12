@@ -58,6 +58,7 @@ export interface FxCatalogItem {
     name: string;
     description?: string;
     params: Array<FxParam>;
+    isExperimental?: boolean;
 }
 
 export interface FXCatalogItemType {
@@ -65,6 +66,7 @@ export interface FXCatalogItemType {
     name: string;
     index: number;
     description: string;
+    isExperimental?: boolean;
 }
 export interface FxCatalog {
     types: Array<FXCatalogItemType>;

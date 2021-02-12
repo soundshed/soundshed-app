@@ -1008,6 +1008,139 @@ export class FxCatalogProvider {
                 ]
             },
             {
+                "type": "amp",
+                "dspId": "JCM800",
+                "isExperimental":true,
+                "name": "JCM 800",
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "MatchlessDC30",
+                "isExperimental":true,
+                "name": "Matchless DC30",
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "DrZ",
+                "name": "Dr. Z",
+                "isExperimental":true,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            
+            {
+                "type": "amp",
+                "dspId": "Hiwatt103",
+                "name": "Hiwatt DR103",
+                "isExperimental":true,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
                 "type": "comp",
                 "dspId": "LA2AComp",
                 "name": "LA Comp",
@@ -1449,7 +1582,7 @@ export class FxCatalogProvider {
                         "value": 0.4
                     },
                     {
-                        "name": "Sensitivty",
+                        "name": "Sensitivity",
                         "index": 1,
                         "value": 0.8
                     },
@@ -1490,6 +1623,7 @@ export class FxCatalogProvider {
             {
                 "type": "drive",
                 "dspId": "MetalZoneMT2",
+                "isExperimental":true,
                 "name": "Metal Zone MT2",
                 "params": [
                     {
@@ -1521,6 +1655,29 @@ export class FxCatalogProvider {
                         "name": "P5",
                         "index": 5,
                         "value": 0.74
+                    }
+                ]
+            },
+            {
+                "type": "drive",
+                "dspId": "TrebleBooster",
+                "isExperimental":true,
+                "name": "Treble Booster",
+                "params": [
+                    {
+                        "name": "P1",
+                        "index": 2,
+                        "value": 0.9
+                    },
+                    {
+                        "name": "P2",
+                        "index": 1,
+                        "value": 0.8
+                    },
+                    {
+                        "name": "P3",
+                        "index": 0,
+                        "value": 0.3
                     }
                 ]
             },
@@ -1746,30 +1903,37 @@ export class FxCatalogProvider {
                     }
                 ]
             },
+          
             {
                 "type": "modulation",
-                "dspId": "AutoWah01",
-                "name": "Auto Wah",
+                "dspId": "MuTron",
+                "isExperimental":true,
+                "name": "MuTron Auto Wah",
                 "params": [
                     {
-                        "name": "Something",
+                        "name": "P 1",
                         "index": 0,
-                        "value": 0.5
+                        "value": 0.3
                     },
                     {
-                        "name": "Depth",
+                        "name": "P 2",
                         "index": 1,
-                        "value": 1
+                        "value": 0.2
                     },
                     {
-                        "name": "Level",
+                        "name": "P 3",
                         "index": 2,
-                        "value": 1
+                        "value": 0.9
                     },
                     {
-                        "name": "Mode",
+                        "name": "P 4",
                         "index": 3,
-                        "value": 1
+                        "value": 0
+                    },
+                    {
+                        "name": "P 5",
+                        "index": 4,
+                        "value": 0
                     }
                 ]
             },
@@ -2108,5 +2272,8 @@ export class FxCatalogProvider {
                 ]
             }
         ]
+ 
+ 
+ 
     };
 }

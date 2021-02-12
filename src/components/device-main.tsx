@@ -108,7 +108,12 @@ const DeviceMainControl = () => {
   };
 
   // configure which state changes should cause component updates
-  useEffect(() => {}, [connectionInProgress, connected, deviceScanInProgress, selectedChannel]);
+  useEffect(() => {}, [
+    connectionInProgress,
+    connected,
+    deviceScanInProgress,
+    selectedChannel,
+  ]);
 
   useEffect(() => {
     //console.log("Device main - component created");

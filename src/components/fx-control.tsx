@@ -2,27 +2,28 @@ import * as React from "react";
 import FxParam from "./fx-param";
 import { deviceViewModel } from "./app";
 import { DeviceStore } from "../core/deviceViewModel";
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "webaudio-knob": any;
-      "webaudio-switch": any;
-    }
-  }
-}
+import { FxCatalogItem } from "../spork/src/interfaces/preset";
 
 const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
+  
   const fxCatalog = DeviceStore.useState((s) => s.fxCatalog);
   const [fxList, setFxList] = React.useState([]);
+  const [isExperimentalFxSelected, setIsExperimentalFxSelected] = React.useState(false);
   const fxTypeId = React.useMemo(() => {return fx.type}, [fx]);
 
   React.useEffect(() => {
-    const fxDefinition = fxCatalog.catalog.find((t) => t.dspId == fx.type);
+    const fxDefinition:FxCatalogItem = fxCatalog.catalog.find((t) => t.dspId == fx.type);
+    
     if (fxDefinition) {
+    
       const listOfSameTypeFx = fxCatalog.catalog.filter(
         (t) => t.type == fxDefinition.type
       );
+    
       setFxList(listOfSameTypeFx);
+
+      setIsExperimentalFxSelected(fxDefinition.isExperimental==true);
+      
     }
   }, [fx, fxCatalog]);
 
@@ -79,6 +80,14 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
         })}
          
         </select>
+
+        {
+        isExperimentalFxSelected?
+          <span className="badge rounded-pill bg-danger m-1">Experimental FX</span>
+
+        :("")
+        }
+
         <div className="fx-controls">
           {paramControls}
 
