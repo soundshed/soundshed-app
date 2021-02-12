@@ -1627,32 +1627,32 @@ export class FxCatalogProvider {
                 "name": "Metal Zone MT2",
                 "params": [
                     {
-                        "name": "P1",
+                        "name": "Level",
                         "index": 0,
                         "value": 0.8
                     },
                     {
-                        "name": "P2",
+                        "name": "EQ Low",
                         "index": 1,
                         "value": 0.6
                     },
                     {
-                        "name": "P3",
+                        "name": "EQ Middle",
                         "index": 2,
                         "value": 0.19
                     },
                     {
-                        "name": "P3",
+                        "name": "EQ High",
                         "index": 3,
                         "value": 0.37
                     },
                     {
-                        "name": "P4",
+                        "name": "EQ Mid Band",
                         "index": 4,
                         "value": 0.59
                     },
                     {
-                        "name": "P5",
+                        "name": "Distortion",
                         "index": 5,
                         "value": 0.74
                     }
