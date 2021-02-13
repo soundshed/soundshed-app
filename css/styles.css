@@ -59,8 +59,9 @@ h1 {
 .control-label {
     display: block;
     font-size: 0.6em;
-    margin-left: 2em;
-    color: darkkhaki;
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+    color: #9c9c9c;
     font-weight: bold;
 }
 

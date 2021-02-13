@@ -83,7 +83,7 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
 
         {
         isExperimentalFxSelected?
-          <span className="badge rounded-pill bg-danger m-1">Experimental FX</span>
+          <span className="badge rounded-pill bg-danger m-1" title="Experimental FX - may not work at all.">Experimental FX</span>
 
         :("")
         }

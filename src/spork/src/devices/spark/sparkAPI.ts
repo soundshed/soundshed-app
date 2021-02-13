@@ -18,7 +18,7 @@ export class SparkAPI {
 
 
     public presetQueryParams: PGPresetQuery = {
-        "preset_for": "spark",  // spark, jamup, bias
+        "preset_for": "spark",  // spark, jamup, bias, fx2
         "license_tier": null,
         "keyword": null,
         "category": null,

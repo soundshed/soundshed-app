@@ -157,8 +157,8 @@ const sendMessageToApp = (type: string, msg: string) => {
 function createWindow() {
 
     win = new BrowserWindow({
-        width: 1024,
-        height: 800,
+        width: 1280,
+        height: 860,
 
         webPreferences: {
             nodeIntegration: true,

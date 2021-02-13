@@ -146,7 +146,8 @@ const DeviceMainControl = () => {
   return (
     <div className="amp-intro">
       <div className="row">
-        <div className="col">
+        <div className="col"> 
+   
           <DeviceControls></DeviceControls>
         </div>
       </div>

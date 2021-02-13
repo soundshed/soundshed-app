@@ -1140,6 +1140,107 @@ export class FxCatalogProvider {
                     }
                 ]
             },
+             
+            {
+                "type": "amp",
+                "dspId": "B15",
+                "name": "B-15",
+                "isExperimental":true,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "Acoustic360",
+                "name": "Acoustic 360",
+                "isExperimental":true,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "GK700RBII",
+                "name": "GK 700 RB II",
+                "isExperimental":true,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            
             {
                 "type": "comp",
                 "dspId": "LA2AComp",
@@ -1908,30 +2009,30 @@ export class FxCatalogProvider {
                 "type": "modulation",
                 "dspId": "MuTron",
                 "isExperimental":true,
-                "name": "MuTron Auto Wah",
+                "name": "MuTron III",
                 "params": [
                     {
-                        "name": "P 1",
+                        "name": "Mode",
                         "index": 0,
                         "value": 0.3
                     },
                     {
-                        "name": "P 2",
+                        "name": "Peak",
                         "index": 1,
                         "value": 0.2
                     },
                     {
-                        "name": "P 3",
+                        "name": "Depth",
                         "index": 2,
                         "value": 0.9
                     },
                     {
-                        "name": "P 4",
+                        "name": "Range",
                         "index": 3,
                         "value": 0
                     },
                     {
-                        "name": "P 5",
+                        "name": "Position",
                         "index": 4,
                         "value": 0
                     }
