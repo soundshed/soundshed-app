@@ -111,20 +111,30 @@ export class SparkAPI {
         params = params.substr(0, params.length - 1);
 
         let url = this.api_base + "/preset" + params;
-        console.log(url);
 
-        //post to API as JSON
         let response = await fetch(url, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            body: null, credentials: 'include'
+            headers: { 'Content-Type': 'application/json' }
         });
         let data = <any>response.json();
 
         return data;
-        // example json response: 
     }
 
+    async getToneCloudPresetsCreatedByUser(userId:string, page=1, page_size=32) {
+
+        //https://api.positivegrid.com/v2/user_create/4fa1ffb3727a300001000000?page=1&page_size=12&preset_for=fx2
+        let url =`${this.api_base}/user_create/${userId}?page=${page}&page_size=${page_size}&preset_for=spark`;
+        console.log(url);
+
+        let response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        let data = <any>response.json();
+
+        return data;
+    }
 
     async getToneCloudPreset(id) {
         // get preset info

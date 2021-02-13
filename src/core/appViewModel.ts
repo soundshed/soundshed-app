@@ -2,7 +2,7 @@
 import { Store } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
-import {ArtistInfoApi} from './artistInfoApi';
+import { ArtistInfoApi } from './artistInfoApi';
 
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
@@ -148,16 +148,16 @@ export class AppViewModel {
 
         if (preset != null) {
 
-     
-           
+
+
             let convertedTone = new FxMappingSparkToTone().mapFrom(preset);
 
             if (convertedTone.schemaVersion == "pg.preset.summary" && convertedTone.fx == null) {
                 // still need to fetch the preset details
                 let result = await this.loadToneCloudPreset(convertedTone.externalId);
-    
+
                 if (result != null) {
-                    
+
                     let presetData = JSON.parse(result.preset_data);
                     let toneData = new FxMappingSparkToTone().mapFrom(presetData);
                     Object.assign(convertedTone, toneData);
@@ -282,7 +282,7 @@ export class AppViewModel {
                     return cachedTones;
                 }
             }
-            
+
             const result = await this.toneCloudApi.getToneCloudPresets(query);
 
             // convert results to tone
@@ -290,12 +290,12 @@ export class AppViewModel {
                 toneId: "pg.tc." + p.id,
                 name: p.name,
                 categories: [p.category],
+                artists: p.tags ?? [],
                 description: p.description,
                 userId: null,
                 deviceType: "pg.spark40",
                 fx: null,
                 bpm: null,
-                artists: [],
                 version: p.version,
                 timeSig: null,
                 schemaVersion: "pg.preset.summary",
@@ -313,8 +313,33 @@ export class AppViewModel {
         }
     }
 
+    async loadToneCloudTonesByUser(userId, pageIndex) {
+        const result = await this.toneCloudApi.getToneCloudPresetsCreatedByUser(userId, pageIndex, 32);
+        let tones: Tone[] = result.map(p => <Tone>{
+            toneId: "pg.tc." + p.id,
+            name: p.name,
+            categories: [p.category],
+            artists: p.tags ?? [],
+            description: p.description,
+            userId: null,
+            deviceType: "pg.spark40",
+            fx: null,
+            bpm: null,
+            version: p.version,
+            timeSig: null,
+            schemaVersion: "pg.preset.summary",
+            imageUrl: p.thumb_url,
+            externalId: p.id
+        });
 
-    async performArtistSearch(query:string){
+        TonesStateStore.update(s => { s.toneCloudResults = tones });
+
+        localStorage.setItem("_tcResults", JSON.stringify(tones));
+        return tones;
+
+    }
+
+    async performArtistSearch(query: string) {
         return await this.artistInfoApi.search(query);
     }
 
