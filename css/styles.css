@@ -173,3 +173,12 @@ label.fx-type {
 .modal-content {
     background-color: #2d2d2dda;
 }
+
+
+.video-search-result{
+    background-color: #2d2d2da9;
+    color: white;
+    padding: 1em;
+    border-radius: 8px;
+    margin-bottom: 1em;
+}

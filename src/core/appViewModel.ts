@@ -7,6 +7,7 @@ import { ArtistInfoApi } from './artistInfoApi';
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
+import { VideoSearchApi } from './videoSearchApi';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -21,6 +22,12 @@ export const TonesStateStore = new Store({
     toneCloudResults: [],
     storedPresets: []
 });
+
+export const LessonStateStore = new Store({
+    searchResults: [],
+    favourites:[]
+});
+
 
 export interface IToneEditStore {
     isToneEditorOpen: boolean,
@@ -45,6 +52,7 @@ export class AppViewModel {
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
     private artistInfoApi = new ArtistInfoApi();
+    private videoSearchApi = new VideoSearchApi();
 
     constructor() {
 
@@ -366,6 +374,24 @@ export class AppViewModel {
             this.soundshedApi.signOut();
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
+    }
+
+    public async getVideoSearchResults(preferCached: boolean = true, keyword:string) {
+
+        if (preferCached) {
+            let results = localStorage.getItem("_videoSearchResults");
+            if (results != null) {
+                let r = JSON.parse(results);
+                LessonStateStore.update(s => { s.searchResults = r });
+                return r;
+            }
+        }
+
+        let r = await this.videoSearchApi.search(keyword);
+        LessonStateStore.update(s => { s.searchResults = r });
+
+        localStorage.setItem("_videoSearchResults", JSON.stringify(r));
+        return r;
     }
 }
 

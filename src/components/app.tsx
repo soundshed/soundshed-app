@@ -154,7 +154,7 @@ const App = () => {
               className="nav-link"
               activeClassName="nav-link active"
             >
-              Lessons
+              Jam
             </NavLink>
           </li>
           <li className="nav-item">

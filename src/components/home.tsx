@@ -26,7 +26,7 @@ const HomeControl = () => {
 
       <p>
         <NavLink to="/lessons" exact className="btn btn-secondary">
-          Browse Lessons ▶
+          Jam ▶
         </NavLink>
       </p>
     </div>

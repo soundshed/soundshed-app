@@ -57,7 +57,8 @@
     "react-player": "^2.8.1",
     "react-router-dom": "^5.2.0",
     "spotify-web-api-node": "^5.0.2",
-    "update-electron-app": "^2.0.1"
+    "update-electron-app": "^2.0.1",
+    "youtube-search": "^1.1.6"
   },
   "config": {
     "forge": "./forge.config.js"
