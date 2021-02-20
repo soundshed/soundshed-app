@@ -9,26 +9,37 @@ const HomeControl = () => {
 
       <p className="info">
         Browse and manage favourite tones, preview or store on your amp, share
-        tones with the community.
+        tones with the community. Jam to backing tracks and browse video lessons.
       </p>
 
-      <p>
-        <NavLink to="/tones" exact className="btn btn-secondary">
-          Browse Tones ▶
-        </NavLink>
-      </p>
+      <NavLink to="/tones" exact>
+        <section className="nav-section tones">
+        <div className="section-container">
+          <h2>Tones ▶</h2>
+          <p>Browse community tones, manage your favourites.</p>
+          </div>
+        </section>
+      </NavLink>
 
-      <p>
-        <NavLink to="/device" exact className="btn btn-secondary">
-          Control Amp ▶
-        </NavLink>
-      </p>
+      <NavLink to="/device" exact >
+        <section className="nav-section amp">
+        <div className="section-container">
+          <h2>Control Your Amp ▶</h2>
+          <p>Control and modify amp settings</p>
+          </div>
+        </section>
+      </NavLink>
 
-      <p>
-        <NavLink to="/lessons" exact className="btn btn-secondary">
-          Jam ▶
+     
+        <NavLink to="/lessons" exact>
+          <section className="nav-section jam">
+            <div className="section-container">
+            <h2>Jam ▶</h2>
+            <p>Browse backing tracks and video lessons </p>
+            </div>
+          </section>
         </NavLink>
-      </p>
+      
     </div>
   );
 };

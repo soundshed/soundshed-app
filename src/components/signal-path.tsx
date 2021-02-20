@@ -18,33 +18,35 @@ const SignalPathControl = ({
   onStoreFavourite,
 }) => {
   React.useEffect(() => {
-console.log("Signal Path UI updated.");
-
+    console.log("Signal Path UI updated.");
   }, [signalPathState, selectedChannel]);
 
-  const listItems = (t:Tone) => {
+  const listItems = (t: Tone) => {
     if (!t) {
       return <div>Not Connected</div>;
     } else {
       return t.fx.map((fx) => (
-        <div key={fx.type.toString()} className="col-md-2">
+        <td key={fx.type.toString()}>
           <FxControl
             fx={fx}
             onFxParamChange={onFxParamChange}
             onFxToggle={onFxToggle}
           ></FxControl>
-        </div>
+        </td>
       ));
     }
   };
 
   return (
     <div>
-      {!signalPathState || !signalPathState.fx || signalPathState.fx.length == 0 ? (
+      {!signalPathState ||
+      !signalPathState.fx ||
+      signalPathState.fx.length == 0 ? (
         <div className="container">
           <label>
-            No preset selected (or amp not connected). Connect and refresh to get
-            current amp settings. You may need to select a preset button on the amp to start.
+            No preset selected (or amp not connected). Connect and refresh to
+            get current amp settings. You may need to select a preset button on
+            the amp to start.
             {JSON.stringify(signalPathState)}
           </label>
         </div>
@@ -54,14 +56,14 @@ console.log("Signal Path UI updated.");
 
           <div className="row">
             <div className="col-md-8">
-              <h4 className="preset-name">
-                {signalPathState.name}
-              </h4>
+              <h4 className="preset-name">{signalPathState.name}</h4>
             </div>
             <div className="col-md-2">
               <button
                 className="btn btn-sm btn-primary"
-                onClick={()=>{onStoreFavourite(false)}}
+                onClick={() => {
+                  onStoreFavourite(false);
+                }}
               >
                 ⭐
               </button>
@@ -77,8 +79,9 @@ console.log("Signal Path UI updated.");
               </button>
             </div>
           </div>
-
-          <div className="row">{listItems(signalPathState)}</div>
+<table>
+          <tr>{listItems(signalPathState)}</tr>
+          </table>
         </div>
       )}
     </div>

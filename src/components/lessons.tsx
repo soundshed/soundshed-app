@@ -2,60 +2,143 @@ import * as React from "react";
 
 import ReactPlayer from "react-player";
 import { shell } from "electron";
-import { LessonStateStore, UIFeatureToggleStore } from "../core/appViewModel";
-import { appViewModel } from "./app";
+import { UIFeatureToggleStore } from "../core/appViewModel";
+import { appViewModel, lessonManager } from "./app";
 import { VideoSearchResult } from "../core/videoSearchApi";
+import { Form, Nav } from "react-bootstrap";
+import { LessonStateStore } from "../core/lessonManager";
 
 const LessonsControl = () => {
   const enableLessons = UIFeatureToggleStore.useState((s) => s.enableLessons);
   const videoSearchResults = LessonStateStore.useState((s) => s.searchResults);
+  const favourites = LessonStateStore.useState((s) => s.favourites);
 
-  
-  const [view,setView]=React.useState("backingtracks");
-  const [playVideoId,setPlayVideoId]=React.useState("");
+  const [view, setView] = React.useState("backingtracks");
+  const [playVideoId, setPlayVideoId] = React.useState("");
+  const [keyword, setKeyword] = React.useState("");
 
   const openLink = (e, linkUrl) => {
     e.preventDefault();
     shell.openExternal(linkUrl, {});
   };
 
+  const isFavourite = (v: VideoSearchResult): boolean => {
+    if (favourites.find((f: VideoSearchResult) => f.itemId == v.itemId)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  const saveFavourite = (t: VideoSearchResult) => {
+    lessonManager.storeFavourite(t);
+  };
+
+  const deleteFavourite = (t: VideoSearchResult) => {
+    lessonManager.deleteFavourite(t);
+  };
+
   React.useEffect(() => {
-    if (videoSearchResults == null || videoSearchResults.length==0) {
-      appViewModel.getVideoSearchResults(true, "backing track");
+    if (videoSearchResults == null || videoSearchResults.length == 0) {
+      lessonManager.getVideoSearchResults(true, "backing track");
       console.log("Lessons updating.");
     }
   }, []);
 
-  React.useEffect(()=>{},[videoSearchResults]);
+  React.useEffect(() => {}, [videoSearchResults]);
 
-  const playVideo = (v:VideoSearchResult) =>{
+  const playVideo = (v: VideoSearchResult) => {
     setPlayVideoId(v.itemId);
-  }
+  };
 
-  const listVideoItems = (results:VideoSearchResult[]) => {
+  const onSearch = () => {
+    lessonManager.getVideoSearchResults(false, "backing track " + keyword);
+  };
+
+  const renderView = () => {
+    switch (view) {
+      case "backingtracks":
+        return (
+          <div className="m-2">
+            <Form>
+              <Form.Group controlId="formSearch">
+                <Form.Label>Keyword</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Search by keyword"
+                  value={keyword}
+                  onChange={(event) => {
+                    setKeyword(event.target.value);
+                  }}
+                />
+              </Form.Group>
+            </Form>
+            <button className="btn btn-sm btn-success" onClick={onSearch}>
+              Search
+            </button>
+
+            {listVideoItems(videoSearchResults)}
+          </div>
+        );
+      case "favourites":
+        return <div className="m-2">{listVideoItems(favourites)}</div>;
+    }
+  };
+
+  const listVideoItems = (results: VideoSearchResult[]) => {
     if (!results) {
       return <div>No Results</div>;
     } else {
       return results.map((v) => (
-          <div className="video-search-result" key={v.itemId} onClick={()=>{playVideo(v)}}> 
-         
-
-          {playVideoId==v.itemId?(
-
-          <ReactPlayer
-            controls={true}
-            url={v.url}
-          />
-
-          ):( 
-            <div>
-          <h5>{v.title}</h5> 
-          <img src={v.thumbnailUrl}></img>
-            <span className={"badge rounded-pill bg-primary"}>{v.channelTitle}</span>
-            </div>
-          )}
-
+        <div
+          className="video-search-result row"
+          key={v.itemId}
+          onClick={() => {
+            playVideo(v);
+          }}
+        >
+          <div className="col-md-10">
+            {playVideoId == v.itemId ? (
+              <ReactPlayer controls={true} url={v.url} />
+            ) : (
+              <div>
+                <h5>{v.title}</h5>
+                <img src={v.thumbnailUrl}></img>
+                <span className={"badge rounded-pill bg-primary"}>
+                  {v.channelTitle}
+                </span>
+              </div>
+            )}
           </div>
+          <div className="col-md-2">
+            {(() => {
+              if (isFavourite(v) == true) {
+                return (
+                  <button
+                    className="btn btn-sm btn-danger"
+                    onClick={() => {
+                      deleteFavourite(v);
+                    }}
+                  >
+                    🗑
+                  </button>
+                );
+              } else {
+                return (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      saveFavourite(v);
+                    }}
+                  >
+                    {" "}
+                    ⭐
+                  </button>
+                );
+              }
+            })()}
+          </div>
+        </div>
       ));
     }
   };
@@ -67,8 +150,22 @@ const LessonsControl = () => {
       {enableLessons == false ? (
         <div>
           <p>Lessons and Jam Tracks.</p>
-       
-          {listVideoItems(videoSearchResults)}
+
+          <Nav
+            variant="tabs"
+            activeKey={view}
+            onSelect={(selectedKey) => setView(selectedKey)}
+          >
+            <Nav.Item>
+              <Nav.Link eventKey="backingtracks">Backing Tracks</Nav.Link>
+            </Nav.Item>
+
+            <Nav.Item>
+              <Nav.Link eventKey="favourites">Favourites</Nav.Link>
+            </Nav.Item>
+          </Nav>
+
+          {renderView()}
         </div>
       ) : (
         <div>

@@ -7,7 +7,7 @@ import { ArtistInfoApi } from './artistInfoApi';
 import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
-import { VideoSearchApi } from './videoSearchApi';
+import Analytics from 'electron-google-analytics';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -20,14 +20,9 @@ export const AppStateStore = new Store({
 export const TonesStateStore = new Store({
     toneResults: [],
     toneCloudResults: [],
-    storedPresets: []
+    storedPresets: [],
+    isSearchInProgress: false
 });
-
-export const LessonStateStore = new Store({
-    searchResults: [],
-    favourites:[]
-});
-
 
 export interface IToneEditStore {
     isToneEditorOpen: boolean,
@@ -52,7 +47,8 @@ export class AppViewModel {
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
     private artistInfoApi = new ArtistInfoApi();
-    private videoSearchApi = new VideoSearchApi();
+
+    private analytics = new Analytics('G-WESF8F6XMJ');
 
     constructor() {
 
@@ -66,11 +62,15 @@ export class AppViewModel {
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
 
-
     }
 
     log(msg: string) {
         console.log(msg);
+    }
+
+    logPageView(category:string){
+        const appInfo = AppStateStore.getRawState().appInfo;
+        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.app', 'com.soundshed.app', category).then(()=>{});
     }
 
     async performSignIn(login: Login): Promise<boolean> {
@@ -250,12 +250,15 @@ export class AppViewModel {
 
     async loadLatestTones(): Promise<Tone[]> {
         try {
+            TonesStateStore.update(s => { s.isSearchInProgress = true });
             const result = await this.soundshedApi.getTones();
 
             TonesStateStore.update(s => { s.toneResults = result.result ?? [] });
 
+            TonesStateStore.update(s => { s.isSearchInProgress = false });
             return result.result ?? [];
         } catch (err) {
+            TonesStateStore.update(s => { s.isSearchInProgress = false });
             return [];
         }
     }
@@ -279,6 +282,7 @@ export class AppViewModel {
     }
 
     async loadLatestToneCloudTones(preferCached: boolean = true, query: PGPresetQuery = null): Promise<Tone[]> {
+
         try {
             if (preferCached) {
                 let cached = localStorage.getItem("_tcResults");
@@ -291,6 +295,7 @@ export class AppViewModel {
                 }
             }
 
+            TonesStateStore.update(s => { s.isSearchInProgress = true });
             const result = await this.toneCloudApi.getToneCloudPresets(query);
 
             // convert results to tone
@@ -314,14 +319,18 @@ export class AppViewModel {
             TonesStateStore.update(s => { s.toneCloudResults = tones });
 
             localStorage.setItem("_tcResults", JSON.stringify(tones));
+
+            TonesStateStore.update(s => { s.isSearchInProgress = false });
             return tones;
 
         } catch (err) {
+            TonesStateStore.update(s => { s.isSearchInProgress = false });
             return [];
         }
     }
 
     async loadToneCloudTonesByUser(userId, pageIndex) {
+        TonesStateStore.update(s => { s.isSearchInProgress = true });
         const result = await this.toneCloudApi.getToneCloudPresetsCreatedByUser(userId, pageIndex, 32);
         let tones: Tone[] = result.map(p => <Tone>{
             toneId: "pg.tc." + p.id,
@@ -343,6 +352,8 @@ export class AppViewModel {
         TonesStateStore.update(s => { s.toneCloudResults = tones });
 
         localStorage.setItem("_tcResults", JSON.stringify(tones));
+
+        TonesStateStore.update(s => { s.isSearchInProgress = false });
         return tones;
 
     }
@@ -376,23 +387,7 @@ export class AppViewModel {
         }
     }
 
-    public async getVideoSearchResults(preferCached: boolean = true, keyword:string) {
 
-        if (preferCached) {
-            let results = localStorage.getItem("_videoSearchResults");
-            if (results != null) {
-                let r = JSON.parse(results);
-                LessonStateStore.update(s => { s.searchResults = r });
-                return r;
-            }
-        }
-
-        let r = await this.videoSearchApi.search(keyword);
-        LessonStateStore.update(s => { s.searchResults = r });
-
-        localStorage.setItem("_videoSearchResults", JSON.stringify(r));
-        return r;
-    }
 }
 
 export default AppViewModel;

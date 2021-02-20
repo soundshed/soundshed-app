@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { useEffect } from "react";
-import { HashRouter as Router, Route, NavLink, Switch } from "react-router-dom";
+import { HashRouter as Router, Route, NavLink, Switch, useHistory } from "react-router-dom";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/styles.css";
@@ -10,13 +10,12 @@ import DeviceMainControl from "./device-main";
 import ToneBrowserControl from "./tone-browser";
 import AppViewModel, {
   AppStateStore,
-  TonesStateStore,
   UIFeatureToggleStore,
 } from "../core/appViewModel";
 import HomeControl from "./home";
 import AboutControl from "./about";
 import DeviceViewModel, { DeviceStore } from "../core/deviceViewModel";
-import { Button, Modal, Navbar } from "react-bootstrap";
+import { Button} from "react-bootstrap";
 import LoginControl from "./soundshed/login";
 import LessonsControl from "./lessons";
 import { Login, UserRegistration } from "../core/soundshedApi";
@@ -26,9 +25,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import EditToneControl from "./soundshed/edit-tone";
 import DeviceSelectorControl from "./device-selector";
+import { LessonManager } from "../core/lessonManager";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
+export const lessonManager: LessonManager = new LessonManager();
 
 // export context providers for view models
 export const AppViewModelContext = React.createContext(appViewModel);
@@ -36,6 +37,14 @@ export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
 
+
+  const history = useHistory() ;
+  useEffect(() => {
+    return history?.listen((location) => { 
+       console.log(`Navigated the page to: ${location.pathname}`);
+       appViewModel.logPageView(location.pathname);
+    }) 
+ },[history]) 
 
   const isNativeMode = AppStateStore.useState((s) => s.isNativeMode);
   const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
@@ -105,6 +114,8 @@ const App = () => {
       appViewModel.loadLatestToneCloudTones();
     }
     
+
+    lessonManager.loadFavourites();
     //appViewModel.performArtistSearch("Metallica");
     // mock amp connection and current preset
    /* DeviceStore.update(s=>{
@@ -112,11 +123,12 @@ const App = () => {
       s.presetTone=TonesStateStore.getRawState().storedPresets[0];
       s.connectedDevice= {name:"Mock Amp", address:"A1:B2:C3:D4:E5"};
     });*/
+
     
   }, []);
 
   return (
-    <Router>
+
       <main>
         <ul className="nav nav-tabs">
           <li className="nav-item">
@@ -220,8 +232,8 @@ const App = () => {
           </DeviceViewModelContext.Provider>
         </AppViewModelContext.Provider>
       </main>
-    </Router>
+
   );
 };
 
-ReactDOM.render(<App />, document.getElementById("app"));
+ReactDOM.render(<Router><App /></Router>, document.getElementById("app"));

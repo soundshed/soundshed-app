@@ -41,11 +41,15 @@ h1 {
 }
 
 .fx {
-    min-width: 160px;
+    
     box-shadow: -1px 1px 9px 0px #020202cf;
     background-color: #2d2d2da9;
     background: linear-gradient(141deg, rgba(65, 65, 65, 1) 0%, rgba(0, 0, 0, 1) 47%, rgba(56, 56, 56, 1) 100%);
     padding-bottom: 1em;
+    margin-right: 1em;
+    width:160px;
+    min-height:800px;
+    vertical-align: top;
 }
 .fx .preset-name {
     color: #cacaca;
@@ -63,6 +67,7 @@ h1 {
     margin-bottom: 1em;
     color: #9c9c9c;
     font-weight: bold;
+    
 }
 
 .fx select {
@@ -73,6 +78,7 @@ h1 {
     color: #d2d2d2;
     font-size: 80%;
     margin: 0.6em;
+    min-width: 140px;
 }
 
 .fx .bg-success {
@@ -174,11 +180,64 @@ label.fx-type {
     background-color: #2d2d2dda;
 }
 
-
-.video-search-result{
+.video-search-result {
     background-color: #2d2d2da9;
     color: white;
     padding: 1em;
     border-radius: 8px;
     margin-bottom: 1em;
+}
+
+.nav-section {
+    height: 128px;
+    background-color: #2d2d2da9;
+    padding: 1em;
+    margin-bottom: 1em;
+    width: 100%;
+    background-position-x: center;
+    background-position-y: center;
+
+    box-shadow: 1px 3px 0px 0px #94949491;
+
+}
+.nav-section a,
+.nav-section a:hover {
+    color: white;
+    text-decoration: none;
+}
+.nav-section h2 {
+    font-size: 18px;
+}
+
+.nav-section.tones {
+    background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
+    background-size: cover;
+}
+
+.nav-section.amp {
+    background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;
+}
+
+.nav-section.jam {
+    background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
+    background-size: cover;
+}
+.section-container{
+    backdrop-filter: blur(6px) grayscale(0.4);
+    height:100%;
+    width:100%;
+    padding:1em;
+}    
+a,
+a:hover {
+    text-decoration: none;
+}
+a:hover {
+    color: white;
+    text-shadow: 1px 2px 7px #ffffffb3;
+}
+
+td {
+    vertical-align:top;
 }

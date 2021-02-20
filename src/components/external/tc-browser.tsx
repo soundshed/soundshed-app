@@ -34,6 +34,7 @@ const TcBrowserControl = () => {
   const [pageIndex, setPageIndex] = React.useState(defaultPageIndex);
   const [searchMode, setSearchMode] = React.useState("search");
   const [keyword, setKeyword] = React.useState("");
+  const isSearchInProgress =  TonesStateStore.useState((s) => s.isSearchInProgress);
 
   const isDeviceConnected = DeviceStore.useState((s) => s.isConnected);
 
@@ -87,6 +88,7 @@ const TcBrowserControl = () => {
       setPageIndex(idx);
       setSearchMode("user");
     }
+
     appViewModel.loadToneCloudTonesByUser(userId, idx);
   };
 
@@ -145,6 +147,19 @@ const TcBrowserControl = () => {
       <button className="btn btn-sm btn-primary" onClick={next}>
         <FontAwesomeIcon icon={faChevronRight}></FontAwesomeIcon>
       </button>
+
+      {isSearchInProgress ? (
+      
+      <span
+        className="spinner-border spinner-border-sm ms-2"
+        role="status"
+        aria-hidden="true"
+      ></span>
+
+   
+  ) : (
+    ""
+  )}
       <button
         className="btn btn-sm btn-secondary float-end"
         onClick={() => {
