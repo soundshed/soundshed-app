@@ -8,6 +8,7 @@ import { remote, autoUpdater } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
 import Analytics from 'electron-google-analytics';
+import envSettings from '../env';
 
 export const AppStateStore = new Store({
     isUserSignedIn: false,
@@ -48,7 +49,7 @@ export class AppViewModel {
     private toneCloudApi = new SparkAPI();
     private artistInfoApi = new ArtistInfoApi();
 
-    private analytics = new Analytics('G-WESF8F6XMJ');
+    private analytics = new Analytics(envSettings.AnalyticsId);
 
     constructor() {
 

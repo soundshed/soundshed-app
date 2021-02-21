@@ -1,4 +1,5 @@
 import youtubeSearch from "youtube-search";
+import envSettings from "../env";
 
 export interface VideoSearchResult {
     url: string;
@@ -16,7 +17,7 @@ export class VideoSearchApi {
 
         var opts: youtubeSearch.YouTubeSearchOptions = {
             maxResults: 10,
-            key: ""
+            key: envSettings.YoutubeAPIKey
         };
 
         let results = await youtubeSearch(query, opts,);
