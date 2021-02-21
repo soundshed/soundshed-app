@@ -11,7 +11,7 @@ on:
 
 jobs:
   build_windows:
-    if: false # disable build
+    # if: false # disable build
     runs-on: windows-latest
 
     strategy:
@@ -25,7 +25,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
    
-    - run: SET %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded.txt
+    - run: ECHO %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded.txt
       env: 
         WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
 
