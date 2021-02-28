@@ -30,7 +30,7 @@ jobs:
       env: 
         WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
 
-    - run: certutil -f -decode win_cert_encoded.txt win_cert.p12 
+    - run: certutil -decode win_cert_encoded.txt win_cert.p12 
     - run: SET WIN_CODE_SIGNING_P12 = win_cert.p12
     - run: npm ci
     - run: npm run build --if-present
