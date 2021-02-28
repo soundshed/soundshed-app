@@ -2,6 +2,7 @@
 name: app build
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
     tags:
