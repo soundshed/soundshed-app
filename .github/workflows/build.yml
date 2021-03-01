@@ -21,17 +21,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
+    - name: Checkout env
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: soundshed/soundshed-private
+    
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-   
-    - run: ECHO %WIN_CODE_SIGNING_P12_ENCODED% > win_cert_encoded.txt
-      env: 
-        WIN_CODE_SIGNING_P12_ENCODED: ${{ secrets.WIN_CODE_SIGN_ENCODED_P12 }}
 
-    - run: certutil -decode win_cert_encoded.txt win_cert.p12 
-    - run: SET WIN_CODE_SIGNING_P12 = win_cert.p12
+    - run: SET WIN_CODE_SIGNING_P12 = WebprofusionPty2020.p12
+    - run: copy env.ts src /y
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
@@ -39,7 +41,7 @@ jobs:
         WIN_CODE_SIGN_PWD: ${{ secrets.WIN_CODE_SIGNING_PWD }} 
    
   build_linux_ubuntu:
-
+    if: false 
     runs-on: ubuntu-latest
 
     strategy:
@@ -66,7 +68,7 @@ jobs:
           path: out/make/zip/linux/x64/*.zip
      
   build_macos:
-
+    if: false 
     runs-on: macos-latest
 
     strategy:
