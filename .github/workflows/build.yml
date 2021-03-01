@@ -39,7 +39,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
 
     - run: |
-        copy /Y app-private\env.ts .\src
+        copy app-private\env.ts .\src
         copy app-private\WebprofusionPty2020.p12 .\src /y
     - run: npm ci
     - run: npm run build --if-present
