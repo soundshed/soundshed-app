@@ -44,7 +44,7 @@ jobs:
     - run: npm run build --if-present
     - run: npm run make
       env:
-        WIN_CODE_SIGNING_P12 = WebprofusionPty2020.p12
+        WIN_CODE_SIGNING_P12: WebprofusionPty2020.p12
    
   build_linux_ubuntu:
     if: false 
