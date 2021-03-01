@@ -77,7 +77,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         
     - run: |
-        cp app-private\env.ts .\src
+        cp app-private/env.ts ./src
     - run: sudo apt-get install build-essential libbluetooth-dev
       env: 
         ENV_SETTINGS: ${{ secrets.ENV_SETTINGS }}
@@ -113,7 +113,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         
     - run:
-        cp app-private\env.ts .\src
+        cp app-private/env.ts ./src
       env: 
         ENV_SETTINGS: ${{ secrets.ENV_SETTINGS }}
         
