@@ -41,14 +41,20 @@ jobs:
     - run: |
         copy app-private\env.ts .\src
         copy app-private\WebprofusionPty2020.p12 .\src
+        
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
       env:
         WIN_CODE_SIGNING_P12: WebprofusionPty2020.p12
+        
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with: 
+          name: soundshed-win-x64
+          path: out/make/squirrel.windows/x64/*
    
   build_linux_ubuntu:
-    if: false 
     runs-on: ubuntu-latest
 
     strategy:
@@ -57,12 +63,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
+    - name: Checkout env
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: soundshed/soundshed-private
+        path: app-private
+        token: ${{ secrets.PAT_TOKEN }}
+        
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
+        
+    - run: |
+        cp app-private\env.ts .\src
     - run: sudo apt-get install build-essential libbluetooth-dev
-    - run: echo $ENV_SETTINGS > src/env.ts
       env: 
         ENV_SETTINGS: ${{ secrets.ENV_SETTINGS }}
     - run: npm ci
@@ -75,7 +91,6 @@ jobs:
           path: out/make/zip/linux/x64/*.zip
      
   build_macos:
-    if: false 
     runs-on: macos-latest
 
     strategy:
@@ -84,13 +99,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
+    - name: Checkout env
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: soundshed/soundshed-private
+        path: app-private
+        token: ${{ secrets.PAT_TOKEN }}
+        
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-    - run: echo $ENV_SETTINGS > src/env.ts
+        
+    - run:
+        cp app-private\env.ts .\src
       env: 
         ENV_SETTINGS: ${{ secrets.ENV_SETTINGS }}
+        
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
