@@ -40,7 +40,7 @@ jobs:
 
     - run: |
         copy app-private\env.ts .\src
-        copy app-private\WebprofusionPty2020.p12 .\src /y
+        copy app-private\WebprofusionPty2020.p12 .\src
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
