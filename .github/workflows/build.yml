@@ -31,6 +31,7 @@ jobs:
       with:
         repository: soundshed/soundshed-private
         path: app-private
+        token: ${{ secrets.GITHUB_PAT }}
     
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
