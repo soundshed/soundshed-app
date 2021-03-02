@@ -1,11 +1,9 @@
 module.exports = {
 
     packagerConfig: { 
-      dir:"build",
       ignore:[
         ".github",
         ".vscode",
-        "src",
         "docs",
         "css",
         "forge.config.js",
