@@ -1,6 +1,17 @@
 module.exports = {
 
-    packagerConfig: {},
+    packagerConfig: { 
+      dir:"build",
+      ignore:[
+        ".github",
+        ".vscode",
+        "src",
+        "docs",
+        "css",
+        "forge.config.js",
+        "secret.p12"
+      ]
+    },
     makers: [
       {
         name: "@electron-forge/maker-squirrel",
