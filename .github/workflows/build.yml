@@ -39,14 +39,13 @@ jobs:
         node-version: ${{ matrix.node-version }}
 
     - run: |
-        copy app-private\env.ts .\src
-        copy app-private\WebprofusionPty2020.p12 .\src
+        copy app-private\env.ts .\src        
         
     - run: npm ci
     - run: npm run build --if-present
     - run: npm run make
       env:
-        WIN_CODE_SIGNING_P12: WebprofusionPty2020.p12
+        WIN_CODE_SIGNING_P12: ..\app-private\WebprofusionPty2020.p12
         
     - name: upload
       uses: actions/upload-artifact@v2
