@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "Browse and manage favourite tones, preview or store on your amp. Jam to Backing tracks and Lessons",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
