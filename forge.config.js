@@ -2,10 +2,7 @@ module.exports = {
 
     packagerConfig: { 
       ignore:[
-        ".github",
         ".vscode",
-        "docs",
-        "css",
         "forge.config.js",
         "secret.p12"
       ]
