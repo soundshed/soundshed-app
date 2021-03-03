@@ -52,7 +52,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with: 
           name: soundshed-win-x64
-          path: app/public/out/make/squirrel.windows/x64/*
+          path: app-public/out/make/squirrel.windows/x64/*
    
   build_linux_ubuntu:
     if: false
