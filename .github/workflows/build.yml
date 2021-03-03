@@ -47,6 +47,7 @@ jobs:
         npm run make
       env:
         WIN_CODE_SIGNING_P12: ..\app-private\WebprofusionPty2020.p12
+        WIN_CODE_SIGNING_PWD: ${{ secrets.WIN_CODE_SIGN_PWD }}
         
     - name: upload
       uses: actions/upload-artifact@v2
@@ -84,7 +85,7 @@ jobs:
     - run: sudo apt-get install build-essential libbluetooth-dev
   
     - run: |
-        cp app-private\env.ts app-public\src     
+        cp app-private/env.ts app-public/src     
         cd app-public
         npm install
         npm run build
@@ -124,7 +125,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         
     - run: |
-        cp app-private\env.ts app-public\src     
+        cp app-private/env.ts app-public/src     
         cd app-public
         npm install
         npm run build
