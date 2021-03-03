@@ -40,7 +40,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
 
     - run: |
-        copy app-private\env.ts .app-public\src     
+        copy app-private\env.ts app-public\src     
         cd app-public
         npm install
         npm run build
