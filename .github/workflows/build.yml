@@ -46,7 +46,7 @@ jobs:
         npm run build
         npm run make
       env:
-        WIN_CODE_SIGNING_P12: ..\app-private\WebprofusionPty2020.p12
+        WIN_CODE_SIGNING_P12: ..\app-private\signing.pfx
         WIN_CODE_SIGNING_PWD: ${{ secrets.WIN_CODE_SIGN_PWD }}
         
     - name: upload
