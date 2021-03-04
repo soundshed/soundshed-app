@@ -13,6 +13,7 @@ import {
 import { DeviceStore } from "../core/deviceViewModel";
 import TcBrowserControl from "./external/tc-browser";
 import ToneListControl from "./tone-list";
+import { Utils } from "../core/utils";
 
 const ToneBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -72,7 +73,7 @@ const ToneBrowserControl = () => {
   const onEditTone = (t) => {
     if (enableToneEditor) {
       ToneEditStore.update((s) => {
-        s.tone = t;
+        s.editTone = Utils.deepClone(t);
         s.isToneEditorOpen = true;
       });
     }

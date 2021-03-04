@@ -28,10 +28,12 @@ export const TonesStateStore = new Store({
 export interface IToneEditStore {
     isToneEditorOpen: boolean,
     tone: Tone;
+    editTone: Tone;
 }
 export const ToneEditStore = new Store<IToneEditStore>({
     isToneEditorOpen: false,
-    tone: null
+    tone: null,
+    editTone: null
 });
 
 export const UIFeatureToggleStore = new Store({
@@ -143,6 +145,7 @@ export class AppViewModel {
 
         preset = Utils.deepClone(preset);
 
+        let autoOverwrite = true;
         // if tone is already favourite, overwrite
 
         // if tone is also a community tone, fgl as modified and offer to update
@@ -186,7 +189,7 @@ export class AppViewModel {
 
             let presetStored = false;
             if (favourites.find(t => t.name.toLowerCase() == convertedTone.name.toLowerCase())) {
-                if (confirm("You already have a preset stored with the same name. Do you wish to overwrite it with this one?")) {
+                if (autoOverwrite || confirm("You already have a preset stored with the same name. Do you wish to overwrite it with this one?")) {
                     // update existing
                     favourites = favourites.filter(f => f.name.toLowerCase() != convertedTone.name.toLowerCase());
                     favourites.push(convertedTone);
@@ -201,17 +204,20 @@ export class AppViewModel {
             }
 
             if (favourites.find(t => t.name.toLowerCase() != convertedTone.name.toLowerCase() && t.toneId.toLowerCase() == convertedTone.toneId.toLowerCase())) {
-                if (confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
+
+                 // update existing
+                 favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
+                 favourites.push(convertedTone);
+                 presetStored = true;
+                 /*
+                if (!autoOverwrite || confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
                     // add new
                     convertedTone.toneId = Utils.generateUUID();
                     favourites.push(convertedTone);
                     presetStored = true;
                 } else {
-                    // update existing
-                    favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
-                    favourites.push(convertedTone);
-                    presetStored = true;
-                }
+                   
+                }*/
 
             }
 

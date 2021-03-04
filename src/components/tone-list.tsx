@@ -48,8 +48,8 @@ const ToneListControl = ({
     items: string[],
     variant: string = "secondary"
   ) => {
-    return items.map((i) => (
-      <span key={i} className={"badge rounded-pill bg-" + variant}>
+    return items.map((i, idx) => (
+      <span key={idx} className={"badge rounded-pill bg-" + variant}>
         {i}
       </span>
     ));

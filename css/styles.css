@@ -224,7 +224,7 @@ label.fx-type {
     background-size: cover;
 }
 .section-container{
-    backdrop-filter: blur(6px) grayscale(0.4);
+    backdrop-filter: blur(2px) grayscale(0.4);
     height:100%;
     width:100%;
     padding:1em;

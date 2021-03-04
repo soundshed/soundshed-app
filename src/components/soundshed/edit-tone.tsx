@@ -10,22 +10,41 @@ const EditToneControl = () => {
   const openToneEdit: boolean = ToneEditStore.useState(
     (s) => s.isToneEditorOpen
   );
-  const tone = ToneEditStore.useState((s) => s.tone);
+  const tone = ToneEditStore.useState((s) => s.editTone);
 
   const saveFailed = false;
   const tagifySettings = { callbacks: null };
 
   const tagifyRef = {};
 
+  const [updatedArtistTags, setUpdatedArtistsTags] = React.useState(null);
+  const [updatedCategoryTags, setUpdatedCategoryTags] = React.useState(null);
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    // save tone.
+    //apply edits
+    if (updatedArtistTags != null && updatedArtistTags.filter(t=>t!=null)!=[]) {
+      ToneEditStore.update((s) => {
+        s.editTone.artists = updatedArtistTags.filter(t=>t!=null);
+      });
+    }
 
-    appViewModel.storeFavourite(tone);
+    if (updatedCategoryTags != null && updatedCategoryTags.filter(t=>t!=null)!=[]) {
+      ToneEditStore.update((s) => {
+        s.editTone.categories = updatedCategoryTags.filter(t=>t!=null);
+      });
+    }
+
+    // save tone. hack to ensure state updated before save
+    setTimeout(() => {
+      appViewModel.storeFavourite(ToneEditStore.getRawState().editTone);
+      
+    }, 500);
 
     ToneEditStore.update((s) => {
       s.isToneEditorOpen = false;
+      s.tone=s.editTone;
     });
   };
 
@@ -43,12 +62,12 @@ const EditToneControl = () => {
   };
 
   React.useEffect(() => {
-    tagifySettings.callbacks = {
+    /*tagifySettings.callbacks = {
       add: onTagifyAdd,
       remove: onTagifyRemove,
       input: onTagifyInput,
       invalid: onTagifyInvalid,
-    };
+    };*/
   }, []);
 
   // callbacks for all of Tagify's events:
@@ -85,7 +104,7 @@ const EditToneControl = () => {
                   value={tone.name}
                   onChange={(event) => {
                     ToneEditStore.update((s) => {
-                      s.tone.name = event.target.value;
+                      s.editTone.name = event.target.value;
                     });
                   }}
                 />
@@ -93,16 +112,14 @@ const EditToneControl = () => {
 
               <Form.Group controlId="formEditTone">
                 <Form.Label>Description</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter an optional description for this tone"
+                <Form.Control as="textarea" rows={2}  placeholder="Enter an optional description for this tone"
                   value={tone.description}
                   onChange={(event) => {
                     ToneEditStore.update((s) => {
-                      s.tone.description = event.target.value;
+                      s.editTone.description = event.target.value;
                     });
-                  }}
-                />
+                  }}/>
+                
               </Form.Group>
 
               <Form.Group controlId="formArtists">
@@ -111,11 +128,12 @@ const EditToneControl = () => {
                   value={tone.artists}
                   onChange={(e) => {
                     e.persist();
-                    if (e.target.value.length > 0) {
-                      let list = JSON.parse(e.target.value).map((t) => t.value);
-                      ToneEditStore.update((s) => {
-                        s.tone.artists = list;
-                      });
+                    if (e.target.value?.length > 0) {
+                      let list = JSON.parse(e.target.value).filter(t=>t!=null).map((t) => t.value);
+
+                      setUpdatedArtistsTags(list);
+                    } else {
+                      setUpdatedArtistsTags([]);
                     }
                   }}
                 />
@@ -127,11 +145,11 @@ const EditToneControl = () => {
                   value={tone.categories}
                   onChange={(e) => {
                     e.persist();
-                    if (e.target.value.length > 0) {
-                      let list = JSON.parse(e.target.value).map((t) => t.value);
-                      ToneEditStore.update((s) => {
-                        s.tone.categories = list;
-                      });
+                    if (e.target.value?.length > 0) {
+                      let list = JSON.parse(e.target.value).filter(t=>t!=null).map((t) => t.value);
+                      setUpdatedCategoryTags(list);
+                    }else {
+                      setUpdatedCategoryTags([]);
                     }
                   }}
                 />
