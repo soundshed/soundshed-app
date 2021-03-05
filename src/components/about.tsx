@@ -9,7 +9,7 @@ import { Button } from "react-bootstrap";
 const AboutControl = () => {
   React.useEffect(() => {
     appViewModel.refreshAppInfo();
-  },[]);
+  }, []);
 
   const appInfo = AppStateStore.useState((s) => s.appInfo);
 
@@ -18,9 +18,9 @@ const AboutControl = () => {
     shell.openExternal(linkUrl, {});
   };
 
-  const checkForUpdates = () =>{
+  const checkForUpdates = () => {
     appViewModel.checkForUpdates();
-  }
+  };
 
   return (
     <div className="about-intro">
@@ -37,7 +37,29 @@ const AboutControl = () => {
         </a>
       </p>
       <p>Browse and manage favourite tones, preview or store on your amp.</p>
-      <p> <span className="badge rounded-pill bg-secondary">{appInfo?.name} {appInfo?.version}</span> <Button className="btn btn-sm ms-2" onClick={checkForUpdates}>Check For Updates</Button></p>
+      <p>
+        Join the{" "}
+        <a
+          href="#"
+          onClick={(e) => {
+            openLink(
+              e,
+              "https://github.com/soundshed/soundshed-app/discussions"
+            );
+          }}
+        >
+          community discussions
+        </a>
+      </p>
+      <p>
+        {" "}
+        <span className="badge rounded-pill bg-secondary">
+          {appInfo?.name} {appInfo?.version}
+        </span>{" "}
+        <Button className="btn btn-sm ms-2" onClick={checkForUpdates}>
+          Check For Updates
+        </Button>
+      </p>
       <h3>Credits</h3>
       <p>
         Spark communications code based on
@@ -51,8 +73,6 @@ const AboutControl = () => {
       <p>Pedal Board + Red Shoe Photo by Jarrod Reed on Unsplash</p>
       <p>Wooden Pedal Board Photo by Luana Azevedo on Unsplash</p>
       <p>Soundshed app by Christopher Cook</p>
-      
-      
     </div>
   );
 };

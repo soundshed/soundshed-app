@@ -1,8 +1,8 @@
 import * as React from "react";
 import FxParam from "./fx-param";
-import { deviceViewModel } from "./app";
-import { DeviceStore } from "../core/deviceViewModel";
-import { FxCatalogItem } from "../spork/src/interfaces/preset";
+import { deviceViewModel } from "../app";
+import { DeviceStore } from "../../core/deviceViewModel";
+import { FxCatalogItem } from "../../spork/src/interfaces/preset";
 
 const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   const fxCatalog = DeviceStore.useState((s) => s.fxCatalog);

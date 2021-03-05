@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useEffect } from "react";
 import { Button } from "react-bootstrap";
-import { DeviceStore } from "../core/deviceViewModel";
-import { BluetoothDeviceInfo } from "../spork/src/interfaces/deviceController";
-import { deviceViewModel } from "./app";
+import { DeviceStore } from "../../core/deviceViewModel";
+import { BluetoothDeviceInfo } from "../../spork/src/interfaces/deviceController";
+import { deviceViewModel } from "../app";
 
 const DeviceSelectorControl = () => {
   const connectionInProgress = DeviceStore.useState(
@@ -79,7 +79,7 @@ const DeviceSelectorControl = () => {
         : i
     );
 
-    if (!list || list?.length==0) {
+    if (!list || list?.length == 0) {
       return <div>No devices found. Scan to check for devices.</div>;
     } else {
       return list.map((d) => (
@@ -117,9 +117,11 @@ const DeviceSelectorControl = () => {
     <div className="amp-intro">
       <h4>Connect Your Amp</h4>
       <p>
-        To get started, switch on your amp and select Scan to find your device. You should ensure that the amp is not already connected to a different device as the amp can only connect to one device at a time.
+        To get started, switch on your amp and select Scan to find your device.
+        You should ensure that the amp is not already connected to a different
+        device as the amp can only connect to one device at a time.
       </p>
-    
+
       {deviceScanInProgress ? (
         <div>
           <span
@@ -139,7 +141,7 @@ const DeviceSelectorControl = () => {
         </button>
       )}
 
-<p>When found, click connect to complete:</p>
+      <p>When found, click connect to complete:</p>
       <div className="m-2">
         <h4>Devices</h4>
         <div>{listItems(devices)}</div>

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Tone } from "../core/soundshedApi";
+import { Tone } from "../../core/soundshedApi";
 import FxControl from "./fx-control";
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -79,8 +80,8 @@ const SignalPathControl = ({
               </button>
             </div>
           </div>
-<table>
-          <tr>{listItems(signalPathState)}</tr>
+          <table>
+            <tr>{listItems(signalPathState)}</tr>
           </table>
         </div>
       )}

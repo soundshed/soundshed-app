@@ -1,13 +1,11 @@
 import * as React from "react";
 import { useEffect } from "react";
-
-import SignalPathControl from "./signal-path";
+import { DeviceStore } from "../../core/deviceViewModel";
+import { AppViewModelContext, deviceViewModel as vm } from "../app";
 import DeviceControls from "./device-controls";
 import MiscControls from "./misc-controls";
+import SignalPathControl from "./signal-path";
 
-import { AppViewModelContext, DeviceViewModelContext } from "./app";
-import { deviceViewModel as vm } from "./app";
-import { DeviceStore } from "../core/deviceViewModel";
 
 const DeviceMainControl = () => {
   const appViewModel = React.useContext(AppViewModelContext);
