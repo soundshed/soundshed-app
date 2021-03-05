@@ -1,0 +1,57 @@
+# This is a basic workflow that is manually triggered
+
+name: Manual Publish
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: 'Person to greet'
+        # Default value if no value is explicitly provided
+        default: 'World'
+        # Input has to be provided for the workflow to run
+        required: true
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "greet"
+  publish:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Download workflow artifact
+      # You may pin to the exact commit or the version.
+      # uses: dawidd6/action-download-artifact@8c96194455d424a24437ec57817e0aa1a1d72adb
+      uses: dawidd6/action-download-artifact@v2.12.0
+      with:
+        # Workflow name
+        workflow: app build
+        workflow_conclusion: success
+    - name: Create Release
+      # You may pin to the exact commit or the version.
+      # uses: ncipollo/release-action@4b71ee3b25951e6098e7434cdc485edc5b3adab2
+      uses: ncipollo/release-action@v1.7.3
+      with:
+        # An optional flag which indicates if we should update a release if it already exists. Defaults to false.
+        allowUpdates: true
+        draft: true
+        artifacts: soundshed-linux-x64, soundshed-macos-x64
+
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        # Wanted conclusion to search for in recent runs
+        path: # optional, default is ./
