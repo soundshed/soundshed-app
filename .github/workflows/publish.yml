@@ -48,7 +48,8 @@ jobs:
         draft: true
         artifacts: "soundshed-linux-x64/*, soundshed-macos-x64/*, soundshed-win-x64/*"
         token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ env.TAGNAME}}
+        tag: $TAGNAME
+        commit: main
 
         
     
