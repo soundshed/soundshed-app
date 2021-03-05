@@ -5,9 +5,16 @@ name: Publish Draft for Tag
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
 on:
-   push:
-    tags:
-      - '*'
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      tagname:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: 'Version name'
+        # Default value if no value is explicitly provided
+        default: 'v1.0.17'
+        # Input has to be provided for the workflow to run
+        required: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -41,6 +48,7 @@ jobs:
         draft: true
         artifacts: "soundshed-linux-x64/*, soundshed-macos-x64/*, soundshed-win-x64/*"
         token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ env.TAGNAME}}
 
         
     
