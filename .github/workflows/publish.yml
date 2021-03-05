@@ -10,9 +10,9 @@ on:
     inputs:
       name:
         # Friendly description to be shown in the UI instead of 'name'
-        description: 'Person to greet'
+        description: 'Version name'
         # Default value if no value is explicitly provided
-        default: 'World'
+        default: 'v1.0.100'
         # Input has to be provided for the workflow to run
         required: true
 
@@ -33,6 +33,7 @@ jobs:
         # Workflow name
         workflow: app build
         workflow_conclusion: success
+        github-token: ${{ secrets.PAT_TOKEN }}
     - name: Create Release
       # You may pin to the exact commit or the version.
       # uses: ncipollo/release-action@4b71ee3b25951e6098e7434cdc485edc5b3adab2
@@ -42,6 +43,7 @@ jobs:
         allowUpdates: true
         draft: true
         artifacts: soundshed-linux-x64, soundshed-macos-x64
+        token: ${{ secrets.GITHUB_TOKEN }}
 
 
         
