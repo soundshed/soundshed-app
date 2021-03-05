@@ -1,6 +1,9 @@
 # Soundshed
 
-Desktop UI to connect to amp via bluetooth, manage basic settings and set presets. 
+Desktop UI which can be used to:
+- manage tone library and browse tone communities, share tones
+- connect to supported amp via bluetooth, manage basic settings and set presets. 
+- browse and favourite video backing tracks
 
 Windows, macOS and Linux. Bluetooth connectivity required.
 
@@ -8,6 +11,22 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - Positive Grid Spark 40: https://www.positivegrid.com/spark/
 
 ![](docs/screens/ui.png)
+
+
+### Known Issues
+- Device controls (summary level - hidden) not hooked up
+- More keyword search/paging etc required
+- Amp sometimes returns garbled info
+- Invalid settings may crash amp, requiring amp to be switched off and on again.
+
+### Roadmap
+
+- More reliable amp communication
+- UI refinements
+- Code refactoring and tidy
+- More tone community features
+- Lessons (community supplied links to video lessons etc)
+- artist and song metadata for correct cross reference of tones, backing tracks and lessons.
 
 ## Build
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
@@ -37,19 +56,3 @@ Communication with the device works by connection/handling serial bluetooth comm
 
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
 
-### Known Issues
-- Reverb controls don't work
-- Device controls (summary level) not hooked up
-- More keyword search/paging etc required
-- Amp sometimes returns garbled info
-- Invalid settings may crash amp, requiring amp to be switched off and on again.
-
-
-### Roadmap
-
-- More reliable amp communication
-- UI refinements
-- Code refactoring and tidy
-- More tone community features
-- Lessons (community supplied links to video lessons etc)
-- Backing tracks (simple index of youtube or soundcloud backing tracks tagged by genre, key, likes etc)
