@@ -5,7 +5,18 @@ module.exports = {
         ".vscode",
         "forge.config.js",
         "secret.p12"
-      ]
+      ],
+      "osxSign": {
+        "identity": "Developer ID Application: Webprofusion Pty Ltd (2L7LP952XY)",
+        "hardened-runtime": true,
+        "entitlements": "entitlements.plist",
+        "entitlements-inherit": "entitlements.plist",
+        "signature-flags": "library"
+      },
+      "osxNotarize": {
+        "appleId": "",
+        "appleIdPassword": "",
+      }
     },
     makers: [
       {
@@ -22,6 +33,7 @@ module.exports = {
           "darwin","linux"
         ]
       }
+
     ]
  
 }
