@@ -1,6 +1,13 @@
 module.exports = {
 
     packagerConfig: { 
+      name:"Soundshed",
+      appBundleId:"com.soundshed.tones",
+      usageDescription: {
+        Microphone:
+          'Microphone access may be required for some functionality such as tuner or guitar jam.',
+      },
+      appCategoryType: 'public.app-category.utilities',
       ignore:[
         ".vscode",
         "forge.config.js",
@@ -14,8 +21,9 @@ module.exports = {
         "signature-flags": "library"
       },
       "osxNotarize": {
-        "appleId": "",
-        "appleIdPassword": "",
+        "appBundleId":"com.soundshed.tones",
+        "appleId": process.env.MACOS_APPLEID,
+        "appleIdPassword": process.env.MACOS_APP_SIGNING_PWD,
       }
     },
     makers: [
