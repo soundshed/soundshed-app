@@ -9,17 +9,29 @@ import { Button } from "react-bootstrap";
 const AboutControl = () => {
   React.useEffect(() => {
     appViewModel.refreshAppInfo();
+    checkForUpdates();
   }, []);
 
   const appInfo = AppStateStore.useState((s) => s.appInfo);
+
+  const appUpdateAvailable = AppStateStore.useState((s) => s.isUpdateAvailable);
+
+  React.useEffect(() => {}, [appUpdateAvailable, appInfo]);
 
   const openLink = (e, linkUrl) => {
     e.preventDefault();
     shell.openExternal(linkUrl, {});
   };
 
-  const checkForUpdates = () => {
-    appViewModel.checkForUpdates();
+  const checkForUpdates = async (showInfo: boolean = false) => {
+    let result = await appViewModel.checkForUpdates();
+    if (showInfo) {
+      if (result == null || result.isUpdateAvailable == false) {
+        alert("You are using the latest available app version. You should also regularly check soundshed.com for updates and news.");
+      } else {
+        alert("There is a new app version available.");
+      }
+    }
   };
 
   return (
@@ -51,15 +63,29 @@ const AboutControl = () => {
           community discussions
         </a>
       </p>
-      <p>
-        {" "}
-        <span className="badge rounded-pill bg-secondary">
-          {appInfo?.name} {appInfo?.version}
-        </span>{" "}
-        <Button className="btn btn-sm ms-2" onClick={checkForUpdates}>
-          Check For Updates
-        </Button>
-      </p>
+      {appUpdateAvailable == true ? (
+        <p className="alter alert-info m-2 p-2">
+          There is a new app version available. Updating is recommended.
+          <Button
+            className="btn btn-sm ms-2"
+            onClick={(e) => {
+              openLink(e, "https://soundshed.com");
+            }}
+          >
+            Download Update
+          </Button>
+        </p>
+      ) : (
+        <p>
+          <span className="badge rounded-pill bg-secondary">
+            {appInfo?.name} {appInfo?.version}
+          </span>
+          <Button className="btn btn-sm ms-2" onClick={()=>{checkForUpdates(true)}}>
+            Check For Updates
+          </Button>
+        </p>
+      )}
+
       <h3>Credits</h3>
       <p>
         Spark communications code based on

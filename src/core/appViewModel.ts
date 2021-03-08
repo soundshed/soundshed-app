@@ -1,5 +1,5 @@
 
-import { Store } from 'pullstate';
+import { Store, update } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 import { ArtistInfoApi } from './artistInfoApi';
@@ -14,6 +14,7 @@ export const AppStateStore = new Store({
     isUserSignedIn: false,
     isSignInRequired: false,
     isNativeMode: true,
+    isUpdateAvailable: false,
     userInfo: null,
     appInfo: null
 });
@@ -71,9 +72,9 @@ export class AppViewModel {
         console.log(msg);
     }
 
-    logPageView(category:string){
+    logPageView(category: string) {
         const appInfo = AppStateStore.getRawState().appInfo;
-        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.app', 'com.soundshed.app', category).then(()=>{});
+        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.app', 'com.soundshed.app', category).then(() => { });
     }
 
     async performSignIn(login: Login): Promise<boolean> {
@@ -205,19 +206,19 @@ export class AppViewModel {
 
             if (favourites.find(t => t.name.toLowerCase() != convertedTone.name.toLowerCase() && t.toneId.toLowerCase() == convertedTone.toneId.toLowerCase())) {
 
-                 // update existing
-                 favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
-                 favourites.push(convertedTone);
-                 presetStored = true;
-                 /*
-                if (!autoOverwrite || confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
-                    // add new
-                    convertedTone.toneId = Utils.generateUUID();
-                    favourites.push(convertedTone);
-                    presetStored = true;
-                } else {
-                   
-                }*/
+                // update existing
+                favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
+                favourites.push(convertedTone);
+                presetStored = true;
+                /*
+               if (!autoOverwrite || confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
+                   // add new
+                   convertedTone.toneId = Utils.generateUUID();
+                   favourites.push(convertedTone);
+                   presetStored = true;
+               } else {
+                  
+               }*/
 
             }
 
@@ -381,10 +382,44 @@ export class AppViewModel {
         }
     }
 
-    public checkForUpdates() {
+    public async checkForUpdates() {
+
+
+        // fetch latest download links from github
         try {
-            autoUpdater.checkForUpdates();
-        } catch { }
+            let url = "https://api.github.com/repos/soundshed/soundshed-app/releases/latest"
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            let data = await response.json();
+
+            let currentVersion = remote.app.getVersion()?.replace("v","");
+            let updateInfo = {
+
+                name: data.name,
+                version: data.tag_name,
+                currentVersion: currentVersion,
+                isUpdateAvailable: currentVersion != data.tag_name?.replace("v",""),
+                releaseDate: data.published_at,
+                downloadUrl: "https://soundshed.com"
+            };
+
+            if (updateInfo.isUpdateAvailable) {
+                AppStateStore.update(s => { s.isUpdateAvailable = true; });
+            } else {
+                AppStateStore.update(s => { s.isUpdateAvailable = false; });
+            }
+            console.log(JSON.stringify(updateInfo));
+
+            return updateInfo;
+        } catch {
+            return null;
+        }
+
+
     }
 
     public signOut() {
