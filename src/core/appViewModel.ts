@@ -74,7 +74,7 @@ export class AppViewModel {
 
     logPageView(category: string) {
         const appInfo = AppStateStore.getRawState().appInfo;
-        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.app', 'com.soundshed.app', category).then(() => { });
+        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.tones', 'com.soundshed.app', category).then(() => { });
     }
 
     async performSignIn(login: Login): Promise<boolean> {
@@ -122,8 +122,6 @@ export class AppViewModel {
         return favourites;
 
     }
-
-
 
     async deleteFavourite(tone: Tone) {
         if (confirm("Are you sure you wish to delete this tone [" + tone.name + "]?")) {

@@ -45,7 +45,6 @@
     "bluetooth-serial-port": "github:webprofusion-chrisc/node-bluetooth-serial-port",
     "bootstrap": "^5.0.0-beta1",
     "electron-google-analytics": "^1.0.2",
-    "electron-squirrel-startup": "^1.0.0",
     "install": "^0.13.0",
     "jwt-decode": "^3.1.2",
     "nanoid": "^3.1.20",

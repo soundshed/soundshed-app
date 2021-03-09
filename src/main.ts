@@ -159,7 +159,7 @@ function createWindow() {
     win = new BrowserWindow({
         width: 1280,
         height: 860,
-
+        icon:"./images/icon/favicon.ico",
         webPreferences: {
             nodeIntegration: true,
             enableRemoteModule: true,
@@ -167,12 +167,11 @@ function createWindow() {
         }
     })
 
-    win.webContents.setUserAgent("Dalvik/2.1.0 (Linux; U; Android 11; Pixel 3 Build/RQ1A.210105.003)");
+    // win.webContents.setUserAgent("Dalvik/2.1.0 (Linux; U; Android 11; Pixel 3 Build/RQ1A.210105.003)");
     
     if (app.isPackaged) {
         win.removeMenu();
     }
-
 
     win.loadFile('index.html');
 }

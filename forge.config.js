@@ -32,7 +32,10 @@ module.exports = {
         config: {
           name: "soundshed",
           certificateFile: process.env.WIN_CODE_SIGNING_P12,
-          certificatePassword: process.env.WIN_CODE_SIGNING_PWD
+          certificatePassword: process.env.WIN_CODE_SIGNING_PWD,
+          loadingGif: "images/icon/loading-screen.gif",
+          iconUrl:"https://soundshed.com/favicon.ico",
+          setupIcon:"images/icon/favicon.ico"
         }
       },
       {
