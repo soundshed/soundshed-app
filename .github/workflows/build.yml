@@ -124,8 +124,15 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         
+        # run make, setup code signing first: https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions
     - run: |
-        cp app-private/env.ts app-public/src     
+        cp app-private/env.ts app-public/src   
+        echo $MACOS_CERTIFICATE | base64 --decode > app-private/certificate.p12
+        security create-keychain -p $MACOS_APP_SIGNING_PWD app-private/build.keychain
+        security default-keychain -s app-private/build.keychain
+        security unlock-keychain -p $MACOS_APP_SIGNING_PWD app-private/build.keychain
+        security import app-private/certificate.p12 -k app-private/build.keychain -P $MACOS_APP_SIGNING_PWD -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MACOS_APP_SIGNING_PWD app-private/build.keychain
         cd app-public
         npm install
         npm run build
@@ -133,6 +140,7 @@ jobs:
       env:
         MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
         MACOS_APP_SIGNING_PWD: ${{ secrets.MACOS_APP_SIGNING_PWD }}
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
       
     - name: upload
       uses: actions/upload-artifact@v2
