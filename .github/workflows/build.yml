@@ -130,6 +130,9 @@ jobs:
         npm install
         npm run build
         npm run make
+      env:
+        MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
+        MACOS_APP_SIGNING_PWD: ${{ secrets.MACOS_APP_SIGNING_PWD }}
       
     - name: upload
       uses: actions/upload-artifact@v2
