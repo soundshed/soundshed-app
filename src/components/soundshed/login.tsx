@@ -61,7 +61,13 @@ const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
                 New User
               </Button>
             ) : (
-              ""
+              <Button className="btn btn-sm btn-secondary ms-2"
+                onClick={() => {
+                  setIsRegMode(false);
+                }}
+              >
+                Existing User
+              </Button>
             )}
           </p>
 
