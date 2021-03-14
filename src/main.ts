@@ -13,15 +13,17 @@ try {
 
 if (handleSquirrelEvent()) {
     // squirrel event handled and app will exit in 1000ms, so don't do anything else
-    //return;
-
-    app.exit();
+    app.quit();
 }
 else {
 
-    require('update-electron-app')();
-
+    // perform update check and start app normally
+  
     initApp();
+
+    setTimeout(()=>{
+        require('update-electron-app')();
+    },10000);
 }
 
 

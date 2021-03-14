@@ -3,6 +3,7 @@ module.exports = {
     packagerConfig: { 
       name:"Soundshed",
       appBundleId:"com.soundshed.tones",
+      icon: "images/icon/favicon.ico",
       usageDescription: {
         Microphone:
           'Microphone access may be required for some functionality such as tuner or guitar jam.',
