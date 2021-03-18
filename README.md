@@ -27,6 +27,7 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
+- If bluetooth serial eventually becomes part of the standard browser API then port to web.
 
 ## Build
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
