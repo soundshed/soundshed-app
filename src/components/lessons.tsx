@@ -55,6 +55,12 @@ const LessonsControl = () => {
     lessonManager.getVideoSearchResults(false, "backing track " + keyword);
   };
 
+  const onKeySearch = (event) => {
+    if(event.key === 'Enter'){
+      onSearch();
+    }
+  };
+
   const renderView = () => {
     switch (view) {
       case "backingtracks":
@@ -70,6 +76,7 @@ const LessonsControl = () => {
                   onChange={(event) => {
                     setKeyword(event.target.value);
                   }}
+                  onKeyPress={onKeySearch}
                 />
               </Form.Group>
             </Form>

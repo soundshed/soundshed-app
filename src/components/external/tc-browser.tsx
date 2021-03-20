@@ -21,7 +21,7 @@ import { PGPresetQuery } from "../../spork/src/devices/spark/sparkAPI";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
-  faChevronRight, 
+  faChevronRight,
   faSearch
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -51,6 +51,12 @@ const TcBrowserControl = () => {
     setSearchMode("search");
     setPageIndex(defaultPageIndex);
     onRefresh(defaultPageIndex);
+  };
+
+  const onKeySearch = (event) => {
+    if(event.key === 'Enter'){
+      onSearch();
+    }
   };
 
   const next = () => {
@@ -135,10 +141,11 @@ const TcBrowserControl = () => {
             onChange={(event) => {
               setKeyword(event.target.value);
             }}
+            onKeyPress={onKeySearch}
           />
         </Form.Group>
       </Form>
-      <button className="btn btn-sm btn-success" onClick={onSearch}>
+      <button className="btn btn-sm btn-success" onClick={onSearch} >
         Search
       </button>
       <button className="btn btn-sm btn-primary ms-2" onClick={previous}>
@@ -149,14 +156,14 @@ const TcBrowserControl = () => {
       </button>
 
       {isSearchInProgress ? (
-      
+
       <span
         className="spinner-border spinner-border-sm ms-2"
         role="status"
         aria-hidden="true"
       ></span>
 
-   
+
   ) : (
     ""
   )}
