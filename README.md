@@ -2,7 +2,7 @@
 
 Desktop UI which can be used to:
 - manage tone library and browse tone communities, share tones
-- connect to supported amp via bluetooth, manage basic settings and set presets. 
+- connect to supported amp via bluetooth, manage basic settings and set presets.
 - browse and favourite video backing tracks
 
 Windows, macOS and Linux. Bluetooth connectivity required.
@@ -37,6 +37,8 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 
 - VS Code is the recommended editor
 
+- If working on the Lessons portion, you will need to add your youtube-data-api key to the `/src/env.ts` file. More information available [here](https://developers.google.com/youtube/v3/getting-started). Please do not submit this file in pull requests.
+
 - Clone this repository
 - run `npm install` on the repo path
 
@@ -49,7 +51,7 @@ The final installable app is packaged using electron-forge:
 `npm run make`
 
 ### Architecture
-The app is built using TypeScript, with electron/node as a the host process, talking to the electron renderer and back again (the standard electron way of working). 
+The app is built using TypeScript, with electron/node as a the host process, talking to the electron renderer and back again (the standard electron way of working).
 
 The UI is React (TypeScript variant) with bootstrap for UI css. The Pullstate library is use for app state management and a couple of view model classes exist to centralise common points of interaction with APIs, the devices and state.
 
