@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.21",
+  "version": "1.0.22",
   
   "description": "Browse and manage favourite tones, preview or store on your amp. Jam to Backing tracks and Lessons",
   "main": "./build/main.js",
