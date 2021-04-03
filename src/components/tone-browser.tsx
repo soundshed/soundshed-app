@@ -1,19 +1,16 @@
 import * as React from "react";
 import { useEffect } from "react";
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../core/fxMapping";
-import { Tone } from "../core/soundshedApi";
+
 import { appViewModel, DeviceViewModelContext } from "./app";
 import { Nav } from "react-bootstrap";
 
-import {
-  ToneEditStore,
-  TonesStateStore,
-  UIFeatureToggleStore,
-} from "../core/appViewModel";
-import { DeviceStore } from "../core/deviceViewModel";
 import TcBrowserControl from "./external/tc-browser";
 import ToneListControl from "./tone-list";
 import { Utils } from "../core/utils";
+import { UIFeatureToggleStore } from "../stores/uifeaturetoggles";
+import { DeviceStateStore } from "../stores/devicestate";
+import { ToneEditStore, TonesStateStore } from "../stores/tonestate";
 
 const ToneBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -33,7 +30,7 @@ const ToneBrowserControl = () => {
     (s) => s.enableToneEditor
   );
 
-  const isDeviceConnected = DeviceStore.useState((s) => s.isConnected);
+  const isDeviceConnected = DeviceStateStore.useState((s) => s.isConnected);
 
   const favourites = TonesStateStore.useState((s) => s.storedPresets);
   const tones = TonesStateStore.useState((s) => s.toneResults);

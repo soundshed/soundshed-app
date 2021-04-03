@@ -1,10 +1,10 @@
 import * as React from "react";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
-import { AppStateStore, ToneEditStore } from "../../core/appViewModel";
 import Tags from "@yaireo/tagify/dist/react.tagify"; // React-wrapper file
 import "@yaireo/tagify/dist/tagify.css"; // Tagify CSS
 import { Tone } from "../../core/soundshedApi";
 import { appViewModel } from "../app";
+import { ToneEditStore } from "../../stores/tonestate";
 
 const EditToneControl = () => {
   const openToneEdit: boolean = ToneEditStore.useState(

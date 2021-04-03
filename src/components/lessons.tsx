@@ -2,11 +2,11 @@ import * as React from "react";
 
 import ReactPlayer from "react-player";
 import { shell } from "electron";
-import { UIFeatureToggleStore } from "../core/appViewModel";
-import { appViewModel, lessonManager } from "./app";
+import { lessonManager } from "./app";
 import { VideoSearchResult } from "../core/videoSearchApi";
 import { Form, Nav } from "react-bootstrap";
-import { LessonStateStore } from "../core/lessonManager";
+import { LessonStateStore } from "../stores/lessonstate";
+import { UIFeatureToggleStore } from "../stores/uifeaturetoggles";
 
 const LessonsControl = () => {
   const enableLessons = UIFeatureToggleStore.useState((s) => s.enableLessons);
@@ -49,6 +49,8 @@ const LessonsControl = () => {
 
   const playVideo = (v: VideoSearchResult) => {
     setPlayVideoId(v.itemId);
+
+    LessonStateStore.update(s=>{s.playingVideoUrl=v.url});
   };
 
   const onSearch = () => {
@@ -106,7 +108,7 @@ const LessonsControl = () => {
         >
           <div className="col-md-10">
             {playVideoId == v.itemId ? (
-              <ReactPlayer controls={true} url={v.url} />
+              ""
             ) : (
               <div>
                 <h5>{v.title}</h5>

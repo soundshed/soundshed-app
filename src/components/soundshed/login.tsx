@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
-import { AppStateStore } from "../../core/appViewModel";
+import { AppStateStore } from "../../stores/appstate";
 
 const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
   const [name, setName] = React.useState("");

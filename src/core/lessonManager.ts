@@ -1,13 +1,6 @@
-import { Store } from "pullstate";
+import { LessonStateStore } from "../stores/lessonstate";
 import { Utils } from "./utils";
 import VideoSearchApi, { VideoSearchResult } from "./videoSearchApi";
-
-export const LessonStateStore = new Store({
-    searchResults: [],
-    favourites: []
-});
-
-
 
 export class LessonManager {
     private videoSearchApi = new VideoSearchApi();

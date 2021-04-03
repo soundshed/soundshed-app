@@ -76,7 +76,6 @@ export class SoundshedApi {
     baseUrl: string = "https://api.soundshed.com/app/v1/" //"http://localhost:3000/api/v1/";
     currentToken: string;
 
-
     constructor() {
         let authToken = localStorage.getItem("_authtoken");
         if (authToken) {

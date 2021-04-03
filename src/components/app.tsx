@@ -5,6 +5,7 @@ import * as React from "react";
 import { useEffect } from "react";
 import { Button } from "react-bootstrap";
 import * as ReactDOM from "react-dom";
+import ReactPlayer from "react-player";
 import {
   HashRouter as Router,
   NavLink,
@@ -13,13 +14,14 @@ import {
   useHistory,
 } from "react-router-dom";
 import "../../css/styles.css";
-import AppViewModel, {
-  AppStateStore,
-  UIFeatureToggleStore,
-} from "../core/appViewModel";
-import DeviceViewModel, { DeviceStore } from "../core/deviceViewModel";
+import AppViewModel from "../core/appViewModel";
+import DeviceViewModel from "../core/deviceViewModel";
 import { LessonManager } from "../core/lessonManager";
 import { Login, UserRegistration } from "../core/soundshedApi";
+import { AppStateStore } from "../stores/appstate";
+import { DeviceStateStore } from "../stores/devicestate";
+import { LessonStateStore } from "../stores/lessonstate";
+import { UIFeatureToggleStore } from "../stores/uifeaturetoggles";
 import AboutControl from "./about";
 import DeviceMainControl from "./device/device-main";
 import DeviceSelectorControl from "./device/device-selector";
@@ -55,7 +57,10 @@ const App = () => {
 
   const userInfo = AppStateStore.useState((s) => s.userInfo);
 
-  const isConnected = DeviceStore.useState((s) => s.isConnected);
+  const isConnected = DeviceStateStore.useState((s) => s.isConnected);
+
+  const playingVideoUrl = LessonStateStore.useState((s) => s.playingVideoUrl);
+  const [isVideoExpanded, setIsVideoExpanded] = React.useState(true);
 
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
@@ -97,7 +102,7 @@ const App = () => {
 
     const lastKnownDevices = deviceViewModel.getLastKnownDevices();
     if (lastKnownDevices.length > 0) {
-      DeviceStore.update((s) => {
+      DeviceStateStore.update((s) => {
         s.devices = lastKnownDevices;
       });
     }
@@ -202,6 +207,45 @@ const App = () => {
         onSignIn={performSignIn}
         onRegistration={performRegistration}
       ></LoginControl>
+
+      {playingVideoUrl != null ? (
+        <div className={isVideoExpanded ? "expanded-video pull-right" : "pip-video"}>
+          <button
+            title="Close"
+            className="btn btn-sm"
+            onClick={() => {
+              LessonStateStore.update((s) => {
+                s.playingVideoUrl = null;
+              });
+            }}
+          >
+            X
+          </button>
+          <button
+            title="Small"
+            className="btn btn-sm"
+            onClick={() => {
+              setIsVideoExpanded(false);
+            }}
+          >
+            Small
+          </button>
+
+          <button
+            title="Large"
+            className="btn btn-sm"
+            onClick={() => {
+              setIsVideoExpanded(true);
+            }}
+          >
+            Large
+          </button>
+          
+          <ReactPlayer controls={true} url={playingVideoUrl} />
+        </div>
+      ) : (
+        ""
+      )}
 
       <EditToneControl></EditToneControl>
 

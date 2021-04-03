@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect } from "react";
-import { DeviceStore } from "../../core/deviceViewModel";
+import { DeviceStateStore } from "../../stores/devicestate";
 import { AppViewModelContext, deviceViewModel as vm } from "../app";
 import DeviceControls from "./device-controls";
 import MiscControls from "./misc-controls";
@@ -15,18 +15,18 @@ const DeviceMainControl = () => {
     //setDevices(deviceViewModel.devices);
   };
 
-  const connectionInProgress = DeviceStore.useState(
+  const connectionInProgress = DeviceStateStore.useState(
     (s) => s.isConnectionInProgress
   );
-  const connected: boolean = DeviceStore.useState((s) => s.isConnected);
-  const devices = DeviceStore.useState((s) => s.devices);
-  const connectedDevice = DeviceStore.useState((s) => s.connectedDevice);
-  const selectedChannel: number = DeviceStore.useState(
+  const connected: boolean = DeviceStateStore.useState((s) => s.isConnected);
+  const devices = DeviceStateStore.useState((s) => s.devices);
+  const connectedDevice = DeviceStateStore.useState((s) => s.connectedDevice);
+  const selectedChannel: number = DeviceStateStore.useState(
     (s) => s.selectedChannel
   );
-  const currentPreset = DeviceStore.useState((s) => s.presetTone);
+  const currentPreset = DeviceStateStore.useState((s) => s.presetTone);
 
-  const deviceScanInProgress = DeviceStore.useState(
+  const deviceScanInProgress = DeviceStateStore.useState(
     (s) => s.isDeviceScanInProgress
   );
 
@@ -58,6 +58,7 @@ const DeviceMainControl = () => {
             console.log("Connected, refreshing preset..");
             requestCurrentPreset();
           }
+
         }, 1000);
       });
     } else {
@@ -73,11 +74,15 @@ const DeviceMainControl = () => {
       await deviceViewModel.connectDevice(connectedDevice);
     }
 
+    deviceViewModel.requestCurrentChannelSelection().then(()=>{
+      console.log("Got update channel selection info" );
+    });
+
     deviceViewModel.requestPresetConfig().then((ok) => {
       setTimeout(() => {
         console.log(
           "updating preset config in UI " +
-            JSON.stringify(DeviceStore.getRawState().presetTone)
+            JSON.stringify(DeviceStateStore.getRawState().presetTone)
         );
       }, 500);
     });

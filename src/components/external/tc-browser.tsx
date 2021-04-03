@@ -4,17 +4,10 @@ import {
   FxMappingSparkToTone,
   FxMappingToneToSpark,
 } from "../../core/fxMapping";
-import { Tone } from "../../core/soundshedApi";
+
 import { appViewModel, DeviceViewModelContext } from "../app";
-import { Nav, Image, Form } from "react-bootstrap";
+import { Form } from "react-bootstrap";
 
-import {
-  ToneEditStore,
-  TonesStateStore,
-  UIFeatureToggleStore,
-} from "../../core/appViewModel";
-
-import { DeviceStore } from "../../core/deviceViewModel";
 import ToneListControl from "../tone-list";
 import { PGPresetQuery } from "../../spork/src/devices/spark/sparkAPI";
 
@@ -24,6 +17,8 @@ import {
   faChevronRight,
   faSearch
 } from "@fortawesome/free-solid-svg-icons";
+import { TonesStateStore } from "../../stores/tonestate";
+import { DeviceStateStore } from "../../stores/devicestate";
 
 const TcBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -36,7 +31,7 @@ const TcBrowserControl = () => {
   const [keyword, setKeyword] = React.useState("");
   const isSearchInProgress =  TonesStateStore.useState((s) => s.isSearchInProgress);
 
-  const isDeviceConnected = DeviceStore.useState((s) => s.isConnected);
+  const isDeviceConnected = DeviceStateStore.useState((s) => s.isConnected);
 
   const tcResults = TonesStateStore.useState((s) => s.toneCloudResults);
 

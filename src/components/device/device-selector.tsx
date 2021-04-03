@@ -1,20 +1,20 @@
 import * as React from "react";
 import { useEffect } from "react";
 import { Button } from "react-bootstrap";
-import { DeviceStore } from "../../core/deviceViewModel";
 import { BluetoothDeviceInfo } from "../../spork/src/interfaces/deviceController";
+import { DeviceStateStore } from "../../stores/devicestate";
 import { deviceViewModel } from "../app";
 
 const DeviceSelectorControl = () => {
-  const connectionInProgress = DeviceStore.useState(
+  const connectionInProgress = DeviceStateStore.useState(
     (s) => s.isConnectionInProgress
   );
-  const connected: boolean = DeviceStore.useState((s) => s.isConnected);
-  const devices = DeviceStore.useState((s) => s.devices);
-  const connectedDevice = DeviceStore.useState((s) => s.connectedDevice);
-  const attemptedDevice = DeviceStore.useState((s) => s.lastAttemptedDevice);
+  const connected: boolean = DeviceStateStore.useState((s) => s.isConnected);
+  const devices = DeviceStateStore.useState((s) => s.devices);
+  const connectedDevice = DeviceStateStore.useState((s) => s.connectedDevice);
+  const attemptedDevice = DeviceStateStore.useState((s) => s.lastAttemptedDevice);
 
-  const deviceScanInProgress = DeviceStore.useState(
+  const deviceScanInProgress = DeviceStateStore.useState(
     (s) => s.isDeviceScanInProgress
   );
 

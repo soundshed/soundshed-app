@@ -1,52 +1,17 @@
 
-import { Store, update } from 'pullstate';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 import { ArtistInfoApi } from './artistInfoApi';
 
-import { remote, autoUpdater } from 'electron';
+import { remote } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
 import Analytics from 'electron-google-analytics';
 import envSettings from '../env';
-
-export const AppStateStore = new Store({
-    isUserSignedIn: false,
-    isSignInRequired: false,
-    isNativeMode: true,
-    isUpdateAvailable: false,
-    userInfo: null,
-    appInfo: null
-});
-
-export const TonesStateStore = new Store({
-    toneResults: [],
-    toneCloudResults: [],
-    storedPresets: [],
-    isSearchInProgress: false
-});
-
-export interface IToneEditStore {
-    isToneEditorOpen: boolean,
-    tone: Tone;
-    editTone: Tone;
-}
-export const ToneEditStore = new Store<IToneEditStore>({
-    isToneEditorOpen: false,
-    tone: null,
-    editTone: null
-});
-
-export const UIFeatureToggleStore = new Store({
-    enableCommunityTones: true,
-    enabledPGToneCloud: true,
-    enableMyTones: true,
-    enableToneEditor: true,
-    enableLessons: false,
-});
+import { AppStateStore } from '../stores/appstate';
+import { TonesStateStore } from '../stores/tonestate';
 
 export class AppViewModel {
-
 
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();

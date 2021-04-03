@@ -2,9 +2,9 @@ import * as React from "react";
 
 import { shell } from "electron";
 
-import { AppStateStore } from "../core/appViewModel";
 import { appViewModel } from "./app";
 import { Button } from "react-bootstrap";
+import { AppStateStore } from "../stores/appstate";
 
 const AboutControl = () => {
   React.useEffect(() => {
