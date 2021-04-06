@@ -192,7 +192,7 @@ export class SparkCommandMessage {
 
         this.start_message(cmd, sub_cmd)
 
-        this.add_bytes(bytes(1))
+        this.add_bytes(bytes(1)) 
 
         return this.end_message()
     }

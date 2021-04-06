@@ -1,8 +1,9 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { RfcommProvider } from './spork/src/devices/spark/rfcommProvider';
 import { SparkDeviceManager } from './spork/src/devices/spark/sparkDeviceManager';
 
-const deviceManager = new SparkDeviceManager();
+const deviceManager = new SparkDeviceManager(new RfcommProvider());
 let win: BrowserWindow;
 
 try {
@@ -85,6 +86,10 @@ function initApp(){
 
         }
 
+        if (args.action == 'getCurrentChannel') {
+            deviceManager.sendCommand("get_selected_channel", {});
+        }
+
         if (args.action == 'getDeviceName') {
             deviceManager.sendCommand("get_device_name", {});
         }
@@ -149,7 +154,7 @@ function initApp(){
 
 }
 
-const sendMessageToApp = (type: string, msg: string) => {
+const sendMessageToApp = (type: string, msg: any) => {
     if (win) {
         // send message to be handled by the UI/app (appViewModel)
         win.webContents.send(type, msg);
