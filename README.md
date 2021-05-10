@@ -50,6 +50,9 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 The final installable app is packaged using electron-forge:
 `npm run make`
 
+## Release Process
+- Increment version in package.json, run installer Github Action, run Release Github Action, Edit release notes.
+
 ### Architecture
 The app is built using TypeScript, with electron/node as a the host process, talking to the electron renderer and back again (the standard electron way of working).
 

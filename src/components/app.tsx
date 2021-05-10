@@ -1,4 +1,10 @@
-import { faUser } from "@fortawesome/free-solid-svg-icons";
+import {
+  faUser,
+  faWindowClose,
+  faWindowMaximize,
+  faWindowMinimize,
+  faWindowRestore,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "bootstrap/dist/css/bootstrap.min.css";
 import * as React from "react";
@@ -209,39 +215,54 @@ const App = () => {
       ></LoginControl>
 
       {playingVideoUrl != null ? (
-        <div className={isVideoExpanded ? "expanded-video pull-right" : "pip-video"}>
-          <button
-            title="Close"
-            className="btn btn-sm"
-            onClick={() => {
-              LessonStateStore.update((s) => {
-                s.playingVideoUrl = null;
-              });
-            }}
-          >
-            X
-          </button>
-          <button
-            title="Small"
-            className="btn btn-sm"
-            onClick={() => {
-              setIsVideoExpanded(false);
-            }}
-          >
-            Small
-          </button>
-
-          <button
-            title="Large"
-            className="btn btn-sm"
-            onClick={() => {
-              setIsVideoExpanded(true);
-            }}
-          >
-            Large
-          </button>
-          
-          <ReactPlayer controls={true} url={playingVideoUrl} />
+        <div className="pip-video-control">
+          <div className="row">
+            <div className="col">
+              <button
+                title="Close"
+                className="btn btn-sm btn-dark"
+                onClick={() => {
+                  LessonStateStore.update((s) => {
+                    s.playingVideoUrl = null;
+                  });
+                }}
+              >
+                <FontAwesomeIcon icon={faWindowMinimize}></FontAwesomeIcon>
+              </button>
+            </div>
+            <div className="col offset-md-8">
+              {isVideoExpanded == true ? (
+                <button
+                  title="Small Video"
+                  className="btn btn-sm btn-dark"
+                  onClick={() => {
+                    setIsVideoExpanded(false);
+                  }}
+                >
+                  {" "}
+                  <FontAwesomeIcon icon={faWindowRestore}></FontAwesomeIcon>
+                </button>
+              ) : (
+                <button
+                  title="Large Video"
+                  className="btn btn-sm btn-dark"
+                  onClick={() => {
+                    setIsVideoExpanded(true);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faWindowMaximize}></FontAwesomeIcon>
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <ReactPlayer
+              controls={true}
+              url={playingVideoUrl}
+              width={isVideoExpanded ? "640px" : "320px"}
+              height={isVideoExpanded ? "360px" : "180px"}
+            />
+          </div>
         </div>
       ) : (
         ""

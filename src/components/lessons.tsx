@@ -107,17 +107,15 @@ const LessonsControl = () => {
           }}
         >
           <div className="col-md-10">
-            {playVideoId == v.itemId ? (
-              ""
-            ) : (
-              <div>
+         
+             
                 <h5>{v.title}</h5>
-                <img src={v.thumbnailUrl}></img>
+                <img src={v.thumbnailUrl} className={playVideoId == v.itemId?"now-playing":""}></img>
                 <span className={"badge rounded-pill bg-primary"}>
                   {v.channelTitle}
                 </span>
-              </div>
-            )}
+             
+           
           </div>
           <div className="col-md-2">
             {(() => {

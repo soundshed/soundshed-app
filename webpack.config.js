@@ -6,7 +6,7 @@ var path = require('path');
 module.exports = {
 	watch: false,
 	target: 'electron-renderer',
-	mode: 'production',
+	mode: 'development',
 	devtool: 'inline-source-map',
 	entry: {
 		app: './src/components/app.tsx',	

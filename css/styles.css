@@ -171,7 +171,6 @@ label.fx-type {
     background-color: #2d2d2da9;
     color: white;
     padding: 1em;
-  
 }
 
 .modal-content {
@@ -189,7 +188,7 @@ label.fx-type {
 .nav-section {
     height: 128px;
     background-color: #2d2d2da9;
-    padding: 0.5em;
+    padding: 0em;
     margin-bottom: 1em;
     min-width: 400px;
     max-width: 600px;
@@ -239,20 +238,18 @@ td {
     vertical-align: top;
 }
 
-
-.pip-video {
+.pip-video-control {
     position: fixed;
-    margin-left: 40%;
-    opacity: 0.8;
-    transform: scale(0.3); 
-}
-.expanded-video {
-    position: fixed;
-    margin-left: 40%;
-    opacity: 1;
-    transform: scale(1); 
-    background-color: #000;
-    padding:0.2em;
     box-shadow: 2px 2px 2px gainsboro;
-    color:#9c9c9c
+    color: #dddddd;
+    background-color: rgba(58, 58, 58, 0.849);
+    padding: 0.2em;
+    opacity: 1;
+    border: 1px solid black;
+    box-shadow: 3px 3px 20px 2px #11c137;
+    margin-left:50%;
+}
+
+.now-playing {
+    box-shadow: 3px 3px 20px 2px #11c137;
 }
