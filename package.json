@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "description": "Browse and manage favourite tones, preview or store on your amp. Jam to Backing tracks and Lessons",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
@@ -22,6 +22,7 @@
     "@electron-forge/maker-zip": "^6.0.0-beta.54",
     "@types/react": "^17.0.5",
     "@types/react-dom": "^17.0.3",
+    "@types/web-bluetooth": "0.0.9",
     "concurrently": "^5.3.0",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.0.1",
@@ -52,6 +53,7 @@
     "nanoid": "^3.1.20",
     "npm": "^6.14.11",
     "pullstate": "^1.22.1",
+    "querystring": "^0.2.1",
     "react-bootstrap": "^1.5.2",
     "react-player": "^2.9.0",
     "react-router-dom": "^5.2.0",

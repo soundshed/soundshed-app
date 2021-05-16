@@ -1,6 +1,6 @@
 export const envSettings= {
-    YoutubeAPIKey:'$YOUTUBE_KEY',
-    AnalyticsId:'$ANALYTICS_ID'
+    YoutubeAPIKey:'AIzaSyA9R9tejDnqsQFnz6GYP7xMeu4HdPMscrc',
+    AnalyticsId:'G-WESF8F6XMJ'
 };
 
 export default envSettings;

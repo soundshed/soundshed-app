@@ -1,10 +1,9 @@
 import * as React from "react";
 
-import { shell } from "electron";
-
 import { appViewModel } from "./app";
 import { Button } from "react-bootstrap";
 import { AppStateStore } from "../stores/appstate";
+import { openLink } from "../core/platformUtils";
 
 const AboutControl = () => {
   React.useEffect(() => {
@@ -17,11 +16,6 @@ const AboutControl = () => {
   const appUpdateAvailable = AppStateStore.useState((s) => s.isUpdateAvailable);
 
   React.useEffect(() => {}, [appUpdateAvailable, appInfo]);
-
-  const openLink = (e, linkUrl) => {
-    e.preventDefault();
-    shell.openExternal(linkUrl, {});
-  };
 
   const checkForUpdates = async (showInfo: boolean = false) => {
     let result = await appViewModel.checkForUpdates();

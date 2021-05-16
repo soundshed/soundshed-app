@@ -3,10 +3,10 @@ import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 import { ArtistInfoApi } from './artistInfoApi';
 
-import { remote } from 'electron';
+//import { remote } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
-import Analytics from 'electron-google-analytics';
+//import Analytics from 'electron-google-analytics';
 import envSettings from '../env';
 import { AppStateStore } from '../stores/appstate';
 import { TonesStateStore } from '../stores/tonestate';
@@ -17,9 +17,10 @@ export class AppViewModel {
     private toneCloudApi = new SparkAPI();
     private artistInfoApi = new ArtistInfoApi();
 
-    private analytics = new Analytics(envSettings.AnalyticsId);
+   // private analytics = new Analytics(envSettings.AnalyticsId);
 
     constructor() {
+
 
     }
 
@@ -31,15 +32,17 @@ export class AppViewModel {
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
 
+
     }
 
+   
     log(msg: string) {
         console.log(msg);
     }
 
     logPageView(category: string) {
         const appInfo = AppStateStore.getRawState().appInfo;
-        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.tones', 'com.soundshed.app', category).then(() => { });
+        //this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.tones', 'com.soundshed.app', category).then(() => { });
     }
 
     async performSignIn(login: Login): Promise<boolean> {
@@ -338,8 +341,8 @@ export class AppViewModel {
 
         try {
 
-            const info = { version: remote.app.getVersion(), name: remote.app.getName() };
-            AppStateStore.update(s => { s.appInfo = info });
+           // const info = { version: remote.app.getVersion(), name: remote.app.getName() };
+           // AppStateStore.update(s => { s.appInfo = info });
         } catch (err) {
             this.log("Failed to get app version info: " + err)
         }
@@ -359,7 +362,7 @@ export class AppViewModel {
 
             let data = await response.json();
 
-            let currentVersion = remote.app.getVersion()?.replace("v","");
+            let currentVersion = "1.0.0";// remote.app.getVersion()?.replace("v","");
             let updateInfo = {
 
                 name: data.name,

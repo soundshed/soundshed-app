@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import ReactPlayer from "react-player";
-import { shell } from "electron";
+//import { shell } from "electron";
 import { lessonManager } from "./app";
 import { VideoSearchResult } from "../core/videoSearchApi";
 import { Form, Nav } from "react-bootstrap";
@@ -17,10 +17,6 @@ const LessonsControl = () => {
   const [playVideoId, setPlayVideoId] = React.useState("");
   const [keyword, setKeyword] = React.useState("");
 
-  const openLink = (e, linkUrl) => {
-    e.preventDefault();
-    shell.openExternal(linkUrl, {});
-  };
 
   const isFavourite = (v: VideoSearchResult): boolean => {
     if (favourites.find((f: VideoSearchResult) => f.itemId == v.itemId)) {

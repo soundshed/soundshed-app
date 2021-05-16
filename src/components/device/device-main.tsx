@@ -119,7 +119,7 @@ const DeviceMainControl = () => {
   ]);
 
   useEffect(() => {
-    //console.log("Device main - component created");
+    console.log("Device main - component created");
 
     if (deviceViewModel) {
       deviceViewModel.addStateChangeListener(onViewModelStateChange);

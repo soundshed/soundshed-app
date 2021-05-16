@@ -20,10 +20,7 @@ export class SparkDeviceManager implements DeviceController {
 
     constructor(private connection: SerialCommsProvider) {
 
-
     }
-
-
 
     public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
         return this.connection.scanForDevices();
@@ -35,27 +32,34 @@ export class SparkDeviceManager implements DeviceController {
         await this.disconnect();
 
 
-        // setup serial read listeners
-        this.connection.listenForData((buffer) => {
 
-            let currentTime = new Date().getTime();
-            this.lastStateTime = currentTime;
 
-            this.latestStateReceived.push(buffer);
+        var connected = await this.connection.connect(device);
 
-            if (buffer[buffer.length - 1] == 0xf7) {
-                // end message 
-                this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
+        if (connected) {
+            // setup serial read listeners
+            this.connection.listenForData((buffer :ArrayBuffer) => {
 
-                this.readStateMessage().then(() => {
-                    this.latestStateReceived = [];
-                });
-            }
+                let currentTime = new Date().getTime();
+                this.lastStateTime = currentTime;
 
-        });
+                let byteArray = new Uint8Array(buffer);
 
-        return this.connection.connect(device);
+                this.latestStateReceived.push(byteArray);
 
+                if (byteArray[byteArray.length - 1] == 0xf7) {
+                    // end message 
+                    this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
+
+                    this.readStateMessage().then(() => {
+                        this.latestStateReceived = [];
+                    });
+                }
+
+            });
+        }
+
+        return connected;
     }
 
     public async disconnect() {
@@ -211,8 +215,12 @@ export class SparkDeviceManager implements DeviceController {
 
         for (let msg of msgArray) {
             this.log("Sending: " + this.buf2hex(msg));
-            this.connection.write(Buffer.from(msg));
 
+            if (typeof (Buffer) != "undefined") {
+                this.connection.write(Buffer.from(msg));
+            } else {
+                this.connection.write(msg);
+            }
         }
 
         this.log("Sent.: ");

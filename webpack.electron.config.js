@@ -5,7 +5,7 @@ var path = require('path');
 
 module.exports = {
 	watch: false,
-	target: 'web',
+	target: 'electron-renderer',
 	mode: 'development',
 	devtool: 'inline-source-map',
 	entry: {
@@ -13,8 +13,7 @@ module.exports = {
 	},
 	output: {
 		path: path.resolve(__dirname, 'build'),
-		filename: '[name].bundle.js',
-		sourceMapFilename: '[name].js.map'
+		filename: '[name].bundle.js'
 	},
 	resolve: {
 		// Add `.ts` and `.tsx` as a resolvable extension.
