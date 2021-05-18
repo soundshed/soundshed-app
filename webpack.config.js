@@ -6,8 +6,8 @@ var path = require('path');
 module.exports = {
 	watch: false,
 	target: 'web',
-	mode: 'development',
-	devtool: 'inline-source-map',
+	mode: 'production',
+	//devtool: 'inline-source-map',
 	entry: {
 		app: './src/components/app.tsx',	
 	},
@@ -30,20 +30,12 @@ module.exports = {
 			},
 			{
 				test: /\.(woff(2)?|ttf|eot|svg)(\?v=\d+\.\d+\.\d+)?$/,
-				use: [
-					{
-						loader: 'file-loader'
-					}
-				]
-			},
-			{
+				type: 'asset/resource'
+			 },
+			 {
 				test: /\.(png|jpe?g|gif)$/i,
-				use: [
-					{
-						loader: 'file-loader'
-					}
-				]
-			}
+				type: 'asset/resource'
+			 }
 		]
 	},
 	plugins: [

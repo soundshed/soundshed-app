@@ -1,10 +1,7 @@
-import {
-  faUser,
-  faWindowClose,
-  faWindowMaximize,
-  faWindowMinimize,
-  faWindowRestore,
-} from "@fortawesome/free-solid-svg-icons";
+import { faUser } from "@fortawesome/free-solid-svg-icons/faUser";
+import { faWindowMaximize } from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
+import { faWindowMinimize } from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
+import { faWindowRestore } from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "bootstrap/dist/css/bootstrap.min.css";
 import * as React from "react";
@@ -47,14 +44,14 @@ export const AppViewModelContext = React.createContext(appViewModel);
 export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
- // const history = useHistory();
+  const history = useHistory();
 
- /* useEffect(() => {
+  useEffect(() => {
     return history?.listen((location) => {
       console.log(`Navigated the page to: ${location.pathname}`);
       appViewModel.logPageView(location.pathname);
     });
-  }, [history]);*/
+  }, [history]);
 
   const isNativeMode = AppStateStore.useState((s) => s.isNativeMode);
   const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
@@ -106,7 +103,7 @@ const App = () => {
   useEffect(() => {
     console.log("App startup..");
 
-    const lastKnownDevices = [];// deviceViewModel.getLastKnownDevices();
+    const lastKnownDevices = []; // deviceViewModel.getLastKnownDevices();
     if (lastKnownDevices.length > 0) {
       DeviceStateStore.update((s) => {
         s.devices = lastKnownDevices;
@@ -119,14 +116,14 @@ const App = () => {
     appViewModel.loadFavourites();
 
     // get latest tones from soundshed api
-    //appViewModel.loadLatestTones();
+    appViewModel.loadLatestTones();
 
     if (UIFeatureToggleStore.getRawState().enabledPGToneCloud) {
-      //appViewModel.loadLatestToneCloudTones();
+      appViewModel.loadLatestToneCloudTones();
     }
 
-    //lessonManager.loadFavourites();
-    
+    lessonManager.loadFavourites();
+
     // mock amp connection and current preset
     /* DeviceStore.update(s=>{
       s.isConnected=true; 

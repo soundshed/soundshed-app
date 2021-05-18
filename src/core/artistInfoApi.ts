@@ -1,5 +1,5 @@
 
-import SpotifyWebApi from "spotify-web-api-node";
+declare var SpotifyWebApi:any;
 
 
 export class ArtistInfoApi {
@@ -7,7 +7,7 @@ export class ArtistInfoApi {
     spotifyApi = new SpotifyWebApi({
         clientId: '',
         clientSecret: '',
-        redirectUri: 'https://api.soundshed.com//v1/spotifycallback'
+        redirectUri: 'https://api.soundshed.com/v1/spotifycallback'
     });
 
     apiToken=null;
@@ -47,10 +47,6 @@ export class ArtistInfoApi {
                 });
 
         });
-
-
-
-
     }
 }
 

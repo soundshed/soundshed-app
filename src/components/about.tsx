@@ -4,6 +4,7 @@ import { appViewModel } from "./app";
 import { Button } from "react-bootstrap";
 import { AppStateStore } from "../stores/appstate";
 import { openLink } from "../core/platformUtils";
+import env from "../env";
 
 const AboutControl = () => {
   React.useEffect(() => {
@@ -15,13 +16,16 @@ const AboutControl = () => {
 
   const appUpdateAvailable = AppStateStore.useState((s) => s.isUpdateAvailable);
 
+  const isWebMode = env.IsWebMode;
   React.useEffect(() => {}, [appUpdateAvailable, appInfo]);
 
   const checkForUpdates = async (showInfo: boolean = false) => {
     let result = await appViewModel.checkForUpdates();
     if (showInfo) {
       if (result == null || result.isUpdateAvailable == false) {
-        alert("You are using the latest available app version. You should also regularly check soundshed.com for updates and news.");
+        alert(
+          "You are using the latest available app version. You should also regularly check soundshed.com for updates and news."
+        );
       } else {
         alert("There is a new app version available.");
       }
@@ -57,29 +61,39 @@ const AboutControl = () => {
           community discussions
         </a>
       </p>
-      {appUpdateAvailable == true ? (
-        <p className="alter alert-info m-2 p-2">
-          There is a new app version available. Updating is recommended.
-          <Button
-            className="btn btn-sm ms-2"
-            onClick={(e) => {
-              openLink(e, "https://soundshed.com");
-            }}
-          >
-            Download Update
-          </Button>
-        </p>
+      {isWebMode == false ? (
+        <div>
+          {appUpdateAvailable == true ? (
+            <p className="alter alert-info m-2 p-2">
+              There is a new app version available. Updating is recommended.
+              <Button
+                className="btn btn-sm ms-2"
+                onClick={(e) => {
+                  openLink(e, "https://soundshed.com");
+                }}
+              >
+                Download Update
+              </Button>
+            </p>
+          ) : (
+            <p>
+              <span className="badge rounded-pill bg-secondary">
+                {appInfo?.name} {appInfo?.version}
+              </span>
+              <Button
+                className="btn btn-sm ms-2"
+                onClick={() => {
+                  checkForUpdates(true);
+                }}
+              >
+                Check For Updates
+              </Button>
+            </p>
+          )}
+        </div>
       ) : (
-        <p>
-          <span className="badge rounded-pill bg-secondary">
-            {appInfo?.name} {appInfo?.version}
-          </span>
-          <Button className="btn btn-sm ms-2" onClick={()=>{checkForUpdates(true)}}>
-            Check For Updates
-          </Button>
-        </p>
+        <span className="badge rounded-pill bg-secondary">Web Version</span>
       )}
-
       <h3>Credits</h3>
       <p>
         Spark communications code based on

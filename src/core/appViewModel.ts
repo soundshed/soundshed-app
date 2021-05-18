@@ -15,7 +15,7 @@ export class AppViewModel {
 
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
-    private artistInfoApi = new ArtistInfoApi();
+   // private artistInfoApi = new ArtistInfoApi();
 
    // private analytics = new Analytics(envSettings.AnalyticsId);
 
@@ -333,7 +333,7 @@ export class AppViewModel {
     }
 
     async performArtistSearch(query: string) {
-        return await this.artistInfoApi.search(query);
+        //return await this.artistInfoApi.search(query);
     }
 
     public refreshAppInfo() {
