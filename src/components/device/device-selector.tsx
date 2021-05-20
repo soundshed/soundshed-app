@@ -1,6 +1,5 @@
-import * as React from "react";
-import { useEffect } from "react";
-import { Button } from "react-bootstrap";
+import React, { useEffect } from "react";
+import Button from "react-bootstrap/Button";
 import { BluetoothDeviceInfo } from "../../spork/src/interfaces/deviceController";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { deviceViewModel } from "../app";

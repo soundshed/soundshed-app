@@ -1,4 +1,4 @@
-import * as React from "react";
+import React from "react";
 import { Tone } from "../../core/soundshedApi";
 import FxControl from "./fx-control";
 

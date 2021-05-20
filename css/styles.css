@@ -205,18 +205,18 @@ label.fx-type {
 }
 
 .nav-section.tones {
-    background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
-    background-size: cover;
+    /*background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
+    background-size: cover;*/
 }
 
 .nav-section.amp {
-    background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
-    background-size: cover;
+   /* background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;*/
 }
 
 .nav-section.jam {
-    background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
-    background-size: cover;
+   /* background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
+    background-size: cover;*/
 }
 .section-container {
     backdrop-filter: blur(18px) grayscale(0.5);

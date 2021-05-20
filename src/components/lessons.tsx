@@ -1,10 +1,11 @@
-import * as React from "react";
+import React, { useEffect } from "react";
 
-import ReactPlayer from "react-player";
-//import { shell } from "electron";
+import ReactPlayer from "react-player/youtube";
+//import { shell } from "electron";/
 import { lessonManager } from "./app";
 import { VideoSearchResult } from "../core/videoSearchApi";
-import { Form, Nav } from "react-bootstrap";
+import Form from "react-bootstrap/Form";
+import Nav from "react-bootstrap/Nav";
 import { LessonStateStore } from "../stores/lessonstate";
 import { UIFeatureToggleStore } from "../stores/uifeaturetoggles";
 
@@ -16,7 +17,6 @@ const LessonsControl = () => {
   const [view, setView] = React.useState("backingtracks");
   const [playVideoId, setPlayVideoId] = React.useState("");
   const [keyword, setKeyword] = React.useState("");
-
 
   const isFavourite = (v: VideoSearchResult): boolean => {
     if (favourites.find((f: VideoSearchResult) => f.itemId == v.itemId)) {
@@ -46,7 +46,9 @@ const LessonsControl = () => {
   const playVideo = (v: VideoSearchResult) => {
     setPlayVideoId(v.itemId);
 
-    LessonStateStore.update(s=>{s.playingVideoUrl=v.url});
+    LessonStateStore.update((s) => {
+      s.playingVideoUrl = v.url;
+    });
   };
 
   const onSearch = () => {
@@ -54,7 +56,7 @@ const LessonsControl = () => {
   };
 
   const onKeySearch = (event) => {
-    if(event.key === 'Enter'){
+    if (event.key === "Enter") {
       onSearch();
     }
   };
@@ -103,15 +105,14 @@ const LessonsControl = () => {
           }}
         >
           <div className="col-md-10">
-         
-             
-                <h5>{v.title}</h5>
-                <img src={v.thumbnailUrl} className={playVideoId == v.itemId?"now-playing":""}></img>
-                <span className={"badge rounded-pill bg-primary"}>
-                  {v.channelTitle}
-                </span>
-             
-           
+            <h5>{v.title}</h5>
+            <img
+              src={v.thumbnailUrl}
+              className={playVideoId == v.itemId ? "now-playing" : ""}
+            ></img>
+            <span className={"badge rounded-pill bg-primary"}>
+              {v.channelTitle}
+            </span>
           </div>
           <div className="col-md-2">
             {(() => {

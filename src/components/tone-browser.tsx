@@ -1,9 +1,9 @@
-import * as React from "react";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
+
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../core/fxMapping";
 
 import { appViewModel, DeviceViewModelContext } from "./app";
-import { Nav } from "react-bootstrap";
+import Nav from "react-bootstrap/Nav";
 
 import TcBrowserControl from "./external/tc-browser";
 import ToneListControl from "./tone-list";
@@ -76,24 +76,35 @@ const ToneBrowserControl = () => {
     }
   };
 
-  useEffect(() => { }, [tones, favourites, tonecloud]);
+  useEffect(() => {}, [tones, favourites, tonecloud]);
 
   const renderTonesView = () => {
     switch (viewSelection) {
       case "my":
         return (
           <div className="m-2">
-
-            <ToneListControl toneList={favourites} favourites={favourites} onApplyTone={onApplyTone} onEditTone={onEditTone} noneMsg="No favourite tones saved yet." enableToneEditor={enableToneEditor}></ToneListControl>
-
+            <ToneListControl
+              toneList={favourites}
+              favourites={favourites}
+              onApplyTone={onApplyTone}
+              onEditTone={onEditTone}
+              noneMsg="No favourite tones saved yet."
+              enableToneEditor={enableToneEditor}
+            ></ToneListControl>
           </div>
         );
       case "community":
         return (
           <div className="m-2">
             <p>Tones shared by the Soundshed Community:</p>
-            <ToneListControl toneList={tones} favourites={favourites} onApplyTone={onApplyTone} onEditTone={() => { }} noneMsg="No community tones available." enableToneEditor={false}></ToneListControl>
-
+            <ToneListControl
+              toneList={tones}
+              favourites={favourites}
+              onApplyTone={onApplyTone}
+              onEditTone={() => {}}
+              noneMsg="No community tones available."
+              enableToneEditor={false}
+            ></ToneListControl>
           </div>
         );
 
@@ -124,24 +135,24 @@ const ToneBrowserControl = () => {
               <Nav.Link eventKey="my">My Tones</Nav.Link>
             </Nav.Item>
           ) : (
-              ""
-            )}
+            ""
+          )}
 
           {enableCommunityTones ? (
             <Nav.Item>
               <Nav.Link eventKey="community">Community</Nav.Link>
             </Nav.Item>
           ) : (
-              ""
-            )}
+            ""
+          )}
 
           {enableToneCloud ? (
             <Nav.Item>
               <Nav.Link eventKey="tonecloud">ToneCloud</Nav.Link>
             </Nav.Item>
           ) : (
-              ""
-            )}
+            ""
+          )}
         </Nav>
 
         {renderTonesView()}

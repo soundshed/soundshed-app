@@ -1,7 +1,7 @@
-import * as React from "react";
+import React from "react";
 
 import { appViewModel } from "./app";
-import { Button } from "react-bootstrap";
+import Button from "react-bootstrap/Button";
 import { AppStateStore } from "../stores/appstate";
 import { openLink } from "../core/platformUtils";
 import env from "../env";

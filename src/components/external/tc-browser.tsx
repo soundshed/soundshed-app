@@ -1,12 +1,12 @@
-import * as React from "react";
-import { useEffect } from "react";
+import React,{ useEffect } from "react";
+
 import {
   FxMappingSparkToTone,
   FxMappingToneToSpark,
 } from "../../core/fxMapping";
 
 import { appViewModel, DeviceViewModelContext } from "../app";
-import { Form } from "react-bootstrap";
+import Form from "react-bootstrap/Form";
 
 import ToneListControl from "../tone-list";
 import { PGPresetQuery } from "../../spork/src/devices/spark/sparkAPI";

@@ -1,5 +1,7 @@
 //const fetch = require('node-fetch');
 
+import env from "../../../../env";
+
 
 export interface PGPresetQuery {
     preset_for?: string;
@@ -28,7 +30,7 @@ export class SparkAPI {
         "tag": null
     }
 
-    api_base = "https://api.positivegrid.com/v2"
+    api_base = env.IsWebMode ? "https://api-proxy.soundshed.com/pg-tones" : "https://api.positivegrid.com/v2";
 
     log(msg) {
         console.log(msg);
@@ -40,7 +42,7 @@ export class SparkAPI {
         let payload = { "username": user, "password": pwd };
 
         //post to API as JSON
-        let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        let response = await fetch(url, { method: 'POST', mode: 'no-cors',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let data = <any>response.json();
 
         if (data.success == true) {
@@ -99,7 +101,7 @@ export class SparkAPI {
 
         this.presetQueryParams = queryParams;
 
-        if (this.presetQueryParams.keyword=="") this.presetQueryParams.keyword=null;
+        if (this.presetQueryParams.keyword == "") this.presetQueryParams.keyword = null;
         // get preset results
         let params = "?";
 
@@ -121,10 +123,10 @@ export class SparkAPI {
         return data;
     }
 
-    async getToneCloudPresetsCreatedByUser(userId:string, page=1, page_size=32) {
+    async getToneCloudPresetsCreatedByUser(userId: string, page = 1, page_size = 32) {
 
         //https://api.positivegrid.com/v2/user_create/4fa1ffb3727a300001000000?page=1&page_size=12&preset_for=fx2
-        let url =`${this.api_base}/user_create/${userId}?page=${page}&page_size=${page_size}&preset_for=spark`;
+        let url = `${this.api_base}/user_create/${userId}?page=${page}&page_size=${page_size}&preset_for=spark`;
         console.log(url);
 
         let response = await fetch(url, {

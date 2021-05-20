@@ -1,14 +1,14 @@
-import { faUser } from "@fortawesome/free-solid-svg-icons/faUser";
-import { faWindowMaximize } from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
-import { faWindowMinimize } from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
-import { faWindowRestore } from "@fortawesome/free-solid-svg-icons/faWindowRestore";
+import faUser from "@fortawesome/free-solid-svg-icons/faUser";
+import faWindowMaximize from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
+import faWindowMinimize from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
+import faWindowRestore from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import "bootstrap/dist/css/bootstrap.min.css";
-import * as React from "react";
-import { useEffect } from "react";
-import { Button } from "react-bootstrap";
-import * as ReactDOM from "react-dom";
-import ReactPlayer from "react-player";
+
+import React, { useEffect } from "react";
+
+import Button from "react-bootstrap/Button";
+import ReactDOM from "react-dom";
+import ReactPlayer from "react-player/youtube";
 import {
   HashRouter as Router,
   NavLink,
@@ -200,6 +200,7 @@ const App = () => {
               }}
             >
               <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+              Sign In
             </Button>
           )}
         </li>
