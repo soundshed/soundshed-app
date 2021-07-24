@@ -1,5 +1,5 @@
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { DeviceContext } from './core/deviceContext';
 import { RfcommProvider } from './spork/src/devices/spark/rfcommProvider';
 
@@ -78,6 +78,20 @@ function createWindow() {
     if (app.isPackaged) {
         win.removeMenu();
     }
+    const ses = win.webContents.session;
+       ses.setPermissionRequestHandler((webContents, permission, callback) => {
+            console.log("Requested permission: "+permission);
+      
+      
+        callback(true);
+      });
+
+      ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+ 
+        console.log("Checked permission: "+permission);
+          return true ;
+    
+      });
 
     win.loadFile('index.html');
 }

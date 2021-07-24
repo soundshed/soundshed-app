@@ -95,6 +95,7 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     private hydrateDeviceStateInfo(deviceState: DeviceState) {
+
         let fxCatalog = FxCatalogProvider.db;
 
         // populate metadata about fx etc
@@ -104,6 +105,8 @@ export class SparkDeviceManager implements DeviceController {
                 if (dspId == "bias.reverb") {
                     //map mode variant to our config dspId
                     dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
+                } else {
+                    dspId = FxMappingSparkToTone.mapFxId(dspId);
                 }
 
                 let dsp = fxCatalog.catalog.find(f => f.dspId == dspId);

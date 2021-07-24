@@ -5,7 +5,8 @@ import faWindowRestore from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import React, { useEffect } from "react";
-
+import Draggable from 'react-draggable'; 
+import Container from "react-bootstrap/Container";
 import Button from "react-bootstrap/Button";
 import ReactDOM from "react-dom";
 import ReactPlayer from "react-player/youtube";
@@ -16,6 +17,8 @@ import {
   Switch,
   useHistory,
 } from "react-router-dom";
+
+import 'bootstrap/dist/css/bootstrap.min.css';
 import "../../css/styles.css";
 import AppViewModel from "../core/appViewModel";
 import DeviceViewModel from "../core/deviceViewModel";
@@ -34,6 +37,7 @@ import AmpOfflineControl from "./soundshed/amp-offline";
 import EditToneControl from "./soundshed/edit-tone";
 import LoginControl from "./soundshed/login";
 import ToneBrowserControl from "./tone-browser";
+import SettingsControl from "./settings";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -134,6 +138,7 @@ const App = () => {
 
   return (
     <main>
+      <Container>
       <ul className="nav nav-tabs">
         <li className="nav-item">
           <NavLink
@@ -171,6 +176,15 @@ const App = () => {
             activeClassName="nav-link active"
           >
             Jam
+          </NavLink>
+        </li>
+        <li className="nav-item">
+          <NavLink
+            to="/settings"
+            className="nav-link"
+            activeClassName="nav-link active"
+          >
+            Settings
           </NavLink>
         </li>
         <li className="nav-item">
@@ -213,6 +227,7 @@ const App = () => {
       ></LoginControl>
 
       {playingVideoUrl != null ? (
+        <Draggable>
         <div className="pip-video-control">
           <div className="row">
             <div className="col">
@@ -262,6 +277,7 @@ const App = () => {
             />
           </div>
         </div>
+        </Draggable>
       ) : (
         ""
       )}
@@ -289,10 +305,12 @@ const App = () => {
             <Route path="/lessons">
               <LessonsControl></LessonsControl>
             </Route>
+            <Route path="/settings" exact component={SettingsControl} />
             <Route path="/about" exact component={AboutControl} />
           </Switch>
         </DeviceViewModelContext.Provider>
       </AppViewModelContext.Provider>
+      </Container>
     </main>
   );
 };

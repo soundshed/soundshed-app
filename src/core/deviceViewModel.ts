@@ -8,6 +8,7 @@ import { DeviceStateStore } from '../stores/devicestate';
 import { platformEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
+import envSettings from '../env';
 
 // web mode
 
@@ -44,12 +45,18 @@ export class DeviceViewModel {
 
         DeviceStateStore.update(s => { s.fxCatalog = this.getFxCatalog() });
 
-        this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
+        if (envSettings.IsWebMode) {
+
+            this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
+        }
+        else {
+
+        }
     }
 
     hardwareEventReceiver(type: string, msg: any) {
         this.log("Device VM event received: " + type);
-        platformEvents.invoke(type,msg);
+        platformEvents.invoke(type, msg);
         //this.deviceContext.performAction({ action: type, args: msg });
     }
 

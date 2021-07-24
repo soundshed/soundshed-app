@@ -42,13 +42,20 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - Clone this repository
 - run `npm install` on the repo path
 
-## Run
-- Run `npm run watch` in one terminal to continuously rebuild the UI code or `npm run build` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
-- Run `npm run start` to launch the UI
+## Run Web Version
+- Run `npm run watch-web` in one terminal to continuously rebuild the UI code or `npm run build-web` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
+- Run `http-server build` to start local web server on http://localhost:8080/
 
+## Run Electron Version
+- Run `npm run watch-electron` in one terminal to continuously rebuild the UI code or `npm run build-electron` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
+- Run `npm run start-electron` to launch the UI
 
 The final installable app is packaged using electron-forge:
 `npm run make`
+
+## Toggle between web and electron mode
+- edit env.ts, set IsWebMode true/false
+- edit platformUtils.ts, import required platform
 
 ## Release Process
 - Increment version in package.json, run installer Github Action, run Release Github Action, Edit release notes.

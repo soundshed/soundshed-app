@@ -26,6 +26,16 @@ const EditToneControl = () => {
   const handleSubmit = (event) => {
     event.preventDefault();
 
+    if (tone.name.trim().length==0){
+      alert("Tone name can't be blank.");
+      return;
+    }
+    
+    if (tone.name.length>30){
+      alert("Tone name can be a maximum of 30 characters.");
+      return;
+    }
+
     //apply edits
     if (updatedArtistTags != null && updatedArtistTags.filter(t=>t!=null)!=[]) {
       ToneEditStore.update((s) => {
