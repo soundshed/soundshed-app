@@ -5,6 +5,8 @@ Desktop UI which can be used to:
 - connect to supported amp via bluetooth, manage basic settings and set presets.
 - browse and favourite video backing tracks
 
+Download from https://soundshed.com or check out the web app version.
+
 Windows, macOS and Linux. Bluetooth connectivity required.
 
 *Supported amps:*
