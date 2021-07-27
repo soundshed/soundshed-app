@@ -42,8 +42,9 @@ jobs:
     - run: |
         copy app-private\env.ts app-public\src     
         cd app-public
+        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
         npm install
-        npm run build
+        npm run build-electron
         npm run make
       env:
         WIN_CODE_SIGNING_P12: ..\app-private\signing.pfx
@@ -87,8 +88,9 @@ jobs:
     - run: |
         cp app-private/env.ts app-public/src     
         cd app-public
+        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
         npm install
-        npm run build
+        npm run build-electron
         npm run make
 
     - name: upload
@@ -134,8 +136,9 @@ jobs:
         security import app-private/certificate.p12 -k app-private/build.keychain -P $MACOS_APP_SIGNING_PWD -T /usr/bin/codesign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MACOS_APP_SIGNING_PWD app-private/build.keychain
         cd app-public
+        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
         npm install
-        npm run build
+        npm run build-electron
         npm run make
       env:
         MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
