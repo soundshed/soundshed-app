@@ -1,67 +1,36 @@
 import React from "react";
-
-import { appViewModel } from "./app";
 import Button from "react-bootstrap/Button";
+import { InputEventMapping } from "../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../stores/appstate";
-import { openLink } from "../core/platformUtils";
-import env from "../env";
-import WebMidi from "webmidi";
 
 const SettingsControl = () => {
-  let midiInitialized = false;
-  React.useEffect(() => {}, []);
 
-  const setupTest = () => {
-    if (midiInitialized) return;
+  const inputEventMappings = AppStateStore.useState(
+    (s) => s.inputEventMappings
+  );
 
-    (navigator as any).requestMIDIAccess().then(()=> { 
+  React.useEffect(() => {}, [inputEventMappings]);
 
-      WebMidi.enable(function (err) {
-        if (err) {
-          console.log("WebMidi could not be enabled.", err);
-          midiInitialized = false;
-        } else {
-          console.log("WebMidi enabled!");
-  
-          console.log(WebMidi.inputs);
-          console.log(WebMidi.outputs);
-  
-          var midiInputDevice= "microKEY-25";
-          var input = WebMidi.getInputByName(midiInputDevice);
-  
-          (input as any).addListener("noteon", "all", function (e) {
-            console.log("CH: " + e.channel);
-            console.log("Note: " + e.note.number);
-            console.log("Velocity: " + e.velocity);
-  
-            console.log(e);
-          });
-  
-          midiInitialized = true;
-          alert("Midi Listening: "+midiInputDevice);
-          //TODO: midi input selection
-          //TODO: set listener on startup if any events are trained
-  
-        }
-      });
-     }, false);
-
-    
-  };
+  const renderInputEventMappings = () => {
+    return inputEventMappings.map((mapping: InputEventMapping) => (
+      <div key={mapping.name}>
+        <h3>{mapping.name}</h3>
+        <p>{mapping.source.type}</p>
+        <p>{mapping.target.type} : {mapping.target.value}</p>
+        
+      </div>
+    ));
+  }
 
   return (
-    <div className="setting-intro">
+    <div className="settings-intro">
       <h1>Settings</h1>
 
-      <p>Test</p>
-      <Button
-        className="btn btn-sm"
-        onClick={() => {
-          setupTest();
-        }}
-      >
-        Start Midi
-      </Button>
+      <h2>Input Event Mappings</h2>
+      <p>You can optionally map keyboard or midi inputs to amp channels or specific presets.</p>
+
+      <div>{renderInputEventMappings()}</div>
+     
     </div>
   );
 };

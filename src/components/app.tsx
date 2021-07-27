@@ -38,6 +38,7 @@ import EditToneControl from "./soundshed/edit-tone";
 import LoginControl from "./soundshed/login";
 import ToneBrowserControl from "./tone-browser";
 import SettingsControl from "./settings";
+import InputEventsControl from "./device/input-events";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -127,6 +128,8 @@ const App = () => {
     }
 
     lessonManager.loadFavourites();
+
+    appViewModel.loadInputEventMappings();
 
     // mock amp connection and current preset
     /* DeviceStore.update(s=>{
@@ -226,6 +229,8 @@ const App = () => {
         onRegistration={performRegistration}
       ></LoginControl>
 
+
+
       {playingVideoUrl != null ? (
         <Draggable>
         <div className="pip-video-control">
@@ -310,8 +315,12 @@ const App = () => {
           </Switch>
         </DeviceViewModelContext.Provider>
       </AppViewModelContext.Provider>
+
+      <InputEventsControl></InputEventsControl>
       </Container>
     </main>
+
+
   );
 };
 

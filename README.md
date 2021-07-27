@@ -19,7 +19,9 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - Amp sometimes returns garbled info
 - Invalid settings may crash amp, requiring amp to be switched off and on again.
 
-### Roadmap
+## Roadmap
+
+Possible future features include:
 
 - More reliable amp communication
 - UI refinements
@@ -27,7 +29,12 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
-- If bluetooth serial eventually becomes part of the standard browser API then port to web.
+
+#### Event Mapping
+Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4) or 
+
+#### Default FX
+- default slot settings (fx type, parameter settings) can be applied, e.g a default Noise Gate configuration which can either be applied all the time or on demand.
 
 ## Build
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
