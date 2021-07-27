@@ -11,17 +11,17 @@ export interface InputEventMapping {
 
 export interface MidiEventSource {
     type: string; // "midi"
-    deviceId: string; // e.g. MicroKey25
-    channel: number; // channel
-    code: number; // note
+    deviceId?: string; // e.g. MicroKey25
+    channel: string; // channel
+    code: string; // note
 }
 
 export interface KeyboardEventSource {
     type: string; // "keyboard"
-    code: number; // key code
+    code: string; // key code
 }
 
 export interface EventTargetMapping {
-    type: string; // e.g. "channel"
+    type: string; // e.g. "amp-channel"
     value: string; // e.g. 1-4
 }

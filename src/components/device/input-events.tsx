@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import WebMidi from "webmidi";
-import { InputEventMapping, KeyboardEventSource } from "../../spork/src/interfaces/inputEventMapping";
+import { InputEventMapping } from "../../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../../stores/appstate";
 import { appViewModel, deviceViewModel } from "../app";
 const InputEventsControl = () => {
@@ -13,7 +13,9 @@ const InputEventsControl = () => {
 
     console.log(inputEventMappings);
 
-    setupMidi();
+    setupKeyboardEvents();
+    setupMidiEvents();
+
   }, [inputEventMappings]);
 
   useEffect(() => {
@@ -22,9 +24,10 @@ const InputEventsControl = () => {
   }, []);
 
   let midiInitialized = false;
+  let keyboardInitialized = false;
 
 
-  const setupMidi = () => {
+  const setupMidiEvents = () => {
     if (midiInitialized) return;
 
     (navigator as any).requestMIDIAccess().then(() => {
@@ -41,22 +44,9 @@ const InputEventsControl = () => {
           var midiInputDevice = "microKEY-25";
           var input = WebMidi.getInputByName(midiInputDevice);
 
-        
-
           midiInitialized = true;
 
-          //TODO: midi input selection
-          //TODO: set listener on startup if any events are trained
-
-          for(let mapping of inputEventMappings){
-            if (mapping.source.type === "keyboard"){
-              console.log("setting up keyboard listener for " + mapping.source.code);
-             
-            } else if(mapping.source.type=== "midi"){
-              console.log("setting up midi listener for " + mapping.source.code);
-              
-            }
-          }
+          // listen for midi inputs and match inputs to mapping
 
           (input as any).addListener("noteon", "all",  (e)=> {
             console.log(e);
@@ -69,7 +59,10 @@ const InputEventsControl = () => {
               if (mapping.source.type === "midi"){
                 if (mapping.source.code==e.note.number){
                
-                  deviceViewModel.setChannel(parseInt(mapping.target.value));
+                  deviceViewModel.setChannel(parseInt(mapping.target.value)).then(()=>{
+                    console.log("Midi input event channel selection:"+mapping.target.value);
+
+                  });
                 }
             
               }
@@ -78,6 +71,37 @@ const InputEventsControl = () => {
       }
     });
     }, false);
+  };
+
+  const setupKeyboardEvents = () => {
+    if (keyboardInitialized) return;
+
+    keyboardInitialized=true;
+
+     // listen for keyboard inputs and match inputs to mapping
+    window.addEventListener("keydown", function (event) {
+      if (event.defaultPrevented) {
+        return; // Do nothing if the event was already processed
+      }
+    
+      for(let mapping of inputEventMappings){
+        if (mapping.source.type === "keyboard"){
+          if (mapping.source.code==event.key){
+         
+            deviceViewModel.setChannel(parseInt(mapping.target.value)).then(()=>{
+              console.log("Keyboard input event channel selection:"+mapping.target.value);
+
+            });
+          }
+      
+        }
+      }
+      
+      // Cancel the default action to avoid it being handled twice
+      event.preventDefault();
+    }, true);
+
+       
   };
 
   return <div><small><em>Listening for midi/keyboard input events</em></small></div>;
