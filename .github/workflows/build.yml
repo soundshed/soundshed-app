@@ -88,7 +88,7 @@ jobs:
     - run: |
         cp app-private/env.ts app-public/src     
         cd app-public
-        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
+        cp ./src/core/platformUtils.electron.ts ./src/core/platformUtils.ts
         npm install
         npm run build-electron
         npm run make
@@ -136,7 +136,7 @@ jobs:
         security import app-private/certificate.p12 -k app-private/build.keychain -P $MACOS_APP_SIGNING_PWD -T /usr/bin/codesign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MACOS_APP_SIGNING_PWD app-private/build.keychain
         cd app-public
-        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
+        cp ./src/core/platformUtils.electron.ts ./src/core/platformUtils.ts
         npm install
         npm run build-electron
         npm run make
