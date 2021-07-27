@@ -31,6 +31,10 @@ class PlatformEvents {
   }
 };
 
+const getAppVersion = () => {
+  return "1.0.0";
+}
+
 const evt: PlatformEvents = new PlatformEvents();
 
-export { openLink, evt as platformEvents };
+export { openLink, evt as platformEvents, getAppVersion };
