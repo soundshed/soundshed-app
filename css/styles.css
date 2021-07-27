@@ -15,6 +15,7 @@ body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
     padding-top: 1em;
+    text-shadow: #000 1px 1px 0;
 }
 
 a,
@@ -24,7 +25,12 @@ a:visited {
 h1 {
     font-size: 140%;
 }
-
+h2 {
+    font-size: 120%;
+}
+h3 {
+    font-size: 100%;
+}
 .preset-name {
     font-family: "digital";
     background-color: rgba(0, 0, 0, 0.473);
@@ -161,6 +167,14 @@ label.fx-type {
 
 .about-intro {
     background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+}
+.settings-intro {
+    background-image: none;
     background-size: cover;
     width: 100%;
     min-height: 900px;
