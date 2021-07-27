@@ -1,6 +1,6 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
-
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
 var path = require('path');
 
 module.exports = {
@@ -29,23 +29,16 @@ module.exports = {
 			},
 			{
 				test: /\.(woff(2)?|ttf|eot|svg)(\?v=\d+\.\d+\.\d+)?$/,
-				use: [
-					{
-						loader: 'file-loader'
-					}
-				]
-			},
-			{
+				type: 'asset/resource'
+			 },
+			 {
 				test: /\.(png|jpe?g|gif)$/i,
-				use: [
-					{
-						loader: 'file-loader'
-					}
-				]
-			}
+				type: 'asset/resource'
+			 }
 		]
 	},
 	plugins: [
+		new NodePolyfillPlugin(),
 		new HtmlWebpackPlugin({
 			template: './index.html'
 		}),

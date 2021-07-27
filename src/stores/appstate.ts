@@ -6,5 +6,6 @@ export const AppStateStore = new Store({
     isNativeMode: true,
     isUpdateAvailable: false,
     userInfo: null,
-    appInfo: null
+    appInfo: null,
+    inputEventMappings :[]
 });

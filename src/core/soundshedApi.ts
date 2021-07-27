@@ -1,4 +1,5 @@
 import jwt_decode from "jwt-decode";
+import env from "../env";
 export interface UserRegistration {
     email: string;
     password: string;
@@ -73,7 +74,7 @@ export interface UserInfo {
 
 export class SoundshedApi {
 
-    baseUrl: string = "https://api.soundshed.com/app/v1/" //"http://localhost:3000/api/v1/";
+    baseUrl: string = env.IsWebMode ? "https://api-proxy.soundshed.com/soundshed-tones/" : "https://api.soundshed.com/app/v1/"; //"http://localhost:3000/api/v1/";
     currentToken: string;
 
     constructor() {
@@ -112,7 +113,7 @@ export class SoundshedApi {
     async registerUser(registration: UserRegistration): Promise<ActionResult<UserRegistrationResult>> {
 
         let url = this.baseUrl + "user/register";
-        let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registration) });
+        let response = await fetch(url, { method: 'POST', mode: 'no-cors',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registration) });
         let result = await <UserRegistrationResult><any>response.json();
 
         if (result.error == null) {

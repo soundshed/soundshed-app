@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect } from "react";
 import FxParam from "./fx-param";
 import { deviceViewModel } from "../app";
 import { FxCatalogItem } from "../../spork/src/interfaces/preset";
@@ -7,10 +7,8 @@ import { DeviceStateStore } from "../../stores/devicestate";
 const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   const fxCatalog = DeviceStateStore.useState((s) => s.fxCatalog);
   const [fxList, setFxList] = React.useState([]);
-  const [
-    isExperimentalFxSelected,
-    setIsExperimentalFxSelected,
-  ] = React.useState(false);
+  const [isExperimentalFxSelected, setIsExperimentalFxSelected] =
+    React.useState(false);
   const fxTypeId = React.useMemo(() => {
     return fx.type;
   }, [fx]);

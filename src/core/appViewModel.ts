@@ -3,23 +3,26 @@ import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
 import { ArtistInfoApi } from './artistInfoApi';
 
-import { remote } from 'electron';
+//import { remote } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
-import Analytics from 'electron-google-analytics';
+//import Analytics from 'electron-google-analytics';
 import envSettings from '../env';
 import { AppStateStore } from '../stores/appstate';
 import { TonesStateStore } from '../stores/tonestate';
+import { InputEventMapping } from '../spork/src/interfaces/inputEventMapping';
 
 export class AppViewModel {
 
+
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
-    private artistInfoApi = new ArtistInfoApi();
+    // private artistInfoApi = new ArtistInfoApi();
 
-    private analytics = new Analytics(envSettings.AnalyticsId);
+    // private analytics = new Analytics(envSettings.AnalyticsId);
 
     constructor() {
+
 
     }
 
@@ -31,7 +34,9 @@ export class AppViewModel {
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
 
+
     }
+
 
     log(msg: string) {
         console.log(msg);
@@ -39,7 +44,7 @@ export class AppViewModel {
 
     logPageView(category: string) {
         const appInfo = AppStateStore.getRawState().appInfo;
-        this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.tones', 'com.soundshed.app', category).then(() => { });
+        //this.analytics.screen('soundshed-app', appInfo?.version, 'com.soundshed.tones', 'com.soundshed.app', category).then(() => { });
     }
 
     async performSignIn(login: Login): Promise<boolean> {
@@ -86,6 +91,22 @@ export class AppViewModel {
 
         return favourites;
 
+    }
+
+    loadInputEventMappings() {
+        // TODO: load saved midi input device pref
+        let mappings: InputEventMapping[] = [
+            { name: "A3 to CH1", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "1" } },
+            { name: "B3 to CH2", source: { type: "midi", code: "56", channel: "1" }, target: { type: "amp-channel", value: "2" } },
+            { name: "C3 to CH3", source: { type: "midi", code: "58", channel: "1" }, target: { type: "amp-channel", value: "3" } },
+            { name: "D3 to CH4", source: { type: "midi", code: "59", channel: "1" }, target: { type: "amp-channel", value: "4" } },
+            { name: "Key 1 to CH1", source: { type: "keyboard", code: "49"}, target: { type: "amp-channel", value: "1" } },
+            { name: "Key 2 to CH1", source: { type: "keyboard", code: "50"}, target: { type: "amp-channel", value: "2" } },
+            { name: "Key 3 to CH1", source: { type: "keyboard", code: "51"}, target: { type: "amp-channel", value: "3" } },
+            { name: "Key 4 to CH1", source: { type: "keyboard", code: "52"}, target: { type: "amp-channel", value: "4" } }
+        ];
+
+        AppStateStore.update(s => { s.inputEventMappings = mappings });
     }
 
     async deleteFavourite(tone: Tone) {
@@ -330,7 +351,7 @@ export class AppViewModel {
     }
 
     async performArtistSearch(query: string) {
-        return await this.artistInfoApi.search(query);
+        //return await this.artistInfoApi.search(query);
     }
 
     public refreshAppInfo() {
@@ -338,8 +359,8 @@ export class AppViewModel {
 
         try {
 
-            const info = { version: remote.app.getVersion(), name: remote.app.getName() };
-            AppStateStore.update(s => { s.appInfo = info });
+            // const info = { version: remote.app.getVersion(), name: remote.app.getName() };
+            // AppStateStore.update(s => { s.appInfo = info });
         } catch (err) {
             this.log("Failed to get app version info: " + err)
         }
@@ -359,13 +380,13 @@ export class AppViewModel {
 
             let data = await response.json();
 
-            let currentVersion = remote.app.getVersion()?.replace("v","");
+            let currentVersion = "1.0.0";// remote.app.getVersion()?.replace("v","");
             let updateInfo = {
 
                 name: data.name,
                 version: data.tag_name,
                 currentVersion: currentVersion,
-                isUpdateAvailable: currentVersion != data.tag_name?.replace("v",""),
+                isUpdateAvailable: currentVersion != data.tag_name?.replace("v", ""),
                 releaseDate: data.published_at,
                 downloadUrl: "https://soundshed.com"
             };

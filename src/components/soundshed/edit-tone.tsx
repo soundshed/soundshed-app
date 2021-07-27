@@ -1,8 +1,11 @@
-import * as React from "react";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import React from "react";
+import Alert from "react-bootstrap/Alert";
+import Button from "react-bootstrap/Button";
+import Form  from "react-bootstrap/Form";
+import Modal  from "react-bootstrap/Modal";
 import Tags from "@yaireo/tagify/dist/react.tagify"; // React-wrapper file
 import "@yaireo/tagify/dist/tagify.css"; // Tagify CSS
-import { Tone } from "../../core/soundshedApi";
+
 import { appViewModel } from "../app";
 import { ToneEditStore } from "../../stores/tonestate";
 
@@ -22,6 +25,16 @@ const EditToneControl = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (tone.name.trim().length==0){
+      alert("Tone name can't be blank.");
+      return;
+    }
+    
+    if (tone.name.length>30){
+      alert("Tone name can be a maximum of 30 characters.");
+      return;
+    }
 
     //apply edits
     if (updatedArtistTags != null && updatedArtistTags.filter(t=>t!=null)!=[]) {

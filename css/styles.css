@@ -15,6 +15,7 @@ body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
     padding-top: 1em;
+    text-shadow: #000 1px 1px 0;
 }
 
 a,
@@ -24,7 +25,12 @@ a:visited {
 h1 {
     font-size: 140%;
 }
-
+h2 {
+    font-size: 120%;
+}
+h3 {
+    font-size: 100%;
+}
 .preset-name {
     font-family: "digital";
     background-color: rgba(0, 0, 0, 0.473);
@@ -167,6 +173,14 @@ label.fx-type {
     background-position-x: center;
     padding: 2em;
 }
+.settings-intro {
+    background-image: none;
+    background-size: cover;
+    width: 100%;
+    min-height: 900px;
+    background-position-x: center;
+    padding: 2em;
+}
 .info {
     background-color: #2d2d2da9;
     color: white;
@@ -205,18 +219,18 @@ label.fx-type {
 }
 
 .nav-section.tones {
-    background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
-    background-size: cover;
+    /*background-image: url(/images/luana-azevedo-qSozrp4vyaA-unsplash.jpg);
+    background-size: cover;*/
 }
 
 .nav-section.amp {
-    background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
-    background-size: cover;
+   /* background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    background-size: cover;*/
 }
 
 .nav-section.jam {
-    background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
-    background-size: cover;
+   /* background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
+    background-size: cover;*/
 }
 .section-container {
     backdrop-filter: blur(18px) grayscale(0.5);

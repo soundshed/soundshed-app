@@ -4,10 +4,9 @@ import { SparkCommandMessage } from "./sparkCommandMessage";
 import { FxCatalogProvider } from "./sparkFxCatalog";
 import { SparkMessageReader } from "./sparkMessageReader";
 
-import * as bluetoothSerial from 'bluetooth-serial-port';
 import { FxMappingSparkToTone } from "../../../../core/fxMapping";
+import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 export class SparkDeviceManager implements DeviceController {
-    private btSerial: bluetoothSerial.BluetoothSerialPort;
 
     private latestStateReceived = [];
     private stateInfo: any;
@@ -19,115 +18,54 @@ export class SparkDeviceManager implements DeviceController {
 
     private reader = new SparkMessageReader();
 
-    constructor() {
-
-        this.btSerial = new bluetoothSerial.BluetoothSerialPort();
-
+    constructor(private connection: SerialCommsProvider) {
 
     }
 
-    public async scanForDevices(): Promise<any> {
-
-        return new Promise((resolve, reject) => {
-
-            let resolutionTimeout;
-
-            let devices: BluetoothDeviceInfo[] = [];
-            // find bluetooth devices, identify spark devices and capture the device address and name. 
-            // On each discovery, clear the resolution timeout so that the last item is the one that completes.
-            this.btSerial.on('found', (address: string, name: string) => {
-                this.log("addr:" + JSON.stringify(address) + " name:" + name)
-
-                if (name == "Spark 40 Audio") {
-
-                    address = address.replace(name, "").replace("(", "").replace(")", "");
-                    if (!devices.find(d => d.address == address)) {
-                        devices.push({ name: name, address: address, port: 2, connectionFailed:false });
-                    }
-
-                }
-
-                if (resolutionTimeout) {
-                    clearTimeout(resolutionTimeout);
-                }
-
-                resolutionTimeout = setTimeout(() =>
-                    resolve(devices)
-                    , 500);
-
-            });
-
-            try {
-                this.btSerial.inquire();
-
-            } catch {
-                reject();
-            }
-        });
+    public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
+        return this.connection.scanForDevices();
     }
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
-        this.btSerial.removeAllListeners();
-
-        // setup serial read listeners
-        this.btSerial.on('data', (buffer) => {
-
-            let currentTime = new Date().getTime();
-            let timeDelta = currentTime - this.lastStateTime;
-            this.lastStateTime = currentTime;
-
-            this.latestStateReceived.push(buffer);
-
-            if (buffer[buffer.length - 1] == 0xf7) {
-                // end message 
-                this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
-
-                //this.log(JSON.stringify(this.reader.deviceState))
-
-                this.readStateMessage().then(() => {
-                    this.latestStateReceived = [];
-                });
-            }
-
-        });
-
-        try {
-            // disconnect if already connected
-            await this.disconnect();
-        }
-        catch {
-
-        }
-
-        return new Promise((resolve, reject) => {
+        // disconnect if already connected
+        await this.disconnect();
 
 
-            this.btSerial.connect(device.address, device.port, () => {
-                this.log('bluetooth device connected: ' + device.name);
 
-                resolve(true);
 
-            }, () => {
-                this.log(`cannot connect to device [${device.address} ${device.name}]`);
+        var connected = await this.connection.connect(device);
 
-                if (this.onStateChanged) {
-                    this.onStateChanged({ type: "connection", status: "failed" });
-                } else {
-                    this.log("No onStateChange handler defined.")
+        if (connected) {
+            // setup serial read listeners
+            this.connection.listenForData((buffer :ArrayBuffer) => {
+
+                let currentTime = new Date().getTime();
+                this.lastStateTime = currentTime;
+
+                let byteArray = new Uint8Array(buffer);
+
+                this.latestStateReceived.push(byteArray);
+
+                if (byteArray[byteArray.length - 1] == 0xf7) {
+                    // end message 
+                    this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
+
+                    this.readStateMessage().then(() => {
+                        this.latestStateReceived = [];
+                    });
                 }
 
-                reject(false);
             });
+        }
 
-        })
+        return connected;
     }
 
     public async disconnect() {
-        if (this.btSerial && this.btSerial.isOpen()) {
-            this.log("Disconnected");
-            this.btSerial.close();
-        }
+        try {
+            await this.connection.disconnect();
+        } catch { }
     }
 
     private buf2hex(buffer) { // buffer is an ArrayBuffer
@@ -157,20 +95,22 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     private hydrateDeviceStateInfo(deviceState: DeviceState) {
+
         let fxCatalog = FxCatalogProvider.db;
 
         // populate metadata about fx etc
         if (deviceState.presetConfig) {
             for (let fx of deviceState.presetConfig.sigpath) {
                 let dspId = fx.dspId;
-                if (dspId=="bias.reverb")
-                {
+                if (dspId == "bias.reverb") {
                     //map mode variant to our config dspId
-                     dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
+                    dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
+                } else {
+                    dspId = FxMappingSparkToTone.mapFxId(dspId);
                 }
 
                 let dsp = fxCatalog.catalog.find(f => f.dspId == dspId);
-                
+
                 if (dsp != null) {
                     fx.type = dsp.type;
                     fx.name = dsp.name;
@@ -261,6 +201,11 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_preset_state();
         }
 
+        if (type == "get_selected_channel") {
+            this.log("Getting device current channel selection");
+            msgArray = msg.request_info(0x10);
+        }
+
         if (type == "get_device_name") {
             this.log("Getting device name");
             msgArray = msg.request_info(0x11);
@@ -273,9 +218,12 @@ export class SparkDeviceManager implements DeviceController {
 
         for (let msg of msgArray) {
             this.log("Sending: " + this.buf2hex(msg));
-            this.btSerial.write(Buffer.from(msg), async (err) => {
-                if (err) this.log(err);
-            });
+
+            if (typeof (Buffer) != "undefined") {
+                this.connection.write(Buffer.from(msg));
+            } else {
+                this.connection.write(msg);
+            }
         }
 
         this.log("Sent.: ");

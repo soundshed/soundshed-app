@@ -21,7 +21,9 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - Amp sometimes returns garbled info
 - Invalid settings may crash amp, requiring amp to be switched off and on again.
 
-### Roadmap
+## Roadmap
+
+Possible future features include:
 
 - More reliable amp communication
 - UI refinements
@@ -29,7 +31,12 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
-- If bluetooth serial eventually becomes part of the standard browser API then port to web.
+
+#### Event Mapping
+Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4) or 
+
+#### Default FX
+- default slot settings (fx type, parameter settings) can be applied, e.g a default Noise Gate configuration which can either be applied all the time or on demand.
 
 ## Build
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
@@ -44,13 +51,20 @@ Windows, macOS and Linux. Bluetooth connectivity required.
 - Clone this repository
 - run `npm install` on the repo path
 
-## Run
-- Run `npm run watch` in one terminal to continuously rebuild the UI code or `npm run build` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
-- Run `npm run start` to launch the UI
+## Run Web Version
+- Run `npm run watch-web` in one terminal to continuously rebuild the UI code or `npm run build-web` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
+- Run `http-server build` to start local web server on http://localhost:8080/
 
+## Run Electron Version
+- Run `npm run watch-electron` in one terminal to continuously rebuild the UI code or `npm run build-electron` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
+- Run `npm run start-electron` to launch the UI
 
 The final installable app is packaged using electron-forge:
 `npm run make`
+
+## Toggle between web and electron mode
+- edit env.ts, set IsWebMode true/false
+- edit platformUtils.ts, import required platform
 
 ## Release Process
 - Increment version in package.json, run installer Github Action, run Release Github Action, Edit release notes.

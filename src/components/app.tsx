@@ -1,17 +1,15 @@
-import {
-  faUser,
-  faWindowClose,
-  faWindowMaximize,
-  faWindowMinimize,
-  faWindowRestore,
-} from "@fortawesome/free-solid-svg-icons";
+import faUser from "@fortawesome/free-solid-svg-icons/faUser";
+import faWindowMaximize from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
+import faWindowMinimize from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
+import faWindowRestore from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import "bootstrap/dist/css/bootstrap.min.css";
-import * as React from "react";
-import { useEffect } from "react";
-import { Button } from "react-bootstrap";
-import * as ReactDOM from "react-dom";
-import ReactPlayer from "react-player";
+
+import React, { useEffect } from "react";
+import Draggable from 'react-draggable'; 
+import Container from "react-bootstrap/Container";
+import Button from "react-bootstrap/Button";
+import ReactDOM from "react-dom";
+import ReactPlayer from "react-player/youtube";
 import {
   HashRouter as Router,
   NavLink,
@@ -19,6 +17,8 @@ import {
   Switch,
   useHistory,
 } from "react-router-dom";
+
+import 'bootstrap/dist/css/bootstrap.min.css';
 import "../../css/styles.css";
 import AppViewModel from "../core/appViewModel";
 import DeviceViewModel from "../core/deviceViewModel";
@@ -37,6 +37,8 @@ import AmpOfflineControl from "./soundshed/amp-offline";
 import EditToneControl from "./soundshed/edit-tone";
 import LoginControl from "./soundshed/login";
 import ToneBrowserControl from "./tone-browser";
+import SettingsControl from "./settings";
+import InputEventsControl from "./device/input-events";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -106,7 +108,7 @@ const App = () => {
   useEffect(() => {
     console.log("App startup..");
 
-    const lastKnownDevices = deviceViewModel.getLastKnownDevices();
+    const lastKnownDevices = []; // deviceViewModel.getLastKnownDevices();
     if (lastKnownDevices.length > 0) {
       DeviceStateStore.update((s) => {
         s.devices = lastKnownDevices;
@@ -126,7 +128,9 @@ const App = () => {
     }
 
     lessonManager.loadFavourites();
-    //appViewModel.performArtistSearch("Metallica");
+
+    appViewModel.loadInputEventMappings();
+
     // mock amp connection and current preset
     /* DeviceStore.update(s=>{
       s.isConnected=true; 
@@ -137,6 +141,7 @@ const App = () => {
 
   return (
     <main>
+      <Container>
       <ul className="nav nav-tabs">
         <li className="nav-item">
           <NavLink
@@ -178,6 +183,15 @@ const App = () => {
         </li>
         <li className="nav-item">
           <NavLink
+            to="/settings"
+            className="nav-link"
+            activeClassName="nav-link active"
+          >
+            Settings
+          </NavLink>
+        </li>
+        <li className="nav-item">
+          <NavLink
             to="/about"
             className="nav-link"
             activeClassName="nav-link active"
@@ -203,6 +217,7 @@ const App = () => {
               }}
             >
               <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+              Sign In
             </Button>
           )}
         </li>
@@ -214,7 +229,10 @@ const App = () => {
         onRegistration={performRegistration}
       ></LoginControl>
 
+
+
       {playingVideoUrl != null ? (
+        <Draggable>
         <div className="pip-video-control">
           <div className="row">
             <div className="col">
@@ -264,6 +282,7 @@ const App = () => {
             />
           </div>
         </div>
+        </Draggable>
       ) : (
         ""
       )}
@@ -291,11 +310,17 @@ const App = () => {
             <Route path="/lessons">
               <LessonsControl></LessonsControl>
             </Route>
+            <Route path="/settings" exact component={SettingsControl} />
             <Route path="/about" exact component={AboutControl} />
           </Switch>
         </DeviceViewModelContext.Provider>
       </AppViewModelContext.Provider>
+
+      <InputEventsControl></InputEventsControl>
+      </Container>
     </main>
+
+
   );
 };
 

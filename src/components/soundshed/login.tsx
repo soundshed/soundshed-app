@@ -1,5 +1,8 @@
-import * as React from "react";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import React from "react";
+import Alert from "react-bootstrap/Alert";
+import Button from "react-bootstrap/Button";
+import Form  from "react-bootstrap/Form";
+import Modal  from "react-bootstrap/Modal";
 import { AppStateStore } from "../../stores/appstate";
 
 const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
@@ -52,6 +55,8 @@ const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
           <p>
             Sign in to your Soundshed.com account to share content with the
             community:
+
+            
             {!isRegMode ? (
               <Button className="btn btn-sm btn-secondary ms-2"
                 onClick={() => {
@@ -155,6 +160,8 @@ const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
               )}
             </div>
           </Form>
+
+          <p className="small mt-2">Note: A Soundshed.com account is unrelated to a PG Account and is used to share tones to soundshed.com community.</p>
         </div>
       </Modal.Body>
     </Modal>

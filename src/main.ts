@@ -1,15 +1,24 @@
 
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { SparkDeviceManager } from './spork/src/devices/spark/sparkDeviceManager';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { DeviceContext } from './core/deviceContext';
+import { RfcommProvider } from './spork/src/devices/spark/rfcommProvider';
 
-const deviceManager = new SparkDeviceManager();
+
+const sendMessageToApp = (type: string, msg: any) => {
+    if (win) {
+        // send message to be handled by the UI/app (appViewModel)
+        win.webContents.send(type, msg);
+    }
+}
+
+const deviceContext: DeviceContext = new DeviceContext();
+deviceContext.init(new RfcommProvider(), sendMessageToApp);
+
 let win: BrowserWindow;
 
 try {
     require('electron-reloader')(module)
 } catch (_) { }
-
-
 
 if (handleSquirrelEvent()) {
     // squirrel event handled and app will exit in 1000ms, so don't do anything else
@@ -18,150 +27,47 @@ if (handleSquirrelEvent()) {
 else {
 
     // perform update check and start app normally
-  
+
     initApp();
 
-    setTimeout(()=>{
+    setTimeout(() => {
         require('update-electron-app')();
-    },10000);
+    }, 10000);
 }
 
 
 
-function initApp(){
-
-    deviceManager.onStateChanged = (s: any) => {
-        console.log("main.ts: device state changed")
-        sendMessageToApp('device-state-changed', s);
-    };
+function initApp() {
 
     ipcMain.handle('perform-action', (event, args) => {
-        // ... do actions on behalf of the Renderer
-        console.log("got event from render:" + args.action);
-
-        if (args.action == 'scan') {
-            deviceManager.scanForDevices().then((devices) => {
-                console.log(JSON.stringify(devices));
-
-                sendMessageToApp('devices-discovered', devices);
-            });
-        }
-
-        if (args.action == 'connect') {
-            console.log("attempting to connect:: " + JSON.stringify(args));
-
-            try {
-                return deviceManager.connect(args.data).then(connectedOk => {
-                    if (connectedOk) {
-                        sendMessageToApp("device-connection-changed", "connected")
-
-                        deviceManager.sendCommand("get_preset", 0);
-
-                        //await deviceManager.sendPreset(preset1);
-                    } else {
-                        sendMessageToApp("device-connection-changed", "failed")
-                    }
-
-                    return connectedOk;
-                }).catch(err => {
-                    sendMessageToApp("device-connection-changed", "failed")
-                });
-
-            } catch (e) {
-                sendMessageToApp("device-connection-changed", "failed")
-            }
-        }
-
-        if (args.action == 'applyPreset') {
-
-            // send preset
-            // deviceManager.sendCommand("set_preset", p);
-            deviceManager.sendCommand("set_preset_from_model", args.data);
-
-            setTimeout(() => {
-                //apply preset to virtual channel 127
-                deviceManager.sendCommand("set_channel", 127);
-            }, 500);
-
-        }
-
-        if (args.action == 'getDeviceName') {
-            deviceManager.sendCommand("get_device_name", {});
-        }
-
-        if (args.action == 'getDeviceSerial') {
-            deviceManager.sendCommand("get_device_serial", {});
-        }
-
-        if (args.action == 'getPreset') {
-            deviceManager.sendCommand("get_preset", args.data);
-        }
-
-        if (args.action == 'setChannel') {
-            deviceManager.sendCommand("set_channel", args.data);
-        }
-
-        if (args.action == 'setFxParam') {
-            deviceManager.sendCommand("set_fx_param", args.data);
-        }
-
-        if (args.action == 'setFxToggle') {
-            deviceManager.sendCommand("set_fx_onoff", args.data);
-        }
-
-        if (args.action == 'changeFx') {
-            deviceManager.sendCommand("change_fx", args.data);
-
-            setTimeout(() => {
-                //apply preset to virtual channel 127
-              //  deviceManager.sendCommand("set_channel", 127);
-            }, 1000);
-        }
-
-        if (args.action == 'changeAmp') {
-            deviceManager.sendCommand("change_amp", args.data);
-        }
-    })
-
-
-    ////////////////////////
+        // ... do hardware actions on behalf of the Renderer
+        deviceContext.performAction(args);
+    });
 
     app.whenReady().then(() => {
-
-        /*installExtension(REACT_DEVELOPER_TOOLS)
-        .then((name) => console.log(`Added Extension:  ${name}`))
-        .catch((err) => console.log('An error occurred: ', err));*/
-
         createWindow();
     });
 
     app.on('window-all-closed', () => {
         if (process.platform !== 'darwin') {
-            app.quit()
+            app.quit();
         }
-    })
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow()
+            createWindow();
         }
-    })
-
+    });
 }
 
-const sendMessageToApp = (type: string, msg: string) => {
-    if (win) {
-        // send message to be handled by the UI/app (appViewModel)
-        win.webContents.send(type, msg);
-    }
-}
 
 function createWindow() {
 
     win = new BrowserWindow({
         width: 1280,
         height: 860,
-        icon:"./images/icon/favicon.ico",
+        icon: "./images/icon/favicon.ico",
         webPreferences: {
             nodeIntegration: true,
             enableRemoteModule: true,
@@ -169,11 +75,23 @@ function createWindow() {
         }
     })
 
-    // win.webContents.setUserAgent("Dalvik/2.1.0 (Linux; U; Android 11; Pixel 3 Build/RQ1A.210105.003)");
-    
     if (app.isPackaged) {
         win.removeMenu();
     }
+    const ses = win.webContents.session;
+       ses.setPermissionRequestHandler((webContents, permission, callback) => {
+            console.log("Requested permission: "+permission);
+      
+      
+        callback(true);
+      });
+
+      ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+ 
+        console.log("Checked permission: "+permission);
+          return true ;
+    
+      });
 
     win.loadFile('index.html');
 }

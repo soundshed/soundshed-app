@@ -1,11 +1,9 @@
-import * as React from "react";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { AppViewModelContext, deviceViewModel as vm } from "../app";
 import DeviceControls from "./device-controls";
 import MiscControls from "./misc-controls";
 import SignalPathControl from "./signal-path";
-
 
 const DeviceMainControl = () => {
   const appViewModel = React.useContext(AppViewModelContext);
@@ -58,7 +56,6 @@ const DeviceMainControl = () => {
             console.log("Connected, refreshing preset..");
             requestCurrentPreset();
           }
-
         }, 1000);
       });
     } else {
@@ -74,8 +71,8 @@ const DeviceMainControl = () => {
       await deviceViewModel.connectDevice(connectedDevice);
     }
 
-    deviceViewModel.requestCurrentChannelSelection().then(()=>{
-      console.log("Got update channel selection info" );
+    deviceViewModel.requestCurrentChannelSelection().then(() => {
+      console.log("Got update channel selection info");
     });
 
     deviceViewModel.requestPresetConfig().then((ok) => {
@@ -119,7 +116,7 @@ const DeviceMainControl = () => {
   ]);
 
   useEffect(() => {
-    //console.log("Device main - component created");
+    console.log("Device main - component created");
 
     if (deviceViewModel) {
       deviceViewModel.addStateChangeListener(onViewModelStateChange);
@@ -149,8 +146,7 @@ const DeviceMainControl = () => {
   return (
     <div className="amp-intro">
       <div className="row">
-        <div className="col"> 
-   
+        <div className="col">
           <DeviceControls></DeviceControls>
         </div>
       </div>

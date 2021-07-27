@@ -1,4 +1,3 @@
-import { ipcRenderer } from 'electron';
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 import { FxCatalog, FxCatalogItem, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
@@ -6,6 +5,13 @@ import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 import { Utils } from './utils';
 import { DeviceStateStore } from '../stores/devicestate';
+import { platformEvents } from './platformUtils';
+import { DeviceContext } from './deviceContext';
+import { BleProvider } from '../spork/src/devices/spark/bleProvider';
+import envSettings from '../env';
+
+// web mode
+
 
 const debounce = (func, delay) => {
     let timerId;
@@ -27,15 +33,31 @@ export class DeviceViewModel {
 
     private lastCommandType = "";
 
+    deviceContext: DeviceContext = new DeviceContext();
+
     private defaultStateChangeHandler() {
         this.log("UI Device state change handler called but not set.")
     }
 
     constructor() {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
-        this.setupElectronIPCListeners();
+        this.setupEventListeners();
 
         DeviceStateStore.update(s => { s.fxCatalog = this.getFxCatalog() });
+
+        if (envSettings.IsWebMode) {
+
+            this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
+        }
+        else {
+
+        }
+    }
+
+    hardwareEventReceiver(type: string, msg: any) {
+        this.log("Device VM event received: " + type);
+        platformEvents.invoke(type, msg);
+        //this.deviceContext.performAction({ action: type, args: msg });
     }
 
     addStateChangeListener(onViewModelStateChange) {
@@ -46,9 +68,15 @@ export class DeviceViewModel {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
     }
 
-    setupElectronIPCListeners() {
+    setupEventListeners() {
         // setup event listeners for main electron app events (native bluetooth data state, device state responses, device list etc)
-        ipcRenderer.on('device-state-changed', (event, args) => {
+
+        platformEvents.on("perform-action", (event, args) => {
+            // ... do hardware actions on behalf of the Renderer
+            this.deviceContext.performAction(args);
+        });
+
+        platformEvents.on('device-state-changed', (event, args) => {
             this.log("got device state update from main.");
 
             // change to preset config update, ignore if is in response to fx change/toggle etc
@@ -132,7 +160,7 @@ export class DeviceViewModel {
             this.onStateChangeHandler();
         });
 
-        ipcRenderer.on('device-connection-changed', (event, args) => {
+        platformEvents.on('device-connection-changed', (event, args) => {
 
             this.log("got connection event from main:" + args);
 
@@ -147,7 +175,7 @@ export class DeviceViewModel {
             this.onStateChangeHandler();
         });
 
-        ipcRenderer.on('devices-discovered', (event, args) => {
+        platformEvents.on('devices-discovered', (event, args) => {
 
             this.log("got refreshed list of devices:" + args);
 
@@ -176,22 +204,25 @@ export class DeviceViewModel {
 
     async scanForDevices(): Promise<boolean> {
 
+        this.log("BLE scanning");
+
         DeviceStateStore.update(s => { s.isDeviceScanInProgress = true });
 
-        await ipcRenderer.invoke('perform-action', { action: 'scan' });
-
-
+        await platformEvents.invoke('perform-action', { action: 'scan' });
 
         return true;
     }
 
     getLastConnectedDevice(): BluetoothDeviceInfo {
+
+        return null;
+        /*
         let deviceJson = localStorage.getItem("lastConnectedDevice");
         if (deviceJson) {
             return <BluetoothDeviceInfo>JSON.parse(deviceJson);
         } else {
             return null;
-        }
+        }*/
     }
 
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
@@ -199,7 +230,7 @@ export class DeviceViewModel {
 
         DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
         try {
-            return await ipcRenderer.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
+            return await platformEvents.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
 
                 DeviceStateStore.update(s => { s.isConnectionInProgress = false });
 
@@ -231,9 +262,9 @@ export class DeviceViewModel {
 
     }
 
-    async requestCurrentChannelSelection(): Promise<boolean>{
+    async requestCurrentChannelSelection(): Promise<boolean> {
         this.lastCommandType = "requestCurrentChannelSelection";
-        await ipcRenderer.invoke('perform-action', { action: 'getCurrentChannel', data: 0 }).then(
+        await platformEvents.invoke('perform-action', { action: 'getCurrentChannel', data: 0 }).then(
             () => {
                 this.log("Completed channel selection query");
             });
@@ -242,7 +273,7 @@ export class DeviceViewModel {
 
     async requestPresetConfig(): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
-        await ipcRenderer.invoke('perform-action', { action: 'getPreset', data: 0 }).then(
+        await platformEvents.invoke('perform-action', { action: 'getPreset', data: 0 }).then(
             () => {
                 this.log("Completed preset query");
             });
@@ -251,7 +282,7 @@ export class DeviceViewModel {
 
     async requestPresetChange(args: Preset) {
         this.lastCommandType = "requestPresetChange";
-        return ipcRenderer.invoke('perform-action', { action: 'applyPreset', data: args }).then(
+        return platformEvents.invoke('perform-action', { action: 'applyPreset', data: args }).then(
             () => {
 
             });
@@ -277,7 +308,7 @@ export class DeviceViewModel {
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
 
-        return ipcRenderer.invoke('perform-action', { action: 'changeAmp', data: args }).then(
+        return platformEvents.invoke('perform-action', { action: 'changeAmp', data: args }).then(
             () => {
 
             });
@@ -312,7 +343,7 @@ export class DeviceViewModel {
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
 
-        return ipcRenderer.invoke('perform-action', { action: 'changeFx', data: args }).then(
+        return platformEvents.invoke('perform-action', { action: 'changeFx', data: args }).then(
             () => {
 
             });
@@ -338,7 +369,7 @@ export class DeviceViewModel {
             args.index = parseInt(args.index);
         }
 
-        return ipcRenderer.invoke('perform-action', { action: 'setFxParam', data: args }).then(
+        return platformEvents.invoke('perform-action', { action: 'setFxParam', data: args }).then(
             () => {
 
             });
@@ -368,7 +399,7 @@ export class DeviceViewModel {
 
         args.dspId = this.normalizeDspId(args.dspId);
 
-        await ipcRenderer.invoke('perform-action', { action: 'setFxToggle', data: args }).then(
+        await platformEvents.invoke('perform-action', { action: 'setFxToggle', data: args }).then(
             () => {
                 this.log("Sent fx toggle change");
             });
@@ -377,7 +408,7 @@ export class DeviceViewModel {
 
     async setChannel(channelNum: number): Promise<boolean> {
         this.lastCommandType = "setChannel";
-        await ipcRenderer.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
+        await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
             () => {
                 this.log("Completed setting channel");
                 // DeviceStore.update(s => { s.selectedChannel == channelNum });
@@ -388,7 +419,7 @@ export class DeviceViewModel {
     }
 
     async getDeviceName(): Promise<boolean> {
-        await ipcRenderer.invoke('perform-action', { action: 'getDeviceName', data: {} }).then(
+        await platformEvents.invoke('perform-action', { action: 'getDeviceName', data: {} }).then(
             () => {
 
             });
@@ -396,7 +427,7 @@ export class DeviceViewModel {
     }
 
     async getDeviceSerial(): Promise<boolean> {
-        await ipcRenderer.invoke('perform-action', { action: 'getDeviceSerial', data: {} }).then(
+        await platformEvents.invoke('perform-action', { action: 'getDeviceSerial', data: {} }).then(
             () => {
 
             });

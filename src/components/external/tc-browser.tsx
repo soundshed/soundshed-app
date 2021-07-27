@@ -1,22 +1,20 @@
-import * as React from "react";
-import { useEffect } from "react";
+import React,{ useEffect } from "react";
+
 import {
   FxMappingSparkToTone,
   FxMappingToneToSpark,
 } from "../../core/fxMapping";
 
 import { appViewModel, DeviceViewModelContext } from "../app";
-import { Form } from "react-bootstrap";
+import Form from "react-bootstrap/Form";
 
 import ToneListControl from "../tone-list";
 import { PGPresetQuery } from "../../spork/src/devices/spark/sparkAPI";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faChevronLeft,
-  faChevronRight,
-  faSearch
-} from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft } from "@fortawesome/free-solid-svg-icons/faChevronLeft";
+import { faChevronRight } from "@fortawesome/free-solid-svg-icons/faChevronRight";
+import { faSearch } from "@fortawesome/free-solid-svg-icons/faSearch";
 import { TonesStateStore } from "../../stores/tonestate";
 import { DeviceStateStore } from "../../stores/devicestate";
 
@@ -29,7 +27,9 @@ const TcBrowserControl = () => {
   const [pageIndex, setPageIndex] = React.useState(defaultPageIndex);
   const [searchMode, setSearchMode] = React.useState("search");
   const [keyword, setKeyword] = React.useState("");
-  const isSearchInProgress =  TonesStateStore.useState((s) => s.isSearchInProgress);
+  const isSearchInProgress = TonesStateStore.useState(
+    (s) => s.isSearchInProgress
+  );
 
   const isDeviceConnected = DeviceStateStore.useState((s) => s.isConnected);
 
@@ -49,7 +49,7 @@ const TcBrowserControl = () => {
   };
 
   const onKeySearch = (event) => {
-    if(event.key === 'Enter'){
+    if (event.key === "Enter") {
       onSearch();
     }
   };
@@ -140,7 +140,7 @@ const TcBrowserControl = () => {
           />
         </Form.Group>
       </Form>
-      <button className="btn btn-sm btn-success" onClick={onSearch} >
+      <button className="btn btn-sm btn-success" onClick={onSearch}>
         Search
       </button>
       <button className="btn btn-sm btn-primary ms-2" onClick={previous}>
@@ -149,19 +149,15 @@ const TcBrowserControl = () => {
       <button className="btn btn-sm btn-primary" onClick={next}>
         <FontAwesomeIcon icon={faChevronRight}></FontAwesomeIcon>
       </button>
-
       {isSearchInProgress ? (
-
-      <span
-        className="spinner-border spinner-border-sm ms-2"
-        role="status"
-        aria-hidden="true"
-      ></span>
-
-
-  ) : (
-    ""
-  )}
+        <span
+          className="spinner-border spinner-border-sm ms-2"
+          role="status"
+          aria-hidden="true"
+        ></span>
+      ) : (
+        ""
+      )}
       <button
         className="btn btn-sm btn-secondary float-end"
         onClick={() => {

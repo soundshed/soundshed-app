@@ -1240,6 +1240,105 @@ export class FxCatalogProvider {
                     }
                 ]
             },
+            {
+                "type": "amp",
+                "dspId": "6505Plus",
+                "name": "Insane 6508",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "ODS50CN",
+                "name": "ODS 50",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "BluesJrTweed",
+                "name": "Blues Boy",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
             
             {
                 "type": "comp",
@@ -1783,6 +1882,29 @@ export class FxCatalogProvider {
                 ]
             },
             {
+                "type": "drive",
+                "dspId": "KlonCentaurSilver",
+                "isExperimental":false,
+                "name": "Clone Drive",
+                "params": [
+                    {
+                        "name": "Output",
+                        "index": 0,
+                        "value": 1
+                    },
+                    {
+                        "name": "Gain",
+                        "index": 1,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 2,
+                        "value": 0.5
+                    }
+                ]
+            },
+            {
                 "type": "gate",
                 "dspId": "bias.noisegate",
                 "name": "Gate",
@@ -2036,6 +2158,90 @@ export class FxCatalogProvider {
                         "index": 4,
                         "value": 0
                     }
+                ]
+            },
+            {
+                "type": "modulation",
+                "dspId": "GuitarEQ6",
+                "name": "Guitar EQ", //Level, 100,200,400,800,1.6K,3.2K
+                "params": [
+                    {
+                        "name": "Level",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "100",
+                        "index": 1,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "200",
+                        "index": 2,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "400",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "800",
+                        "index": 4,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "1.6K",
+                        "index": 5,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "3.2K",
+                        "index": 6,
+                        "value": 0.5
+                    },
+                ]
+            },
+            {
+                "type": "modulation",
+                "dspId": "BassEQ6",
+                "name": "Bass EQ", 
+                "params": [
+                    {
+                        "name": "Level",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "100",
+                        "index": 1,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "200",
+                        "index": 2,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "400",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "800",
+                        "index": 4,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "1.6K",
+                        "index": 5,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "3.2K",
+                        "index": 6,
+                        "value": 0.5
+                    },
                 ]
             },
             {
