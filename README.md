@@ -52,10 +52,12 @@ Input event from keyboard or midi can be mapped to either a preset slot (e.g. ch
 - run `npm install` on the repo path
 
 ## Run Web Version
+- edit platformUtils.ts to include platformUtils.web.ts
 - Run `npm run watch-web` in one terminal to continuously rebuild the UI code or `npm run build-web` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
 - Run `http-server build` to start local web server on http://localhost:8080/
 
 ## Run Electron Version
+- edit platformUtils.ts to include platformUtils.electron.ts
 - Run `npm run watch-electron` in one terminal to continuously rebuild the UI code or `npm run build-electron` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
 - Run `npm run start-electron` to launch the UI
 
