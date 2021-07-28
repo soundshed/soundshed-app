@@ -37,36 +37,58 @@ const InputEventsControl = () => {
 
           midiInitialized = true;
 
+          if (WebMidi.inputs != null) {
+            AppStateStore.update((s) => {
+              s.midiInputs = WebMidi.inputs.map((input) => {
+                return {
+                  input: input,
+                  name: input.name,
+                  type: "midi",
+                };
+              });
+            });
+          }
+
           console.log(WebMidi.inputs);
           console.log(WebMidi.outputs);
 
           var midiInputDevice = "microKEY-25";
           var input = WebMidi.getInputByName(midiInputDevice);
 
-          // listen for midi inputs and match inputs to mapping
+          if (input) {
+            AppStateStore.update((s) => {
+              s.isMidiInputAvailable = true;
+            });
+            // listen for midi inputs and match inputs to mapping
 
-          (input as any).addListener("noteon", "all", (e) => {
-            console.log(e);
-            /*console.log("CH: " + e.channel);
+            (input as any).addListener("noteon", "all", (e) => {
+              console.log(e);
+              /*console.log("CH: " + e.channel);
             console.log("Note: " + e.note.number);
             console.log("Velocity: " + e.velocity);
 
             console.log(e);*/
-            for (let mapping of inputEventMappings) {
-              if (mapping.source.type === "midi") {
-                if (mapping.source.code == e.note.number) {
-                  deviceViewModel
-                    .setChannel(parseInt(mapping.target.value))
-                    .then(() => {
-                      console.log(
-                        "Midi input event channel selection:" +
-                          mapping.target.value
-                      );
-                    });
+              for (let mapping of inputEventMappings) {
+                if (mapping.source.type === "midi") {
+                  if (mapping.source.code == e.note.number) {
+                    deviceViewModel
+                      .setChannel(parseInt(mapping.target.value))
+                      .then(() => {
+                        console.log(
+                          "Midi input event channel selection:" +
+                            mapping.target.value
+                        );
+                      });
+                  }
                 }
               }
-            }
-          });
+            });
+          } else {
+            // preferred midi device not connected
+            AppStateStore.update((s) => {
+              s.isMidiInputAvailable = false;
+            });
+          }
         }
       });
     }, false);
@@ -85,7 +107,7 @@ const InputEventsControl = () => {
           return; // Do nothing if the event was already processed
         }
 
-        if (event.repeat){
+        if (event.repeat) {
           return; // discard repeated key events
         }
 

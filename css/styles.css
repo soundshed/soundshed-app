@@ -268,6 +268,10 @@ td {
     box-shadow: 3px 3px 20px 2px #11c137;
 }
 
-.alert {
+.alert, a.dropdown-item {
     text-shadow: none;
+}
+
+td,th {
+    color:whitesmoke;
 }

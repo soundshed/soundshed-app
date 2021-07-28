@@ -7,5 +7,8 @@ export const AppStateStore = new Store({
     isUpdateAvailable: false,
     userInfo: null,
     appInfo: null,
-    inputEventMappings :[]
+    inputEventMappings: [],
+    midiInputs: [],
+    isMidiInputAvailable: false,
+    selectedMidiInput: null
 });
