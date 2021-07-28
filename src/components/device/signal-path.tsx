@@ -81,7 +81,9 @@ const SignalPathControl = ({
             </div>
           </div>
           <table>
+            <tbody>
             <tr>{listItems(signalPathState)}</tr>
+            </tbody>
           </table>
         </div>
       )}
