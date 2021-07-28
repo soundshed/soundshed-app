@@ -7,10 +7,13 @@ export class DeviceContext {
     msgSendDelegate: (type: string, msg: any) => void;
 
     public init(commsProvider: SerialCommsProvider, msgDelegate: (type: string, msg: any) => void) {
+
+        console.log("DeviceContext: Init");
+
         this.deviceManager = new SparkDeviceManager(commsProvider);
 
         this.deviceManager.onStateChanged = (s: any) => {
-            console.log("main.ts: device state changed")
+            console.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
 

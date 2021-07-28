@@ -64,7 +64,7 @@ const AboutControl = () => {
       {isWebMode == false ? (
         <div>
           {appUpdateAvailable == true ? (
-            <p className="alter alert-info m-2 p-2">
+            <p className="alert alert-info m-2 p-2">
               There is a new app version available. Updating is recommended.
               <Button
                 className="btn btn-sm ms-2"

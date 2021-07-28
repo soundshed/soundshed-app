@@ -1,17 +1,21 @@
 {
   "compilerOptions": {
-      "target": "esnext",         
-      "module": "commonjs",    
-      "strict": true,         
-      "sourceMap": true, 
-      "esModuleInterop": true,    
-      "outDir": "./build",
-      "noImplicitAny": false,
-      "strictNullChecks": false,
-      "jsx": "react"
-      
-  }, "exclude":[
-    "out",
-    "build"
+    "allowJs": true,
+    "module": "commonjs",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "outDir": "build",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "paths": {
+      "*": ["node_modules/*"]
+    },
+    "jsx": "react"
+  },
+  "include": [
+    "src/**/*"
   ]
 }

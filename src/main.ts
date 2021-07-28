@@ -93,7 +93,7 @@ function createWindow() {
     
       });
 
-    win.loadFile('index.html');
+    win.loadFile('./build/index.html');
 }
 
 // handle squirrel installer events

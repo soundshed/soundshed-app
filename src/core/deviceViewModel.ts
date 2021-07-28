@@ -33,7 +33,8 @@ export class DeviceViewModel {
 
     private lastCommandType = "";
 
-    deviceContext: DeviceContext = new DeviceContext();
+    // if working in web mode the device context is held here, otherwise the device context is held in the main process
+    deviceContext: DeviceContext
 
     private defaultStateChangeHandler() {
         this.log("UI Device state change handler called but not set.")
@@ -46,7 +47,7 @@ export class DeviceViewModel {
         DeviceStateStore.update(s => { s.fxCatalog = this.getFxCatalog() });
 
         if (envSettings.IsWebMode) {
-
+            this.deviceContext = new DeviceContext();
             this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
         }
         else {
@@ -71,10 +72,15 @@ export class DeviceViewModel {
     setupEventListeners() {
         // setup event listeners for main electron app events (native bluetooth data state, device state responses, device list etc)
 
-        platformEvents.on("perform-action", (event, args) => {
-            // ... do hardware actions on behalf of the Renderer
-            this.deviceContext.performAction(args);
-        });
+        if (this.deviceContext != null) {
+            platformEvents.on("perform-action", (event, args) => {
+                // ... do hardware actions on behalf of the Renderer
+
+
+                this.deviceContext.performAction(args);
+
+            });
+        }
 
         platformEvents.on('device-state-changed', (event, args) => {
             this.log("got device state update from main.");

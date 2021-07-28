@@ -36,7 +36,9 @@ const InputEventsControl = () => {
           console.log("WebMidi could not be enabled.", err);
           midiInitialized = false;
         } else {
-          console.log("WebMidi enabled!");
+          console.log("WebMidi enabled.");
+          
+          midiInitialized = true;
 
           console.log(WebMidi.inputs);
           console.log(WebMidi.outputs);
@@ -44,7 +46,7 @@ const InputEventsControl = () => {
           var midiInputDevice = "microKEY-25";
           var input = WebMidi.getInputByName(midiInputDevice);
 
-          midiInitialized = true;
+        
 
           // listen for midi inputs and match inputs to mapping
 

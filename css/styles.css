@@ -15,7 +15,7 @@ body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
     padding-top: 1em;
-    text-shadow: #000 1px 1px 0;
+    text-shadow:#000 1px 1px 0px;
 }
 
 a,
@@ -266,4 +266,8 @@ td {
 
 .now-playing {
     box-shadow: 3px 3px 20px 2px #11c137;
+}
+
+.alert {
+    text-shadow: none;
 }
