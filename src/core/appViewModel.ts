@@ -96,14 +96,14 @@ export class AppViewModel {
     loadInputEventMappings() {
         // TODO: load saved midi input device pref
         let mappings: InputEventMapping[] = [
-            { name: "A3 to CH1", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "1" } },
-            { name: "B3 to CH2", source: { type: "midi", code: "56", channel: "1" }, target: { type: "amp-channel", value: "2" } },
-            { name: "C3 to CH3", source: { type: "midi", code: "58", channel: "1" }, target: { type: "amp-channel", value: "3" } },
-            { name: "D3 to CH4", source: { type: "midi", code: "59", channel: "1" }, target: { type: "amp-channel", value: "4" } },
-            { name: "Key 1 to CH1", source: { type: "keyboard", code: "49"}, target: { type: "amp-channel", value: "1" } },
-            { name: "Key 2 to CH1", source: { type: "keyboard", code: "50"}, target: { type: "amp-channel", value: "2" } },
-            { name: "Key 3 to CH1", source: { type: "keyboard", code: "51"}, target: { type: "amp-channel", value: "3" } },
-            { name: "Key 4 to CH1", source: { type: "keyboard", code: "52"}, target: { type: "amp-channel", value: "4" } }
+            { name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" } },
+            { name: "D3 to CH2", source: { type: "midi", code: "50", channel: "1" }, target: { type: "amp-channel", value: "1" } },
+            { name: "E3 to CH3", source: { type: "midi", code: "52", channel: "1" }, target: { type: "amp-channel", value: "2" } },
+            { name: "F3 to CH4", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "3" } },
+            { name: "Key 1 to CH1", source: { type: "keyboard", code: "1"}, target: { type: "amp-channel", value: "0" } },
+            { name: "Key 2 to CH1", source: { type: "keyboard", code: "2"}, target: { type: "amp-channel", value: "1" } },
+            { name: "Key 3 to CH1", source: { type: "keyboard", code: "3"}, target: { type: "amp-channel", value: "2" } },
+            { name: "Key 4 to CH1", source: { type: "keyboard", code: "4"}, target: { type: "amp-channel", value: "3" } }
         ];
 
         AppStateStore.update(s => { s.inputEventMappings = mappings });
