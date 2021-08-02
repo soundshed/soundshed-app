@@ -11,6 +11,7 @@ import envSettings from '../env';
 import { AppStateStore } from '../stores/appstate';
 import { TonesStateStore } from '../stores/tonestate';
 import { InputEventMapping } from '../spork/src/interfaces/inputEventMapping';
+import { getAppVersion } from './platformUtils';
 
 export class AppViewModel {
 
@@ -414,7 +415,7 @@ export class AppViewModel {
 
             let data = await response.json();
 
-            let currentVersion = "1.0.0";// remote.app.getVersion()?.replace("v","");
+            let currentVersion = getAppVersion();
             let updateInfo = {
 
                 name: data.name,
