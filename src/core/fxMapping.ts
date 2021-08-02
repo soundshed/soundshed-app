@@ -91,7 +91,7 @@ export class FxMappingSparkToTone {
                 dspId = "bias.reverb.0";
                 break;
         }
-        return dspId;
+        return "pg.spark40." + dspId;
     }
 
     /**
@@ -111,7 +111,7 @@ export class FxMappingSparkToTone {
         let dspId = FxMappingSparkToTone.getReverbDspId(source.params[6].value);
 
         var val = {
-            type: "pg.spark40." + dspId,
+            type: dspId,
             name: source.name,
             enabled: source.active == true,
             params: source.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, type: p.type, name: p.name, enabled: true })

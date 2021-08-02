@@ -3,19 +3,41 @@ import { Dropdown } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import { InputEventMapping } from "../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../stores/appstate";
+import { appViewModel } from "./app";
 
 const SettingsControl = () => {
   const inputEventMappings = AppStateStore.useState(
     (s) => s.inputEventMappings
+  );
+  const selectedMidiInput = AppStateStore.useState(
+    (s) => s.selectedMidiInput
   );
 
   const midiInputs = AppStateStore.useState((s) => s.midiInputs);
 
   React.useEffect(() => {}, [inputEventMappings, midiInputs]);
 
+  const deleteInputMapping = (mapping: InputEventMapping) => {
+    
+  };
+
+  const learnInputMapping = (mapping: InputEventMapping) => {
+    throw new Error("Function not implemented.");
+  };
+
+  const selectMidiInput = (i: any) => {
+    AppStateStore.update((s) => {
+      s.selectedMidiInput = i.name;
+    });
+    
+    setTimeout(()=>{
+      appViewModel.saveSettings();
+    },500);
+  };
+
   const renderInputEventMappings = () => {
     return inputEventMappings.map((mapping: InputEventMapping) => (
-      <tr key={mapping.name}>
+      <tr key={mapping.id}>
         <th>{mapping.name}</th>
         <td>{mapping.source.type}</td>
         <td>{mapping.source.code}</td>
@@ -23,7 +45,7 @@ const SettingsControl = () => {
         <td>{mapping.target.value}</td>
         <td>
           {" "}
-          <Button
+          <Button disabled
             className="btn btn-sm"
             onClick={() => {
               deleteInputMapping(mapping);
@@ -49,9 +71,12 @@ const SettingsControl = () => {
 
   const renderMidiInputs = () => {
     return midiInputs.map((i) => (
-      <Dropdown.Item key={i.name}  onClick={() => {
-        selectMidiInput(i);
-      }}>
+      <Dropdown.Item
+        key={i.name}
+        onClick={() => {
+          selectMidiInput(i);
+        }}
+      >
         {i.name}
       </Dropdown.Item>
     ));
@@ -69,6 +94,11 @@ const SettingsControl = () => {
         <Dropdown.Menu>{renderMidiInputs()}</Dropdown.Menu>
       </Dropdown>
 
+      <span className="badge rounded-pill bg-secondary">
+      {selectedMidiInput}
+              </span>
+     
+
       <h2>Input Event Mappings</h2>
       <p>You can optionally map keyboard or midi inputs to amp channels.</p>
 
@@ -80,14 +110,3 @@ const SettingsControl = () => {
 };
 
 export default SettingsControl;
-function deleteInputMapping(mapping: InputEventMapping) {
-  throw new Error("Function not implemented.");
-}
-
-function learnInputMapping(mapping: InputEventMapping) {
-  throw new Error("Function not implemented.");
-}
-function selectMidiInput(i: any) {
-  throw new Error("Function not implemented.");
-}
-

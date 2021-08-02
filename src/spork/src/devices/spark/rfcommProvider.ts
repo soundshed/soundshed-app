@@ -110,7 +110,7 @@ export class RfcommProvider implements SerialCommsProvider
     }
 
     public async write(msg:any){
-        this.btSerial.write(Buffer.from(msg), async (err) => {
+        return this.btSerial.write(Buffer.from(msg), async (err) => {
             if (err) this.log(err);
         });
     }

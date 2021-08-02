@@ -237,8 +237,15 @@ export class SparkMessageReader {
         }
 
         let a_str = ""
-        for (let i = 0; i < str_len; i++) {
-            a_str += chr(this.read_byte())
+        if (str_len > 0) {
+            for (let i = 0; i < str_len; i++) {
+                let a = this.read_byte();
+                if (a < 0x20 || a > 0x7e) a = 0x20; // force ascii range
+                a_str += chr(a);
+            }
+        }
+        else {
+            a_str = "";
         }
 
         return a_str
@@ -389,6 +396,25 @@ export class SparkMessageReader {
         this.deviceState.lastMessageReceived = <FxToggleMessage>{ dspId: effect, active: onoff == "On" }
     }
 
+    read_current_preset_number() {
+        this.read_byte()
+
+        const current_preset = this.read_byte();
+        this.deviceState.selectedPresetNumber = current_preset;
+        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ presetNumber: current_preset }
+    }
+
+    read_bpm() {
+
+        this.start_str();
+        const bpm = this.read_float();
+        this.add_float("BPM", bpm)
+        this.end_str()
+
+        this.deviceState.bpm = bpm;
+        this.deviceState.lastMessageReceived = { bpm: bpm };
+    }
+
     read_preset() {
 
         let deviceState: DeviceState = {};
@@ -476,6 +502,7 @@ export class SparkMessageReader {
         preset.type = "jamup_speaker";
 
         this.deviceState.presetConfig = preset;
+        this.deviceState.lastMessageReceived = <Preset> preset;
     }
 
     //
@@ -513,6 +540,12 @@ export class SparkMessageReader {
             else if (sub_cmd == 0x06) {
                 this.read_effect()
             }
+            else if (sub_cmd == 0x10) {
+                this.read_current_preset_number()
+            }
+            else if (sub_cmd == 0x15) {
+                this.read_effect_onoff()
+            }
             else if (sub_cmd == 0x27) {
                 this.read_store_hardware_preset()
             }
@@ -521,6 +554,9 @@ export class SparkMessageReader {
             }
             else if (sub_cmd == 0x38) {
                 this.read_hardware_preset()
+            }
+            else if (sub_cmd == 0x63) {
+                this.read_bpm()
             }
             else {
                 this.print_message(hex(cmd), hex(sub_cmd), "not handled")
@@ -535,6 +571,7 @@ export class SparkMessageReader {
 
         return 1
     }
+
 
     print_message(...msg) {
         console.log(msg);

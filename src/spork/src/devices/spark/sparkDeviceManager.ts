@@ -38,7 +38,7 @@ export class SparkDeviceManager implements DeviceController {
 
         if (connected) {
             // setup serial read listeners
-            this.connection.listenForData((buffer :ArrayBuffer) => {
+            this.connection.listenForData((buffer: ArrayBuffer) => {
 
                 let currentTime = new Date().getTime();
                 this.lastStateTime = currentTime;
@@ -96,13 +96,13 @@ export class SparkDeviceManager implements DeviceController {
 
     private hydrateDeviceStateInfo(deviceState: DeviceState) {
 
-        let fxCatalog = FxCatalogProvider.db;
+        let fxCatalog = FxCatalogProvider.getFxCatalog();
 
         // populate metadata about fx etc
         if (deviceState.presetConfig) {
             for (let fx of deviceState.presetConfig.sigpath) {
                 let dspId = fx.dspId;
-                if (dspId == "bias.reverb") {
+                if (dspId.indexOf("bias.reverb") > -1) {
                     //map mode variant to our config dspId
                     dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
                 } else {
@@ -123,7 +123,9 @@ export class SparkDeviceManager implements DeviceController {
                         }
                     }
                 } else {
-                    fx.name = fx.dspId;
+                    this.log("DSP Id is not present in FX Catalog: " + dspId);
+
+                    fx.name = FxMappingSparkToTone.mapFxId(fx.dspId);
                     fx.description = "(No description)";
 
                     for (let p of fx.params) {
@@ -220,9 +222,9 @@ export class SparkDeviceManager implements DeviceController {
             this.log("Sending: " + this.buf2hex(msg));
 
             if (typeof (Buffer) != "undefined") {
-                this.connection.write(Buffer.from(msg));
+                await this.connection.write(Buffer.from(msg));
             } else {
-                this.connection.write(msg);
+                await this.connection.write(msg);
             }
         }
 

@@ -45,13 +45,14 @@ export interface SignalPath {
     name?: string;
     description?: string;
 }
-export interface DeviceState {
 
+export interface DeviceState {
     selectedPresetNumber?: number;
+    bpm?: number;
     presetConfig?: Preset;
     lastMessageReceived?: any;
-
 }
+
 export interface FxCatalogItem {
     type: string;
     dspId: string;
@@ -59,6 +60,7 @@ export interface FxCatalogItem {
     description?: string;
     params: Array<FxParam>;
     isExperimental?: boolean;
+    isRemoved?: boolean;
 }
 
 export interface FXCatalogItemType {
@@ -67,6 +69,7 @@ export interface FXCatalogItemType {
     index: number;
     description: string;
     isExperimental?: boolean;
+    isRemoved?: boolean;
 }
 export interface FxCatalog {
     types: Array<FXCatalogItemType>;

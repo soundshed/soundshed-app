@@ -121,7 +121,10 @@ const TcBrowserControl = () => {
 
     let p = new FxMappingToneToSpark().mapFrom(t);
 
-    deviceViewModel.requestPresetChange(p);
+    
+    if ((await deviceViewModel.requestPresetChange(p)) == false) {
+      alert("Could not select tone. ");
+    }
   };
 
   return (

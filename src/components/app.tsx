@@ -129,7 +129,7 @@ const App = () => {
 
     lessonManager.loadFavourites();
 
-    appViewModel.loadInputEventMappings();
+    appViewModel.loadSettings();
 
     // mock amp connection and current preset
     /* DeviceStore.update(s=>{
@@ -141,7 +141,7 @@ const App = () => {
 
   return (
     <main>
-      <Container>
+      <Container fluid>
       <ul className="nav nav-tabs">
         <li className="nav-item">
           <NavLink

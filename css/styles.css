@@ -3,6 +3,8 @@ body {
     height: 100%;
     margin: 0;
 }
+
+
 @font-face {
     font-family: "digital";
     src: url("fonts/digital_7/Digital-7.woff2") format("woff2"), url("fonts/digital_7/Digital-7.woff") format("woff");
@@ -15,7 +17,7 @@ body {
     background-color: rgb(39, 38, 38);
     color: whitesmoke;
     padding-top: 1em;
-    text-shadow:#000 1px 1px 0px;
+    text-shadow: #000 1px 1px 0px;
 }
 
 a,
@@ -26,6 +28,7 @@ h1 {
     font-size: 140%;
 }
 h2 {
+    margin-top: 1em;
     font-size: 120%;
 }
 h3 {
@@ -61,7 +64,9 @@ h3 {
 }
 
 .fx .fx-controls {
-    margin-left: 30%;
+    margin-left: auto;
+    margin-right: auto;
+    width: 64px;
 }
 
 .fx label,
@@ -94,9 +99,7 @@ h3 {
     text-shadow: 2px 2px 0px #000;
     margin-left: 1em;
 }
-.container {
-    margin-left: 0;
-}
+
 label.fx-type {
     display: block;
     font-size: 0.6em;
@@ -224,12 +227,12 @@ label.fx-type {
 }
 
 .nav-section.amp {
-   /* background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
+    /* background-image: url(/images/jarrod-reed-LCsz65ObVow-unsplash.jpg);
     background-size: cover;*/
 }
 
 .nav-section.jam {
-   /* background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
+    /* background-image: url(/images/dark-rider-JmVaNyemtN8-unsplash.jpg);
     background-size: cover;*/
 }
 .section-container {
@@ -261,17 +264,20 @@ td {
     opacity: 1;
     border: 1px solid black;
     box-shadow: 3px 3px 20px 2px #11c137;
-    margin-left:50%;
+    margin-left: 50%;
 }
 
 .now-playing {
     box-shadow: 3px 3px 20px 2px #11c137;
 }
 
-.alert, a.dropdown-item {
+.alert,
+a.dropdown-item {
     text-shadow: none;
+    color: #000;
 }
 
-td,th {
-    color:whitesmoke;
+td,
+th {
+    color: whitesmoke;
 }

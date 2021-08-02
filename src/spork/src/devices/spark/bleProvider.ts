@@ -8,7 +8,7 @@ export class BleProvider implements SerialCommsProvider {
     private server: BluetoothRemoteGATTServer;
     private service: BluetoothRemoteGATTService;
 
-    
+
 
     serviceGenericUUID = '00001800-0000-1000-8000-00805f9b34fb'; // service 'generic_access'
     serviceCustomUUID = '0000ffc0-0000-1000-8000-00805f9b34fb'; // service 'FFC0'
@@ -86,11 +86,11 @@ export class BleProvider implements SerialCommsProvider {
     private log(msg, ...args) {
         console.log("[BLE Provider] : " + msg);
 
-        if (args){
+        if (args) {
             args.forEach(element => {
                 console.log("[BLE Provider] : " + element);
             });
-           
+
         }
     }
 
@@ -121,49 +121,49 @@ export class BleProvider implements SerialCommsProvider {
          }*/
     }
 
-    public listenForData(onListen: (buffer) => void) {
-this.device.gatt.connect();
+    public async listenForData(onListen: (buffer) => void) {
+        await this.device.gatt.connect();
 
-       /* this.device.addEventListener('advertisementreceived', (event:any) => {
-            this.log('Advertisement received.');
-            this.log('  Device Name: ' + event.device.name);
-            this.log('  Device ID: ' + event.device.id);
-            this.log('  RSSI: ' + event.rssi);
-            this.log('  TX Power: ' + event.txPower);
-            this.log('  UUIDs: ' + event.uuids);
-
-            event.manufacturerData.forEach((valueDataView, key) => {
-              this.log('Manufacturer', key, valueDataView);
-            });
-
-            event.serviceData.forEach((valueDataView, key) => {
-              this.log('Service', key, valueDataView);
-            });
-          });
-      
-          this.log('Watching advertisements from "' + this.device.name + '"...');
-          return this.device.watchAdvertisements();  
-          */
+        /* this.device.addEventListener('advertisementreceived', (event:any) => {
+             this.log('Advertisement received.');
+             this.log('  Device Name: ' + event.device.name);
+             this.log('  Device ID: ' + event.device.id);
+             this.log('  RSSI: ' + event.rssi);
+             this.log('  TX Power: ' + event.txPower);
+             this.log('  UUIDs: ' + event.uuids);
+ 
+             event.manufacturerData.forEach((valueDataView, key) => {
+               this.log('Manufacturer', key, valueDataView);
+             });
+ 
+             event.serviceData.forEach((valueDataView, key) => {
+               this.log('Service', key, valueDataView);
+             });
+           });
+       
+           this.log('Watching advertisements from "' + this.device.name + '"...');
+           return this.device.watchAdvertisements();  
+           */
 
         this.changeCharacteristic.startNotifications().then(_ => {
             this.log('> Notifications started');
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
 
                 var datavalue = (<any>event.target).value.buffer;
-                this.log("characteristicvaluechanged: "+this.buf2hex(datavalue));
+                this.log("characteristicvaluechanged: " + this.buf2hex(datavalue));
                 onListen(datavalue);
             });
-         
-          });
 
-       /* this.commandCharacteristic.addEventListener('characteristicvaluechanged',
-            (event) => {
+        });
 
-                var datavalue = (<any>event.target).value.buffer;
-                this.log("characteristicvaluechanged: "+this.buf2hex(datavalue));
-                onListen(datavalue);
-            });
-*/
+        /* this.commandCharacteristic.addEventListener('characteristicvaluechanged',
+             (event) => {
+ 
+                 var datavalue = (<any>event.target).value.buffer;
+                 this.log("characteristicvaluechanged: "+this.buf2hex(datavalue));
+                 onListen(datavalue);
+             });
+ */
 
         // setup serial read listeners
         /*  this.btSerial.on('data', (buffer) => {
@@ -178,6 +178,6 @@ this.device.gatt.connect();
     }
 
     public async write(msg: any) {
-        this.sendCommandBytes(msg);
+        return this.sendCommandBytes(msg);
     }
 }

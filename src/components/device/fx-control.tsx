@@ -19,9 +19,10 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
     );
 
     if (fxDefinition) {
-      const listOfSameTypeFx = fxCatalog.catalog.filter(
-        (t) => t.type == fxDefinition.type
+      let listOfSameTypeFx : FxCatalogItem[] = fxCatalog.catalog.filter(
+        (t) => t.type == fxDefinition.type && t.isRemoved != true
       );
+      listOfSameTypeFx = listOfSameTypeFx.sort((a,b)=>{ return a.name<=b.name?-1:1});
 
       setFxList(listOfSameTypeFx);
 
@@ -39,11 +40,14 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   ));
 
   const handleFxChange = (e) => {
-    //this.setState({value: event.target.value});
     deviceViewModel
       .requestFxChange({ dspIdOld: fx.type, dspIdNew: e.target.value })
-      .then(() => {
-        // deviceViewModel.requestPresetConfig();
+      .then((changedOk) => {
+        if (!changedOk) {
+          alert(
+            "Fx change failed. FX type may have been removed, or amp not connected"
+          );
+        }
       });
   };
 

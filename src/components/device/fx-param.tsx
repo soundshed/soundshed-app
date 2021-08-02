@@ -13,11 +13,11 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
   let customElement;
 
   const setParamValue = (e) => {
-    console.log(
+    /*console.log(
       `setParamValue: Changed param ${e.target.value} ${JSON.stringify(
         e.target.tag
       )} ${fx.name} ${fx.type}`
-    );
+    );*/
 
     onFxParamChange({
       dspId: fx.type,
@@ -28,11 +28,9 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
   };
 
   React.useEffect(() => {
-    //customElement?.addEventListener("input", setParamValue);
     customElement?.addEventListener("change", setParamValue);
 
     return () => {
-      // customElement?.removeEventListener("input", setParamValue);
       customElement?.removeEventListener("change", setParamValue);
     };
   }, []);
@@ -44,11 +42,11 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
     }
     if (customElement.value != newVal && newVal != null) {
       // an external input has changed a control value
-      console.log(
+      /* console.log(
         "Control Strip UI updated. " + customElement.value + " :: " + newVal
-      );
-       customElement?.setValue(newVal);
-    } 
+      );*/
+      customElement?.setValue(newVal);
+    }
   }, [fx, p]);
 
   return (

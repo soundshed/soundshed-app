@@ -8,58 +8,67 @@ const InputEventsControl = () => {
     (s) => s.inputEventMappings
   );
 
-  React.useEffect(() => {
-    if (inputEventMappings != null && inputEventMappings.length > 0) {
-      console.log(inputEventMappings);
-
-      setupKeyboardEvents();
-      setupMidiEvents();
-    }
-  }, [inputEventMappings]);
+  const selectedMidiInput: string = AppStateStore.useState(
+    (s) => s.selectedMidiInput
+  );
 
   useEffect(() => {
-    console.log("setting up midi/keyboard listeners");
-  }, []);
+    console.log("Midi/input events changed : " + selectedMidiInput);
+
+    if (selectedMidiInput != null) {
+      setupMidiEvents(true);
+    } else {
+      // first-time pass to get available midi devices
+      setupMidiEvents();
+    }
+
+    if (inputEventMappings != null && inputEventMappings.length > 0) {
+      setupKeyboardEvents();
+    }
+  }, [selectedMidiInput, inputEventMappings]);
 
   let midiInitialized = false;
   let keyboardInitialized = false;
 
-  const setupMidiEvents = () => {
-    if (midiInitialized) return;
+  const setupMidiEvents = (refreshSettings: boolean = false) => {
+    if (midiInitialized && !refreshSettings) return;
 
-    (navigator as any).requestMIDIAccess().then(() => {
-      WebMidi.enable((err) => {
-        if (err) {
-          console.log("WebMidi could not be enabled.", err);
-          midiInitialized = false;
-        } else {
-          console.log("WebMidi enabled.");
+    WebMidi.enable((err) => {
+      if (err) {
+        console.log("WebMidi could not be enabled.", err);
+        midiInitialized = false;
+      } else {
+        console.log("WebMidi enabled.");
 
-          midiInitialized = true;
+        midiInitialized = true;
 
-          if (WebMidi.inputs != null) {
-            AppStateStore.update((s) => {
-              s.midiInputs = WebMidi.inputs.map((input) => {
-                return {
-                  input: input,
-                  name: input.name,
-                  type: "midi",
-                };
-              });
+        if (WebMidi.inputs != null) {
+          AppStateStore.update((s) => {
+            s.midiInputs = WebMidi.inputs.map((input) => {
+              return {
+                input: input,
+                name: input.name,
+                type: "midi",
+              };
             });
-          }
+          });
+        }
 
-          console.log(WebMidi.inputs);
-          console.log(WebMidi.outputs);
+        console.log(WebMidi.inputs);
+        console.log(WebMidi.outputs);
 
-          var midiInputDevice = "microKEY-25";
-          var input = WebMidi.getInputByName(midiInputDevice);
+        if (selectedMidiInput != null) {
+          var input = WebMidi.getInputByName(selectedMidiInput);
 
           if (input) {
+            console.log("midi input mapped: " + selectedMidiInput);
             AppStateStore.update((s) => {
               s.isMidiInputAvailable = true;
             });
             // listen for midi inputs and match inputs to mapping
+
+            //remove old listeners
+            (input as any).removeListener();
 
             (input as any).addListener("noteon", "all", (e) => {
               console.log(e);
@@ -73,6 +82,12 @@ const InputEventsControl = () => {
                   if (mapping.source.code == e.note.number) {
                     deviceViewModel
                       .setChannel(parseInt(mapping.target.value))
+                      .catch((err) => {
+                        console.log(
+                          "Failed to set channel. Device may not be connected " +
+                            err
+                        );
+                      })
                       .then(() => {
                         console.log(
                           "Midi input event channel selection:" +
@@ -88,10 +103,14 @@ const InputEventsControl = () => {
             AppStateStore.update((s) => {
               s.isMidiInputAvailable = false;
             });
+
+            console.log("midi input could not be mapped: " + selectedMidiInput);
           }
+        } else {
+          console.log("No midi input selected, skipping midi input mappings");
         }
-      });
-    }, false);
+      }
+    });
   };
 
   const setupKeyboardEvents = () => {
@@ -135,13 +154,7 @@ const InputEventsControl = () => {
     );
   };
 
-  return (
-    <div>
-      <small>
-        <em>Listening for midi/keyboard input events</em>
-      </small>
-    </div>
-  );
+  return <div></div>;
 };
 
 export default InputEventsControl;

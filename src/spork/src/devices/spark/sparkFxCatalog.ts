@@ -1,7 +1,16 @@
 import { FxCatalog } from "../../interfaces/preset";
 
 export class FxCatalogProvider {
-    public static db: FxCatalog = {
+    public static getFxCatalog(): FxCatalog {
+
+        for (var fx of this.db.catalog) {
+            if (!fx.dspId.startsWith("pg.spark40.")) fx.dspId = "pg.spark40." + fx.dspId;
+        }
+
+        return this.db;
+    }
+
+    private static db: FxCatalog = {
         "types": [
             {
                 "id": "gate",
@@ -1011,6 +1020,7 @@ export class FxCatalogProvider {
                 "type": "amp",
                 "dspId": "JCM800",
                 "isExperimental":true,
+                "isRemoved":true,
                 "name": "JCM 800",
                 "params": [
                     {
@@ -1044,6 +1054,7 @@ export class FxCatalogProvider {
                 "type": "amp",
                 "dspId": "MatchlessDC30",
                 "isExperimental":true,
+                "isRemoved":true,
                 "name": "Matchless DC30",
                 "params": [
                     {
@@ -1078,6 +1089,7 @@ export class FxCatalogProvider {
                 "dspId": "DrZ",
                 "name": "Dr. Z",
                 "isExperimental":true,
+                "isRemoved":true,
                 "params": [
                     {
                         "name": "Gain",
@@ -1112,6 +1124,7 @@ export class FxCatalogProvider {
                 "dspId": "Hiwatt103",
                 "name": "Hiwatt DR103",
                 "isExperimental":true,
+                "isRemoved":true,
                 "params": [
                     {
                         "name": "Gain",
@@ -1146,6 +1159,7 @@ export class FxCatalogProvider {
                 "dspId": "B15",
                 "name": "B-15",
                 "isExperimental":true,
+                "isRemoved":true,
                 "params": [
                     {
                         "name": "Gain",
@@ -1179,6 +1193,7 @@ export class FxCatalogProvider {
                 "dspId": "Acoustic360",
                 "name": "Acoustic 360",
                 "isExperimental":true,
+                "isRemoved":true,
                 "params": [
                     {
                         "name": "Gain",
@@ -1212,6 +1227,7 @@ export class FxCatalogProvider {
                 "dspId": "GK700RBII",
                 "name": "GK 700 RB II",
                 "isExperimental":true,
+                "isRemoved":true,
                 "params": [
                     {
                         "name": "Gain",
@@ -1824,6 +1840,7 @@ export class FxCatalogProvider {
                 "type": "drive",
                 "dspId": "MetalZoneMT2",
                 "isExperimental":true,
+                "isRemoved":true,
                 "name": "Metal Zone MT2",
                 "params": [
                     {
@@ -1894,12 +1911,12 @@ export class FxCatalogProvider {
                     },
                     {
                         "name": "Gain",
-                        "index": 1,
+                        "index": 2,
                         "value": 0.5
                     },
                     {
                         "name": "Treble",
-                        "index": 2,
+                        "index": 1,
                         "value": 0.5
                     }
                 ]
@@ -2131,6 +2148,7 @@ export class FxCatalogProvider {
                 "type": "modulation",
                 "dspId": "MuTron",
                 "isExperimental":true,
+                "isRemoved":true,
                 "name": "MuTron III",
                 "params": [
                     {

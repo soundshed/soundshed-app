@@ -80,6 +80,55 @@ export class AppViewModel {
         }
     }
 
+    loadSettings() {
+
+        // default input event mappings
+        let mappings: InputEventMapping[] = [
+            { id: "1", name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" } },
+            { id: "2", name: "D3 to CH2", source: { type: "midi", code: "50", channel: "1" }, target: { type: "amp-channel", value: "1" } },
+            { id: "3", name: "E3 to CH3", source: { type: "midi", code: "52", channel: "1" }, target: { type: "amp-channel", value: "2" } },
+            { id: "4", name: "F3 to CH4", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "3" } },
+            { id: "5", name: "Key 1 to CH1", source: { type: "keyboard", code: "1" }, target: { type: "amp-channel", value: "0" } },
+            { id: "6", name: "Key 2 to CH1", source: { type: "keyboard", code: "2" }, target: { type: "amp-channel", value: "1" } },
+            { id: "7", name: "Key 3 to CH1", source: { type: "keyboard", code: "3" }, target: { type: "amp-channel", value: "2" } },
+            { id: "8", name: "Key 4 to CH1", source: { type: "keyboard", code: "4" }, target: { type: "amp-channel", value: "3" } }
+        ];
+        let selectedMidiInput = null;
+        let settings = localStorage.getItem("settings");
+        if (settings != null) {
+            // settings to load
+            let settingsParsed = JSON.parse(settings);
+            if (settingsParsed.inputEventMappings != null) {
+                mappings = settingsParsed.inputEventMappings;
+            }
+
+            if (settingsParsed.selectedMidiInput != null) {
+                selectedMidiInput = settingsParsed.selectedMidiInput;
+            }
+
+        }
+
+        AppStateStore.update(s => {
+            s.inputEventMappings = mappings;
+            s.selectedMidiInput = selectedMidiInput;
+        });
+
+    }
+
+    saveSettings() {
+
+        let allSettings = AppStateStore.getRawState();
+
+        let settings = {
+            selectedMidiInput: allSettings.selectedMidiInput,
+            inputEventMappings: allSettings.inputEventMappings
+        };
+
+        localStorage.setItem("settings", JSON.stringify(settings));
+    }
+
+
+
     loadFavourites(): Tone[] {
         let favourites: Tone[] = [];
         let allPresets = localStorage.getItem("favourites");
@@ -93,21 +142,6 @@ export class AppViewModel {
 
     }
 
-    loadInputEventMappings() {
-        // TODO: load saved midi input device pref
-        let mappings: InputEventMapping[] = [
-            { name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" } },
-            { name: "D3 to CH2", source: { type: "midi", code: "50", channel: "1" }, target: { type: "amp-channel", value: "1" } },
-            { name: "E3 to CH3", source: { type: "midi", code: "52", channel: "1" }, target: { type: "amp-channel", value: "2" } },
-            { name: "F3 to CH4", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "3" } },
-            { name: "Key 1 to CH1", source: { type: "keyboard", code: "1"}, target: { type: "amp-channel", value: "0" } },
-            { name: "Key 2 to CH1", source: { type: "keyboard", code: "2"}, target: { type: "amp-channel", value: "1" } },
-            { name: "Key 3 to CH1", source: { type: "keyboard", code: "3"}, target: { type: "amp-channel", value: "2" } },
-            { name: "Key 4 to CH1", source: { type: "keyboard", code: "4"}, target: { type: "amp-channel", value: "3" } }
-        ];
-
-        AppStateStore.update(s => { s.inputEventMappings = mappings });
-    }
 
     async deleteFavourite(tone: Tone) {
         if (confirm("Are you sure you wish to delete this tone [" + tone.name + "]?")) {

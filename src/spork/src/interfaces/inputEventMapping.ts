@@ -4,6 +4,7 @@
  * e.g. Midi Input > Preset Selection
  * */
 export interface InputEventMapping {
+    id: string;
     name: string; // e.g. Map Midi A3 to Preset Channel 1
     source: MidiEventSource | KeyboardEventSource; // e.g. {type:'midi','ch':1,'note':57};
     target: EventTargetMapping; // e.g. {type:'channel',value:0};

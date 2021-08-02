@@ -42,17 +42,16 @@ export class DeviceViewModel {
 
     constructor() {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
-        this.setupEventListeners();
 
-        DeviceStateStore.update(s => { s.fxCatalog = this.getFxCatalog() });
+
+        DeviceStateStore.update(s => { s.fxCatalog = FxCatalogProvider.getFxCatalog(); });
 
         if (envSettings.IsWebMode) {
             this.deviceContext = new DeviceContext();
             this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
         }
-        else {
 
-        }
+        this.setupEventListeners();
     }
 
     hardwareEventReceiver(type: string, msg: any) {
@@ -286,11 +285,40 @@ export class DeviceViewModel {
         return true;
     }
 
+
+    isDspIdAllowed(dspId: string): boolean {
+        let db = FxCatalogProvider.getFxCatalog();
+        let fx = db.catalog.find(c => c.dspId == FxMappingSparkToTone.mapFxId(dspId) && c.isRemoved == true);
+        if (fx != null) {
+            this.log("DSP id has been removed, Cannot activate preset. " + dspId);
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     async requestPresetChange(args: Preset) {
+
+        if (args == null) {
+            return;
+        }
+
+        // check for invalid dsp IDs (old experimental fx) which would crash amp
+        if (args.sigpath != null) {
+            let db = FxCatalogProvider.getFxCatalog();
+            for (let p of args.sigpath) {
+                let fx = db.catalog.find(c => c.dspId == FxMappingSparkToTone.mapFxId(p.dspId) && c.isRemoved == true);
+                if (fx != null) {
+                    this.log("DSP id has been removed, Cannot activate preset. " + p.dspId);
+                    return false;
+                }
+            }
+        }
+
         this.lastCommandType = "requestPresetChange";
         return platformEvents.invoke('perform-action', { action: 'applyPreset', data: args }).then(
             () => {
-
+                return true;
             });
         return true;
     }
@@ -314,17 +342,28 @@ export class DeviceViewModel {
         args.dspIdOld = this.normalizeDspId(args.dspIdOld);
         args.dspIdNew = this.normalizeDspId(args.dspIdNew);
 
+        if (!this.isDspIdAllowed(args.dspIdNew)) {
+            this.log("Selected fx id is removed or not valid : " + args.dspIdNew);
+            return false;
+        }
+
+
         return platformEvents.invoke('perform-action', { action: 'changeAmp', data: args }).then(
             () => {
-
+                return true;
             });
-        return true;
     }
 
 
     async requestFxChange(args: FxChangeMessage) {
 
         this.lastCommandType = "requestFxChange";
+
+        if (!this.isDspIdAllowed(args.dspIdNew)) {
+            this.log("Selected fx id is removed or not valid : " + args.dspIdNew);
+            return false;
+        }
+
 
         // TODO: special case for reverb
         if (args.dspIdOld == "bias.reverb") {
@@ -351,9 +390,8 @@ export class DeviceViewModel {
 
         return platformEvents.invoke('perform-action', { action: 'changeFx', data: args }).then(
             () => {
-
+                return true;
             });
-        return true;
     }
 
     private async requestFxParamChangeImmediate(args) {
@@ -377,9 +415,9 @@ export class DeviceViewModel {
 
         return platformEvents.invoke('perform-action', { action: 'setFxParam', data: args }).then(
             () => {
-
+                return true;
             });
-        return true;
+
     }
 
     async requestFxParamChange(args): Promise<boolean> {
@@ -414,14 +452,22 @@ export class DeviceViewModel {
 
     async setChannel(channelNum: number): Promise<boolean> {
         this.lastCommandType = "setChannel";
-        await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
-            () => {
-                this.log("Completed setting channel");
-                // DeviceStore.update(s => { s.selectedChannel == channelNum });
+        try {
+            return await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
+                async () => {
+                    this.log("Completed setting channel");
+                    
+                    // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
+                    setTimeout(() => {
+                        this.log("...Performing follow up preset query after channel change")
+                        this.requestPresetConfig();
+                    }, 500);
 
-                this.requestPresetConfig();
-            });
-        return true;
+                    return true;
+                });
+        } catch {
+            return false;
+        }
     }
 
     async getDeviceName(): Promise<boolean> {
@@ -438,14 +484,6 @@ export class DeviceViewModel {
 
             });
         return true;
-    }
-
-    getFxCatalog() {
-        let db = FxCatalogProvider.db;
-        for (var fx of db.catalog) {
-            if (!fx.dspId.startsWith("pg.spark40.")) fx.dspId = "pg.spark40." + fx.dspId;
-        }
-        return db;
     }
 }
 
