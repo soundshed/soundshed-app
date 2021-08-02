@@ -6,8 +6,8 @@ var path = require('path');
 module.exports = {
 	watch: false,
 	target: 'web',
-	mode: 'development',
-	devtool: 'inline-source-map',
+	mode: 'production',
+	//devtool: 'inline-source-map',
 	entry: {
 		app: './src/components/app.tsx',	
 	},

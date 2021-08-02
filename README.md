@@ -68,9 +68,16 @@ The final installable app is packaged using electron-forge:
 - edit env.ts, set IsWebMode true/false
 - edit platformUtils.ts, import required platform
 
-## Release Process
-- Increment version in package.json, run installer Github Action, run Release Github Action, Edit release notes.
-
+## Release Process 
+- Electron
+    - ensure electron config selected
+    - ensure webpack.electron.config is set to production
+    - Increment version in package.json, run installer Github Action, run Release Github Action, Edit release notes.
+- Web
+    - ensure web config selected
+    - ensure webpack.web.config is set to production
+    - Run build and deploy files
+    
 ### Architecture
 The app is built using TypeScript, with electron/node as a the host process, talking to the electron renderer and back again (the standard electron way of working).
 
