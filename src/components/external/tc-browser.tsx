@@ -123,7 +123,7 @@ const TcBrowserControl = () => {
 
     
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
-      alert("Could not select tone. ");
+      alert("Could not load tone. Please wait and try again");
     }
   };
 

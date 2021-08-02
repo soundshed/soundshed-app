@@ -65,7 +65,7 @@ const ToneBrowserControl = () => {
     let p = new FxMappingToneToSpark().mapFrom(t);
 
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
-      alert("Could not select tone. ");
+      alert("Could not load tone. Please wait and try again.");
     }
   };
 
