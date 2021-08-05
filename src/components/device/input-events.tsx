@@ -122,6 +122,11 @@ const InputEventsControl = () => {
     window.addEventListener(
       "keydown",
       (event) => {
+        if (document.activeElement != null && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+          // if focus is on an input UI element ignore key events
+          return;
+        }
+
         if (event.defaultPrevented) {
           return; // Do nothing if the event was already processed
         }
@@ -134,6 +139,9 @@ const InputEventsControl = () => {
           for (let mapping of inputEventMappings) {
             if (mapping.source.type === "keyboard") {
               if (mapping.source.code == event.key) {
+                // key handled, cancel the default action to avoid it being handled twice
+                //event.preventDefault();
+
                 deviceViewModel
                   .setChannel(parseInt(mapping.target.value))
                   .then(() => {
@@ -145,9 +153,6 @@ const InputEventsControl = () => {
               }
             }
           }
-
-          // Cancel the default action to avoid it being handled twice
-          event.preventDefault();
         }
       },
       true
