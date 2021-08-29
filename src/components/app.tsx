@@ -5,7 +5,7 @@ import faWindowRestore from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import React, { useEffect } from "react";
-import Draggable from 'react-draggable'; 
+import Draggable from "react-draggable";
 import Container from "react-bootstrap/Container";
 import Button from "react-bootstrap/Button";
 import ReactDOM from "react-dom";
@@ -18,7 +18,7 @@ import {
   useHistory,
 } from "react-router-dom";
 
-import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/styles.css";
 import AppViewModel from "../core/appViewModel";
 import DeviceViewModel from "../core/deviceViewModel";
@@ -69,6 +69,10 @@ const App = () => {
 
   const playingVideoUrl = LessonStateStore.useState((s) => s.playingVideoUrl);
   const [isVideoExpanded, setIsVideoExpanded] = React.useState(true);
+
+  const enableSoundshedLogin = UIFeatureToggleStore.useState(
+    (s) => s.enableSoundshedLogin
+  );
 
   const requireSignIn = async () => {
     AppStateStore.update((s) => {
@@ -142,185 +146,190 @@ const App = () => {
   return (
     <main>
       <Container fluid>
-      <ul className="nav nav-tabs">
-        <li className="nav-item">
-          <NavLink
-            to="/"
-            exact
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            Home
-          </NavLink>
-        </li>
-
-        <li className="nav-item">
-          <NavLink
-            to="/tones"
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            Tones
-          </NavLink>
-        </li>
-        <li className="nav-item">
-          <NavLink
-            to="/device"
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            Amp
-          </NavLink>
-        </li>
-        <li className="nav-item">
-          <NavLink
-            to="/lessons"
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            Jam
-          </NavLink>
-        </li>
-        <li className="nav-item">
-          <NavLink
-            to="/settings"
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            Settings
-          </NavLink>
-        </li>
-        <li className="nav-item">
-          <NavLink
-            to="/about"
-            className="nav-link"
-            activeClassName="nav-link active"
-          >
-            About
-          </NavLink>
-        </li>
-
-        <li className="my-2">
-          {isUserSignedIn ? (
-            <span
-              className="badge rounded-pill bg-primary"
-              onClick={performSignOut}
+        <ul className="nav nav-tabs">
+          <li className="nav-item">
+            <NavLink
+              to="/"
+              exact
+              className="nav-link"
+              activeClassName="nav-link active"
             >
-              {" "}
-              <FontAwesomeIcon icon={faUser}></FontAwesomeIcon> {userInfo?.name}
-            </span>
-          ) : (
-            <Button
-              className="btn btn-sm"
-              onClick={() => {
-                requireSignIn();
-              }}
+              Home
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink
+              to="/tones"
+              className="nav-link"
+              activeClassName="nav-link active"
             >
-              <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
-              Sign In
-            </Button>
-          )}
-        </li>
-      </ul>
+              Tones
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/device"
+              className="nav-link"
+              activeClassName="nav-link active"
+            >
+              Amp
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/lessons"
+              className="nav-link"
+              activeClassName="nav-link active"
+            >
+              Jam
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/settings"
+              className="nav-link"
+              activeClassName="nav-link active"
+            >
+              Settings
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/about"
+              className="nav-link"
+              activeClassName="nav-link active"
+            >
+              About
+            </NavLink>
+          </li>
 
-      <LoginControl
-        signInRequired={signInRequired}
-        onSignIn={performSignIn}
-        onRegistration={performRegistration}
-      ></LoginControl>
-
-
-
-      {playingVideoUrl != null ? (
-        <Draggable>
-        <div className="pip-video-control">
-          <div className="row">
-            <div className="col">
-              <button
-                title="Close"
-                className="btn btn-sm btn-dark"
+          {enableSoundshedLogin ? (
+          <li className="my-2">
+            {isUserSignedIn ? (
+              <span
+                className="badge rounded-pill bg-primary"
+                onClick={performSignOut}
+              >
+                {" "}
+                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
+                {userInfo?.name}
+              </span>
+            ) : (
+              <Button
+                className="btn btn-sm"
                 onClick={() => {
-                  LessonStateStore.update((s) => {
-                    s.playingVideoUrl = null;
-                  });
+                  requireSignIn();
                 }}
               >
-                <FontAwesomeIcon icon={faWindowMinimize}></FontAwesomeIcon>
-              </button>
-            </div>
-            <div className="col offset-md-8">
-              {isVideoExpanded == true ? (
-                <button
-                  title="Small Video"
-                  className="btn btn-sm btn-dark"
-                  onClick={() => {
-                    setIsVideoExpanded(false);
-                  }}
-                >
-                  {" "}
-                  <FontAwesomeIcon icon={faWindowRestore}></FontAwesomeIcon>
-                </button>
-              ) : (
-                <button
-                  title="Large Video"
-                  className="btn btn-sm btn-dark"
-                  onClick={() => {
-                    setIsVideoExpanded(true);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faWindowMaximize}></FontAwesomeIcon>
-                </button>
-              )}
-            </div>
-          </div>
-          <div>
-            <ReactPlayer
-              controls={true}
-              url={playingVideoUrl}
-              width={isVideoExpanded ? "640px" : "320px"}
-              height={isVideoExpanded ? "360px" : "180px"}
-            />
-          </div>
-        </div>
-        </Draggable>
-      ) : (
-        ""
-      )}
+                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+                Sign In
+              </Button>
+            )}
+          </li>
+          ):("")}
+        </ul>
 
-      <EditToneControl></EditToneControl>
+        {enableSoundshedLogin ? (
+          <LoginControl
+            signInRequired={signInRequired}
+            onSignIn={performSignIn}
+            onRegistration={performRegistration}
+          ></LoginControl>
+        ) : (
+          ""
+        )}
 
-      <AppViewModelContext.Provider value={appViewModel}>
-        <DeviceViewModelContext.Provider value={deviceViewModel}>
-          <Switch>
-            <Route path="/" exact component={HomeControl} />
-            <Route path="/device">
-              {isNativeMode ? (
-                isConnected ? (
-                  <DeviceMainControl></DeviceMainControl>
+        {playingVideoUrl != null ? (
+          <Draggable>
+            <div className="pip-video-control">
+              <div className="row">
+                <div className="col">
+                  <button
+                    title="Close"
+                    className="btn btn-sm btn-dark"
+                    onClick={() => {
+                      LessonStateStore.update((s) => {
+                        s.playingVideoUrl = null;
+                      });
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faWindowMinimize}></FontAwesomeIcon>
+                  </button>
+                </div>
+                <div className="col offset-md-8">
+                  {isVideoExpanded == true ? (
+                    <button
+                      title="Small Video"
+                      className="btn btn-sm btn-dark"
+                      onClick={() => {
+                        setIsVideoExpanded(false);
+                      }}
+                    >
+                      {" "}
+                      <FontAwesomeIcon icon={faWindowRestore}></FontAwesomeIcon>
+                    </button>
+                  ) : (
+                    <button
+                      title="Large Video"
+                      className="btn btn-sm btn-dark"
+                      onClick={() => {
+                        setIsVideoExpanded(true);
+                      }}
+                    >
+                      <FontAwesomeIcon
+                        icon={faWindowMaximize}
+                      ></FontAwesomeIcon>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <ReactPlayer
+                  controls={true}
+                  url={playingVideoUrl}
+                  width={isVideoExpanded ? "640px" : "320px"}
+                  height={isVideoExpanded ? "360px" : "180px"}
+                />
+              </div>
+            </div>
+          </Draggable>
+        ) : (
+          ""
+        )}
+
+        <EditToneControl></EditToneControl>
+
+        <AppViewModelContext.Provider value={appViewModel}>
+          <DeviceViewModelContext.Provider value={deviceViewModel}>
+            <Switch>
+              <Route path="/" exact component={HomeControl} />
+              <Route path="/device">
+                {isNativeMode ? (
+                  isConnected ? (
+                    <DeviceMainControl></DeviceMainControl>
+                  ) : (
+                    <DeviceSelectorControl></DeviceSelectorControl>
+                  )
                 ) : (
-                  <DeviceSelectorControl></DeviceSelectorControl>
-                )
-              ) : (
-                <AmpOfflineControl></AmpOfflineControl>
-              )}
-            </Route>
-            <Route path="/tones">
-              <ToneBrowserControl></ToneBrowserControl>
-            </Route>
-            <Route path="/lessons">
-              <LessonsControl></LessonsControl>
-            </Route>
-            <Route path="/settings" exact component={SettingsControl} />
-            <Route path="/about" exact component={AboutControl} />
-          </Switch>
-        </DeviceViewModelContext.Provider>
-      </AppViewModelContext.Provider>
+                  <AmpOfflineControl></AmpOfflineControl>
+                )}
+              </Route>
+              <Route path="/tones">
+                <ToneBrowserControl></ToneBrowserControl>
+              </Route>
+              <Route path="/lessons">
+                <LessonsControl></LessonsControl>
+              </Route>
+              <Route path="/settings" exact component={SettingsControl} />
+              <Route path="/about" exact component={AboutControl} />
+            </Switch>
+          </DeviceViewModelContext.Provider>
+        </AppViewModelContext.Provider>
 
-      <InputEventsControl></InputEventsControl>
+        <InputEventsControl></InputEventsControl>
       </Container>
     </main>
-
-
   );
 };
 

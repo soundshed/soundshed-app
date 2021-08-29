@@ -22,7 +22,7 @@ const SettingsControl = () => {
   };
 
   const learnInputMapping = (mapping: InputEventMapping) => {
-    throw new Error("Function not implemented.");
+    alert("This feature is not yet available");
   };
 
   const selectMidiInput = (i: any) => {
@@ -56,7 +56,7 @@ const SettingsControl = () => {
         </td>
         <td>
           {" "}
-          <Button
+          <Button disabled
             className="btn btn-sm"
             onClick={() => {
               learnInputMapping(mapping);

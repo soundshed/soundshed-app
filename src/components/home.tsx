@@ -8,8 +8,7 @@ const HomeControl = () => {
       <h1>Soundshed</h1>
 
       <p className="info">
-        Browse and manage favourite tones, preview or store on your amp, share
-        tones with the community. Jam to backing tracks and browse video lessons.
+        Browse and manage favourite tones, preview or store on your amp. Jam to backing tracks and browse video lessons.
       </p>
 
       <NavLink to="/tones" exact>
