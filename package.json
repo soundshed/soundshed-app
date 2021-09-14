@@ -1,6 +1,6 @@
 {
   "name": "soundshed",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "Browse and manage favourite tones, preview or store on your amp. Jam to Backing tracks and Lessons",
   "main": "./build/main.js",
   "repository": "https://github.com/soundshed/soundshed-app",
@@ -17,12 +17,12 @@
   "author": "Webprofusion",
   "license": "ISC",
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.59",
-    "@electron-forge/maker-deb": "^6.0.0-beta.59",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.59",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.59",
-    "@electron-forge/maker-zip": "^6.0.0-beta.59",
-    "@electron-forge/plugin-webpack": "6.0.0-beta.59",
+    "@electron-forge/cli": "^6.0.0-beta.61",
+    "@electron-forge/maker-deb": "^6.0.0-beta.61",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.61",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.61",
+    "@electron-forge/maker-zip": "^6.0.0-beta.61",
+    "@electron-forge/plugin-webpack": "6.0.0-beta.61",
     "@types/react": "^17.0.14",
     "@types/react-dom": "^17.0.9",
     "@types/web-bluetooth": "0.0.10",
@@ -45,7 +45,7 @@
     "webpack-cli": "4.7.2"
   },
   "dependencies": {
-    "@electron-forge/plugin-webpack": "^6.0.0-beta.59",
+    "@electron-forge/plugin-webpack": "^6.0.0-beta.61",
     "@fortawesome/fontawesome-svg-core": "^1.2.35",
     "@fortawesome/free-solid-svg-icons": "^5.15.3",
     "@fortawesome/react-fontawesome": "^0.1.14",
@@ -68,7 +68,7 @@
     "react-player": "^2.9.0",
     "react-router-dom": "^5.2.0",
     "update-electron-app": "^2.0.1",
-    "webmidi": "^2.5.2",
+    "webmidi": "^2.5.3",
     "youtube-search": "^1.1.6"
   },
   "config": {

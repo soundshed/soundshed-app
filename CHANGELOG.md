@@ -1,4 +1,10 @@
-1.0.24 : 2021/08/02
+1.0.27 : 2021/09/14
+- Remove unused soundshed.com community features.
+
+1.0.26 : 2021/08/05
+- Fix keyboard events
+
+1.0.25 : 2021/08/02
 - Fix version update check on about tab
 
 1.0.24 : 2021/08/02
