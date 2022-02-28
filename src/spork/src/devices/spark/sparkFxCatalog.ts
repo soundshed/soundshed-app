@@ -1355,7 +1355,72 @@ export class FxCatalogProvider {
                     }
                 ]
             },
-            
+            {
+                "type": "amp",
+                "dspId": "JH.JTM45",
+                "name": "Marshall JTM45/100",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "JH.SuperLead100",
+                "name": "Marshall Super Lead 100",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 1
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
             {
                 "type": "comp",
                 "dspId": "LA2AComp",
@@ -1458,6 +1523,38 @@ export class FxCatalogProvider {
                         "name": "Pad",
                         "index": 2,
                         "value": 0
+                    }
+                ]
+            },
+            {
+                "type": "comp",
+                "dspId": "JH.Vox846",
+                "name": "Vox 846 Wah",
+                "params": [
+                    {
+                        "name": "P1",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Mode",
+                        "index": 1,
+                        "value": 0 // true/false
+                    },
+                    {
+                        "name": "P3",
+                        "index": 2,
+                        "value": 0.2
+                    },
+                    {
+                        "name": "P4",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "P5",
+                        "index": 4,
+                        "value": 0.5
                     }
                 ]
             },
@@ -2222,44 +2319,29 @@ export class FxCatalogProvider {
             },
             {
                 "type": "modulation",
-                "dspId": "BassEQ6",
-                "name": "Bass EQ", 
+                "dspId": "JH.VoodooVibeJr",
+                "name": "Voodoo Vibe Junior", 
                 "params": [
                     {
-                        "name": "Level",
+                        "name": "Speed",
                         "index": 0,
-                        "value": 0.5
+                        "value": 0.2
                     },
                     {
-                        "name": "100",
+                        "name": "Sweep",
                         "index": 1,
                         "value": 0.5
                     },
                     {
-                        "name": "200",
+                        "name": "Intensity",
                         "index": 2,
-                        "value": 0.5
+                        "value": 0.70
                     },
                     {
-                        "name": "400",
+                        "name": "Chorus/Vibrato",
                         "index": 3,
                         "value": 0.5
-                    },
-                    {
-                        "name": "800",
-                        "index": 4,
-                        "value": 0.5
-                    },
-                    {
-                        "name": "1.6K",
-                        "index": 5,
-                        "value": 0.5
-                    },
-                    {
-                        "name": "3.2K",
-                        "index": 6,
-                        "value": 0.5
-                    },
+                    }
                 ]
             },
             {

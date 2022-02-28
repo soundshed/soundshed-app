@@ -1,13 +1,13 @@
 # Soundshed
 
-Desktop UI which can be used to:
-- manage tone library and browse tone communities, share tones
+Desktop and Web UI which can be used to:
+- manage tone library and browse tone communities
 - connect to supported amp via bluetooth, manage basic settings and set presets.
 - browse and favourite video backing tracks
 
 Download from https://soundshed.com or check out the web app version.
 
-Windows, macOS and Linux. Bluetooth connectivity required.
+Windows, macOS and Linux. 64-but OS and Bluetooth (BLE) connectivity required.
 
 *Supported amps:*
 - Positive Grid Spark 40: https://www.positivegrid.com/spark/
@@ -55,6 +55,7 @@ Input event from keyboard or midi can be mapped to either a preset slot (e.g. ch
 - edit platformUtils.ts to include platformUtils.web.ts, edit env.ts to be web mode
 - Run `npm run watch-web` in one terminal to continuously rebuild the UI code or `npm run build-web` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
 - Run `http-server build` to start local web server on http://localhost:8080/
+- Example with SSL enabled: `http-server build --ssl -K C:/Work/Misc/ssl/localhost-key.pem -C C:/Work/Misc/ssl/localhost.pem`
 
 ## Run Electron Version
 - edit platformUtils.ts to include platformUtils.electron.ts, edit env.ts not to be web mode

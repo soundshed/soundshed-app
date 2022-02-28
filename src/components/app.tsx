@@ -39,6 +39,7 @@ import LoginControl from "./soundshed/login";
 import ToneBrowserControl from "./tone-browser";
 import SettingsControl from "./settings";
 import InputEventsControl from "./device/input-events";
+import ScalexControl from "./scalex";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
@@ -187,6 +188,15 @@ const App = () => {
           </li>
           <li className="nav-item">
             <NavLink
+              to="/scalex"
+              className="nav-link"
+              activeClassName="nav-link active"
+            >
+              Toolkit
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
               to="/settings"
               className="nav-link"
               activeClassName="nav-link active"
@@ -320,6 +330,9 @@ const App = () => {
               </Route>
               <Route path="/lessons">
                 <LessonsControl></LessonsControl>
+              </Route>
+              <Route path="/scalex">
+                <ScalexControl></ScalexControl>
               </Route>
               <Route path="/settings" exact component={SettingsControl} />
               <Route path="/about" exact component={AboutControl} />

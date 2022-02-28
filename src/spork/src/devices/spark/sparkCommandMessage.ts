@@ -313,8 +313,15 @@ export class SparkCommandMessage {
             this.add_bytes(bytes(num_p + 0x90))
             for (let p = 0; p < num_p; p++) {
                 this.add_bytes(bytes(p))
-                this.add_bytes(bytes(0x91))
-                this.add_float(preset["Pedals"][i]["Parameters"][p])
+                this.add_bytes(bytes(0x91));
+
+                let val = preset["Pedals"][i]["Parameters"][p];
+
+                if (typeof val == "boolean") {
+                    this.add_onoff(val)
+                } else {
+                    this.add_float(val)
+                }
             }
         }
 

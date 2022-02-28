@@ -78,6 +78,7 @@ export class SparkAPI {
         //post to API as JSON
         let response = await fetch(url, {
             method: 'POST',
+            mode: 'no-cors', 
             headers: { 'Content-Type': 'application/json', 'Authorization': 'JWT ' + this.access_token },
             body: null, credentials: 'include'
         });
@@ -131,6 +132,7 @@ export class SparkAPI {
 
         let response = await fetch(url, {
             method: 'GET',
+            mode: 'no-cors', 
             headers: { 'Content-Type': 'application/json' }
         });
         let data = <any>response.json();
@@ -145,6 +147,7 @@ export class SparkAPI {
         //post to API as JSON
         let response = await fetch(url, {
             method: 'GET',
+            mode: 'no-cors', 
             headers: { 'Content-Type': 'application/json' },
             body: null, credentials: 'include'
         });
