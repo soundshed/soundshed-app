@@ -43,6 +43,7 @@ jobs:
         copy app-private\env.ts app-public\src     
         cd app-public
         cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
+        npm install -g node-gyp@latest
         npm install
         npm run build-electron
         npm run make
