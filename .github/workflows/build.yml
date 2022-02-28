@@ -13,7 +13,7 @@ on:
 jobs:
   build_windows:
     # if: false # disable build
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     strategy:
       matrix:
