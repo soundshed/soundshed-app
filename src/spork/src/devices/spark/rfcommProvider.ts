@@ -21,7 +21,7 @@ export class RfcommProvider implements SerialCommsProvider
             let resolutionTimeout;
 
             let devices: BluetoothDeviceInfo[] = [];
-            // find bluetooth devices, identify spark devices and capture the device address and name. 
+            // find bluetooth devices, identify spark devices and capture the device address and name.
             // On each discovery, clear the resolution timeout so that the last item is the one that completes.
             this.btSerial.on('found', (address: string, name: string) => {
                 this.log("addr:" + JSON.stringify(address) + " name:" + name)
@@ -56,7 +56,7 @@ export class RfcommProvider implements SerialCommsProvider
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
-      
+
         return new Promise((resolve, reject) => {
 
 

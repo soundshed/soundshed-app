@@ -39,6 +39,15 @@ const HomeControl = () => {
           </section>
         </NavLink>
       
+        <NavLink to="/scalex" exact>
+          <section className="nav-section lessons">
+            <div className="section-container">
+            <h2>Toolkit ▶</h2>
+            <p>Learn scales and chords in a range of tunings. </p>
+            </div>
+          </section>
+        </NavLink>
+      
     </div>
   );
 };

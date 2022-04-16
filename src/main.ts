@@ -1,21 +1,22 @@
 
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { DeviceContext } from './core/deviceContext';
-import { RfcommProvider } from './spork/src/devices/spark/rfcommProvider';
+import { BleProvider } from './spork/src/devices/spark/bleProvider';
 
+let win: BrowserWindow;
+let callbackForDeviceSelection = null;
 
 const sendMessageToApp = (type: string, msg: any) => {
     if (win) {
         // send message to be handled by the UI/app (appViewModel)
         win.webContents.send(type, msg);
+    } else {
+        console.log("Cannot send message to app, win not defined");
     }
 }
 
 const deviceContext: DeviceContext = new DeviceContext();
-deviceContext.init(new RfcommProvider(), sendMessageToApp);
-
-let win: BrowserWindow;
-
+deviceContext.init(new BleProvider(), sendMessageToApp);
 try {
     require('electron-reloader')(module)
 } catch (_) { }
@@ -35,13 +36,24 @@ else {
     }, 10000);
 }
 
-
+///////////////////////////////////////////////////////////////
 
 function initApp() {
 
+
     ipcMain.handle('perform-action', (event, args) => {
+        console.log("In electron perform-action..");
+
         // ... do hardware actions on behalf of the Renderer
         deviceContext.performAction(args);
+    });
+
+    ipcMain.on('perform-device-selection', (event, args) => {
+        // complete device selection process
+        console.log("Completing device selection");
+        if (callbackForDeviceSelection) {
+            callbackForDeviceSelection(args);
+        }
     });
 
     app.whenReady().then(() => {
@@ -61,7 +73,6 @@ function initApp() {
     });
 }
 
-
 function createWindow() {
 
     win = new BrowserWindow({
@@ -70,30 +81,46 @@ function createWindow() {
         icon: "./images/icon/favicon.ico",
         webPreferences: {
             nodeIntegration: true,
-            enableRemoteModule: true,
-            contextIsolation: false
+            contextIsolation: false,
+            webSecurity: false
         }
     })
 
     if (app.isPackaged) {
         win.removeMenu();
     }
+
+    // setup permission handlers
+
+
+    // bluetooth device selection, fires multiple times as the process performs a scan, then the UI must present a device picker using deviceList, then the callback is used to resolve device selection
+    win.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
+        event.preventDefault();
+
+        callbackForDeviceSelection = callback;
+
+        var mappedDevices = deviceList.map(x => { return { name: x.deviceName, address: x.deviceId, port: null } });
+        console.log(`Found ${mappedDevices.length} bluetooth devices, send to UI for selection.`);
+        // send current device list to UI
+        sendMessageToApp("devices-discovered", mappedDevices);
+
+    })
+
     const ses = win.webContents.session;
-       ses.setPermissionRequestHandler((webContents, permission, callback) => {
-            console.log("Requested permission: "+permission);
-      
-      
+
+    ses.setPermissionRequestHandler((webContents, permission, callback) => {
+        console.log("Requested permission: " + permission);
         callback(true);
-      });
+    });
 
-      ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
- 
-        console.log("Checked permission: "+permission);
-          return true ;
-    
-      });
+    ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
 
-    win.loadFile('./build/index.html');
+        console.log("Checked permission: " + permission);
+        return true;
+
+    });
+
+    win.loadFile('./build/index.html'); //    win.loadFile('./build/index.html');
 }
 
 // handle squirrel installer events
@@ -157,4 +184,4 @@ function handleSquirrelEvent() {
             app.quit();
             return true;
     }
-};
+}

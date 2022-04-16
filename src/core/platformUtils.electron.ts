@@ -1,6 +1,4 @@
-import { shell } from "electron";
-import { ipcRenderer } from 'electron';
-import { remote } from 'electron';
+import { app, shell, ipcRenderer } from "electron";
 
 const openLink = (e, linkUrl) => {
     e.preventDefault();
@@ -8,7 +6,7 @@ const openLink = (e, linkUrl) => {
   };
   
 const getAppVersion = () => {
-  return  remote.app.getVersion()?.replace("v", "")
+  return  app.getVersion()?.replace("v", "")
 }
 
 export {openLink, ipcRenderer as platformEvents, getAppVersion};

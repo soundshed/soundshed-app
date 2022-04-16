@@ -1,3 +1,4 @@
+
 import { SparkDeviceManager } from "../spork/src/devices/spark/sparkDeviceManager";
 import { SerialCommsProvider } from "../spork/src/interfaces/serialCommsProvider";
 
@@ -16,6 +17,7 @@ export class DeviceContext {
             console.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
+
 
         this.msgSendDelegate = msgDelegate;
 

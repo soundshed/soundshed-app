@@ -9,6 +9,7 @@ import { platformEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import envSettings from '../env';
+import { ipcMain, ipcRenderer } from 'electron';
 
 // web mode
 
@@ -81,12 +82,23 @@ export class DeviceViewModel {
             });
         }
 
+        ipcRenderer.on("devices-discovered", (evt, message) => {
+            console.log("IPC Devices discovered");
+            this.onDevicesDiscovered(message);
+
+        });
+
+        platformEvents.on('devices-discovered', (event, args) => {
+            console.log("platformEvents Devices discovered");
+            this.onDevicesDiscovered(args);
+        });
+
         platformEvents.on('device-state-changed', (event, args) => {
             this.log("got device state update from main.");
 
             // change to preset config update, ignore if is in response to fx change/toggle etc
             if (args.presetConfig && !this.lastCommandType.startsWith("requestFx")) {
-                // got a preset, convert to Tone object model as required, 
+                // got a preset, convert to Tone object model as required,
                 let t: Tone = args.presetConfig;
                 if (args.presetConfig.meta) {
                     t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
@@ -126,7 +138,7 @@ export class DeviceViewModel {
                             var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
                             fx.type = args.dspIdNew;
                             fx.name = newFx.name;
-                    
+
                             // repopulate fx params with defaults from fx catalog: pedal could have different parameters
                             fx.params=newFx.params.map(p=><ToneFxParam>{paramId:p.index.toString(),value:p.value, name:p.name, enabled:true})
                             */
@@ -180,17 +192,18 @@ export class DeviceViewModel {
             this.onStateChangeHandler();
         });
 
-        platformEvents.on('devices-discovered', (event, args) => {
 
-            this.log("got refreshed list of devices:" + args);
+    }
 
-            DeviceStateStore.update(s => { s.devices = args, s.isDeviceScanInProgress = false });
+    onDevicesDiscovered(deviceList) {
 
-            if (args.length > 0) {
-                localStorage.setItem("lastKnownDevices", JSON.stringify(args));
-            }
-            this.onStateChangeHandler();
-        });
+        DeviceStateStore.update(s => { s.devices = deviceList, s.isDeviceScanInProgress = false });
+
+        if (deviceList.length > 0) {
+            localStorage.setItem("lastKnownDevices", JSON.stringify(deviceList));
+        }
+
+        this.onStateChangeHandler();
     }
 
     log(msg: string) {
@@ -230,36 +243,47 @@ export class DeviceViewModel {
         }*/
     }
 
+    deviceInitCompleted = false;
+
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
         if (device == null) return false;
 
+        // inform electron main that bluetooth device selection has completed;
+        if (!this.deviceInitCompleted) {
+            ipcRenderer?.sendSync("perform-device-selection", device.address);
+            this.deviceInitCompleted = true;
+        }
+
         DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
+
         try {
-            return await platformEvents.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
+            var connected = await this.deviceContext.deviceManager.connect(device);
 
-                DeviceStateStore.update(s => { s.isConnectionInProgress = false });
+            //    return await platformEvents.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
 
-                if (ok) {
-                    // store last connected devices
+            DeviceStateStore.update(s => { s.isConnectionInProgress = false });
 
-                    DeviceStateStore.update(s => { s.isConnected = true });
+            if (connected) {
+                // store last connected devices
 
-                    DeviceStateStore.update(s => { s.connectedDevice = device });
+                DeviceStateStore.update(s => { s.isConnected = true });
 
-                    DeviceStateStore.update(s => { s.lastAttemptedDevice = null });
+                DeviceStateStore.update(s => { s.connectedDevice = device });
 
-                    localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
+                DeviceStateStore.update(s => { s.lastAttemptedDevice = null });
 
-                    return true;
-                } else {
-                    const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStateStore.getRawState().lastAttemptedDevice);
-                    if (attemptedDevice) {
-                        attemptedDevice.connectionFailed = true;
-                        DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice });
-                    }
-                    return false;
+                localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
+
+                return true;
+            } else {
+                const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStateStore.getRawState().lastAttemptedDevice);
+                if (attemptedDevice) {
+                    attemptedDevice.connectionFailed = true;
+                    DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice });
                 }
-            });
+                return false;
+            }
+            //  });
         } catch (err) {
             DeviceStateStore.update(s => { s.isConnectionInProgress = false });
             return false;
@@ -456,7 +480,7 @@ export class DeviceViewModel {
             return await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
                 async () => {
                     this.log("Completed setting channel");
-                    
+
                     // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
                     setTimeout(() => {
                         this.log("...Performing follow up preset query after channel change")
