@@ -6,6 +6,8 @@ import { BleProvider } from './spork/src/devices/spark/bleProvider';
 let win: BrowserWindow;
 let callbackForDeviceSelection = null;
 
+app.commandLine.appendSwitch('enable-web-bluetooth')
+
 const sendMessageToApp = (type: string, msg: any) => {
     if (win) {
         // send message to be handled by the UI/app (appViewModel)
@@ -50,7 +52,7 @@ function initApp() {
 
     ipcMain.on('perform-device-selection', (event, args) => {
         // complete device selection process
-        console.log("Completing device selection");
+        console.log("Completing device selection "+callbackForDeviceSelection );
         if (callbackForDeviceSelection) {
             callbackForDeviceSelection(args);
         }
@@ -120,6 +122,7 @@ function createWindow() {
 
     });
 
+    
     win.loadFile('./build/index.html'); //    win.loadFile('./build/index.html');
 }
 
