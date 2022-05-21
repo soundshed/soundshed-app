@@ -9,7 +9,7 @@ import { platformEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import envSettings from '../env';
-import { ipcMain, ipcRenderer } from 'electron';
+
 
 // web mode
 
@@ -81,12 +81,6 @@ export class DeviceViewModel {
 
             });
         }
-
-        ipcRenderer.on("devices-discovered", (evt, message) => {
-            console.log("IPC Devices discovered");
-            this.onDevicesDiscovered(message);
-
-        });
 
         platformEvents.on('devices-discovered', (event, args) => {
             console.log("platformEvents Devices discovered");
@@ -250,7 +244,7 @@ export class DeviceViewModel {
 
         // inform electron main that bluetooth device selection has completed;
         if (!this.deviceInitCompleted) {
-            ipcRenderer?.sendSync("perform-device-selection", device.address);
+            platformEvents?.sendSync("perform-device-selection", device.address);
             this.deviceInitCompleted = true;
         }
 

@@ -10,5 +10,6 @@ export const AppStateStore = new Store({
     inputEventMappings: [],
     midiInputs: [],
     isMidiInputAvailable: false,
-    selectedMidiInput: null
+    selectedMidiInput: null,
+    lastMidiEvent:null
 });

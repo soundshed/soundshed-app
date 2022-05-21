@@ -13,7 +13,7 @@ class PlatformEvents {
   private evtListeners: CustomEvent[] = [];
 
   invoke(type: string, data: any): Promise<any> {
-    return new Promise(res => {    
+    return new Promise(res => {
       var e = this.evtListeners.find(f => f.type == type);
       if (e != null) {
         console.log("invoking action type:" + type);
@@ -28,6 +28,10 @@ class PlatformEvents {
   on(type: string, action: (event, args) => void) {
     console.log("on type:" + type);
     evt.evtListeners.push({ type: type, action: action });
+  }
+
+  sendSync(type:string,value:string){
+    console.log("sendsync:" + type);
   }
 };
 
