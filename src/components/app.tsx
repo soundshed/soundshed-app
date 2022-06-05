@@ -126,7 +126,7 @@ const App = () => {
     appViewModel.loadFavourites();
 
     // get latest tones from soundshed api
-    appViewModel.loadLatestTones();
+    //appViewModel.loadLatestTones();
 
     if (UIFeatureToggleStore.getRawState().enabledPGToneCloud) {
       appViewModel.loadLatestToneCloudTones();

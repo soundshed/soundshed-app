@@ -69,16 +69,7 @@ const SignalPathControl = ({
                 ⭐
               </button>
             </div>
-            <div className="col-md-2">
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={() => {
-                  onStoreFavourite(true);
-                }}
-              >
-                🔗 Share
-              </button>
-            </div>
+          
           </div>
           <table>
             <tbody>

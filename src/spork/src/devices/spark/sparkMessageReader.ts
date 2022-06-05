@@ -121,7 +121,7 @@ export class SparkMessageReader {
         for (let block of this.data) {
             let block_length = block[6]
             if (len(block) != block_length) {
-                this.print_message(`Block is length ${len(block)} and reports ${block_length}`)
+                this.log(`Block is length ${len(block)} and reports ${block_length}`)
             }
 
             let chunk = block.subarray(16);
@@ -349,7 +349,7 @@ export class SparkMessageReader {
         this.add_float("Value", val)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxParamMessage>{ dspId: effect, value: val, index: param };
+        this.deviceState.lastMessageReceived = <FxParamMessage>{ type:'fx_param_msg', dspId: effect, value: val, index: param };
     }
 
     read_effect() {
@@ -360,7 +360,7 @@ export class SparkMessageReader {
         this.add_str("NewEffect", effect2)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxChangeMessage>{ dspIdOld: effect1, dspIdNew: effect2 };
+        this.deviceState.lastMessageReceived = <FxChangeMessage>{ type:'fx_change_msg',  dspIdOld: effect1, dspIdNew: effect2 };
     }
 
     read_hardware_preset() {
@@ -371,7 +371,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.selectedPresetNumber = preset_num;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ presetNumber: preset_num }
+        this.deviceState.lastMessageReceived = <PresetChangeMessage>{  type:'hardware_channel_current', presetNumber: preset_num }
     }
 
     read_store_hardware_preset() {
@@ -382,7 +382,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.selectedPresetNumber = preset_num;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ presetNumber: preset_num }
+        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ type:'hardware_preset_stored',presetNumber: preset_num }
     }
 
     read_effect_onoff() {
@@ -393,7 +393,7 @@ export class SparkMessageReader {
         this.add_str("OnOff", onoff)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxToggleMessage>{ dspId: effect, active: onoff == "On" }
+        this.deviceState.lastMessageReceived = <FxToggleMessage>{ type:'fx_toggled', dspId: effect, active: onoff == "On" }
     }
 
     read_current_preset_number() {
@@ -401,7 +401,7 @@ export class SparkMessageReader {
 
         const current_preset = this.read_byte();
         this.deviceState.selectedPresetNumber = current_preset;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ presetNumber: current_preset }
+        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ type:'hardware_channel_current', presetNumber: current_preset }
     }
 
     read_bpm() {
@@ -412,7 +412,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.bpm = bpm;
-        this.deviceState.lastMessageReceived = { bpm: bpm };
+        this.deviceState.lastMessageReceived = { type:'hardware_bpm', bpm: bpm };
     }
 
     read_preset() {
@@ -451,7 +451,7 @@ export class SparkMessageReader {
             icon: icon
         };
 
-        const num_effects = this.read_byte() - 0x90
+        // const num_effects = this.read_byte() - 0x90
         this.add_python("\"Effects\": [")
         this.add_indent()
 
@@ -502,7 +502,7 @@ export class SparkMessageReader {
         preset.type = "jamup_speaker";
 
         this.deviceState.presetConfig = preset;
-        this.deviceState.lastMessageReceived = <Preset> preset;
+        this.deviceState.lastMessageReceived = <Preset>preset;
     }
 
     //
@@ -530,7 +530,7 @@ export class SparkMessageReader {
                 this.read_hardware_preset()
             }
             else {
-                this.print_message(hex(cmd), hex(sub_cmd), "not handled")
+                this.log(hex(cmd), hex(sub_cmd), "not handled")
             }
         }
         else if (cmd == 0x03) {
@@ -559,28 +559,47 @@ export class SparkMessageReader {
                 this.read_bpm()
             }
             else {
-                this.print_message(hex(cmd), hex(sub_cmd), "not handled")
+                this.log(hex(cmd), hex(sub_cmd), "not handled")
             }
         }
         else if (cmd == 0x04) {
-            this.print_message("Acknowledgement")
+            let ackMsg = "Acknowledgement: ";
+
+            switch (sub_cmd) {
+                case 0x01: ackMsg += "Preset Chunk";
+                    break;
+                case 0x05: ackMsg += "Preset Final Chunk";
+                    break;
+                case 0x06: ackMsg += "Changed Amp Model";
+                    break;
+                case 0x15: ackMsg += "Turn FX On/Off";
+                    break;
+                case 0x38: ackMsg += "Changed Preset Number";
+                    break;
+                case 0x70: ackMsg += "License Key";
+                    break;
+
+            }
+
+            this.log(ackMsg);
         }
         else {
-            this.print_message("Unprocessed")
+            this.log("Unprocessed")
         }
 
         return 1
     }
 
 
-    print_message(...msg) {
-        console.log(msg);
+    log(...msg) {
+        console.debug("[SparkMessageReader]: " , msg);
     }
-
-
 
     interpret_data() {
         for (let msg of this.message) {
+
+            this.log("[RAW MSG]:" + buf2hex(msg));
+
             const this_cmd = msg[0]
             const this_sub_cmd = msg[1]
             const this_data = msg.subarray(2)
@@ -591,6 +610,8 @@ export class SparkMessageReader {
     }
 
     read_message() {
+        this.deviceState.lastMessageReceived={type:'unknown'};
+
         this.structure_data()
         this.interpret_data()
         return this.message

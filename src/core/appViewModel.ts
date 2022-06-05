@@ -34,8 +34,6 @@ export class AppViewModel {
         } else {
             AppStateStore.update(s => { s.isUserSignedIn = false; s.userInfo = null; });
         }
-
-
     }
 
 
@@ -236,7 +234,7 @@ export class AppViewModel {
                    favourites.push(convertedTone);
                    presetStored = true;
                } else {
-                  
+
                }*/
 
             }

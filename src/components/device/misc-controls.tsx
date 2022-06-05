@@ -30,7 +30,7 @@ const MiscControls = ({
           <button
             type="button"
             className="btn btn-sm btn-secondary"
-            onClick={() => requestCurrentPreset(true)}
+            onClick={() => requestCurrentPreset()}
           >
             Refresh
           </button>

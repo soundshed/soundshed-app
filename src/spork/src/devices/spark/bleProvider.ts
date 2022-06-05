@@ -90,13 +90,12 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     private log(msg, ...args) {
-        console.log("[BLE Provider] : " + msg);
+        console.debug("[BLE Provider] : " + msg);
 
         if (args) {
             args.forEach(element => {
-                console.log("[BLE Provider] : " + element);
+                console.debug("[BLE Provider] : " + element);
             });
-
         }
     }
 
@@ -109,12 +108,13 @@ export class BleProvider implements SerialCommsProvider {
 
         const uint8Array = new Uint8Array(commandStream);
 
-        if (!this.commandCharacteristic.writeValueWithoutResponse) {
+        /*if (!this.commandCharacteristic.writeValueWithoutResponse) {
             alert("This browser does not support the latest web bluetooth API. Use Chrome or Edge with Experimental Web Platform features flag enabled.");
-        }
+        }*/
 
-        this.log("Writing command changes..");
-        await (this.commandCharacteristic).writeValueWithResponse(uint8Array);
+        this.log("Writing command changes.."+uint8Array.length);
+        // await (this.commandCharacteristic).writeValueWithResponse(uint8Array);
+        await this.commandCharacteristic.writeValue(uint8Array);
     }
 
     public async disconnect() {
@@ -136,7 +136,7 @@ export class BleProvider implements SerialCommsProvider {
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
 
                 var datavalue = (<any>event.target).value.buffer;
-                this.log("characteristicvaluechanged: " + this.buf2hex(datavalue));
+                //this.log("characteristicvaluechanged: " + this.buf2hex(datavalue));
                 onListen(datavalue);
             });
 

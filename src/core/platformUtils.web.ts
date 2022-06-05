@@ -16,22 +16,21 @@ class PlatformEvents {
     return new Promise(res => {
       var e = this.evtListeners.find(f => f.type == type);
       if (e != null) {
-        console.log("invoking action type:" + type);
+        console.info("invoking action type:" + type);
         e.action(type, data);
       } else {
-        console.log("cannot invoke action type, no event listener:" + type);
+        console.warn("cannot invoke action type, no event listener:" + type);
       }
       res(true);
     });
   }
 
   on(type: string, action: (event, args) => void) {
-    console.log("on type:" + type);
     evt.evtListeners.push({ type: type, action: action });
   }
 
   sendSync(type:string,value:string){
-    console.log("sendsync:" + type);
+    console.debug("sendsync:" + type);
   }
 };
 

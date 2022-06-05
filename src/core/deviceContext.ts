@@ -70,12 +70,14 @@ export class DeviceContext {
         if (args.action == 'applyPreset') {
 
             // send preset
-            this.deviceManager.sendCommand("set_preset_from_model", args.data);
-
-            setTimeout(() => {
+            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(()=>{
+ setTimeout(() => {
                 //apply preset to virtual channel 127
                 this.deviceManager.sendCommand("set_channel", 127);
             }, 500);
+
+            });
+
 
         }
 
@@ -92,7 +94,12 @@ export class DeviceContext {
         }
 
         if (args.action == 'getPreset') {
-            this.deviceManager.sendCommand("get_preset", args.data);
+            let ch=0;
+            if (args.data>=0)
+            {
+                ch=args.data;
+            }
+            this.deviceManager.sendCommand("get_preset", ch);
         }
 
         if (args.action == 'setChannel') {

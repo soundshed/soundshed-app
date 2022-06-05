@@ -6,6 +6,8 @@ import { SparkMessageReader } from "./sparkMessageReader";
 
 import { FxMappingSparkToTone } from "../../../../core/fxMapping";
 import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
+import { Utils } from "../../../../core/utils";
+
 export class SparkDeviceManager implements DeviceController {
 
     private latestStateReceived = [];
@@ -22,6 +24,8 @@ export class SparkDeviceManager implements DeviceController {
 
     }
 
+    static sleepAsync = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+
     public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
         return this.connection.scanForDevices();
     }
@@ -30,9 +34,6 @@ export class SparkDeviceManager implements DeviceController {
 
         // disconnect if already connected
         await this.disconnect();
-
-
-
 
         var connected = await this.connection.connect(device);
 
@@ -45,13 +46,18 @@ export class SparkDeviceManager implements DeviceController {
 
                 let byteArray = new Uint8Array(buffer);
 
+                this.log("[RECV]: " + this.buf2hex(byteArray));
+
                 this.latestStateReceived.push(byteArray);
 
                 if (byteArray[byteArray.length - 1] == 0xf7) {
-                    // end message 
+                    // end message
+
                     this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
 
                     this.readStateMessage().then(() => {
+
+                    }).finally(() => {
                         this.latestStateReceived = [];
                     });
                 }
@@ -74,7 +80,7 @@ export class SparkDeviceManager implements DeviceController {
 
     public async readStateMessage() {
 
-        this.log("Reading state message"); //+ this.buf2hex(this.latestStateReceived));
+        this.log("Reading state message:" + this.buf2hex(this.latestStateReceived));
 
         let reader = this.reader;
 
@@ -85,7 +91,9 @@ export class SparkDeviceManager implements DeviceController {
 
         this.stateInfo = reader.text;
 
-        this.hydrateDeviceStateInfo(reader.deviceState);
+        if (reader.deviceState.lastMessageReceived.type == 'jamup_speaker') {
+            this.hydrateDeviceStateInfo(reader.deviceState);
+        }
 
         if (this.onStateChanged) {
             this.onStateChanged(reader.deviceState);
@@ -138,15 +146,19 @@ export class SparkDeviceManager implements DeviceController {
         }
     }
 
-    sleep(ms) {
-        return new Promise((resolve) => {
-            setTimeout(resolve, ms);
-        });
-    }
-
 
     public async sendCommand(type, data) {
 
+        this.latestStateReceived = [];
+
+        /*if (this.sendInProgress) {
+            // if we are already sending something wait until we're finished that before doing anything else
+            while (this.sendInProgress) {
+                this.log("Send request while still sending another command. Queuing..")
+                await SparkDeviceManager.sleepAsync(100);
+            }
+
+        }*/
         this.log("sending command");
 
         let msg = new SparkCommandMessage();
@@ -200,7 +212,7 @@ export class SparkDeviceManager implements DeviceController {
 
         if (type == "get_preset") {
             this.log("Getting preset");
-            msgArray = msg.request_preset_state();
+            msgArray = msg.request_preset_state(data);
         }
 
         if (type == "get_selected_channel") {
@@ -218,20 +230,35 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_info(0x23);
         }
 
-        for (let msg of msgArray) {
-            this.log("Sending: " + this.buf2hex(msg));
+        for (let dat of msgArray) {
+            try {
+                this.log("[SEND RAW]: " + this.buf2hex(dat));
+                // this.log("[SEND]: " + this.buf2hex(msg));
 
-            if (typeof (Buffer) != "undefined") {
-                await this.connection.write(Buffer.from(msg));
-            } else {
-                await this.connection.write(msg);
+                if (typeof (Buffer) != "undefined") {
+                    await this.connection.write(Buffer.from(dat));
+                } else {
+                    await this.connection.write(dat);
+                }
+
+                await Utils.sleepAsync(100);
+            } catch (err) {
+                console.warn("Caught err writing msg array");
             }
         }
 
-        this.log("Sent.: ");
+    }
+
+
+    hexToBytes(hex: string) {
+        for (var bytes = [], c = 0; c < hex.length; c += 2) {
+            bytes.push(parseInt(hex.substr(c, 2), 16));
+        }
+
+        return bytes;
     }
 
     private log(msg) {
-        console.log("[Spark Device Manager] : " + msg);
+        console.debug("[SparkDeviceManager]: " + msg);
     }
 }

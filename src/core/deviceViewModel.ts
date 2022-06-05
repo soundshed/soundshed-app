@@ -240,6 +240,7 @@ export class DeviceViewModel {
     deviceInitCompleted = false;
 
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
+
         if (device == null) return false;
 
         // inform electron main that bluetooth device selection has completed;
@@ -253,7 +254,7 @@ export class DeviceViewModel {
         try {
             var connected = await this.deviceContext.deviceManager.connect(device);
 
-            //    return await platformEvents.invoke('perform-action', { action: 'connect', data: device }).then((ok) => {
+            Utils.sleepAsync(300);
 
             DeviceStateStore.update(s => { s.isConnectionInProgress = false });
 
@@ -268,18 +269,26 @@ export class DeviceViewModel {
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 
+                await this.requestCurrentChannelSelection();
+
+                await Utils.sleepAsync(300);
+
+                await this.requestPresetConfig();
+
                 return true;
             } else {
                 const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStateStore.getRawState().lastAttemptedDevice);
                 if (attemptedDevice) {
                     attemptedDevice.connectionFailed = true;
-                    DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice });
+                    DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice; s.isConnected = false; s.isConnectionInProgress = false; });
                 }
                 return false;
             }
             //  });
         } catch (err) {
-            DeviceStateStore.update(s => { s.isConnectionInProgress = false });
+            DeviceStateStore.update(s => { s.isConnectionInProgress = false; s.isConnected = false; });
+
+            this.log("Failed to connect:" + err.toString());
             return false;
         }
 
@@ -296,7 +305,7 @@ export class DeviceViewModel {
 
     async requestPresetConfig(): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
-        await platformEvents.invoke('perform-action', { action: 'getPreset', data: 0 }).then(
+        await platformEvents.invoke('perform-action', { action: 'getPreset', data: DeviceStateStore.getRawState().selectedChannel }).then(
             () => {
                 this.log("Completed preset query");
             });
@@ -471,18 +480,17 @@ export class DeviceViewModel {
     async setChannel(channelNum: number): Promise<boolean> {
         this.lastCommandType = "setChannel";
         try {
-            return await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum }).then(
-                async () => {
-                    this.log("Completed setting channel");
+            await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum });
 
-                    // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
-                    setTimeout(() => {
-                        this.log("...Performing follow up preset query after channel change")
-                        this.requestPresetConfig();
-                    }, 500);
+            this.log("Completed setting channel");
 
-                    return true;
-                });
+            // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
+            await Utils.sleepAsync(300);
+
+            DeviceStateStore.update(s => { s.selectedChannel = channelNum });
+            this.log("...Performing follow up preset query after channel change")
+            return await this.requestPresetConfig();
+
         } catch {
             return false;
         }
@@ -506,3 +514,4 @@ export class DeviceViewModel {
 }
 
 export default DeviceViewModel;
+

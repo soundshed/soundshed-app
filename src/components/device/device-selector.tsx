@@ -38,16 +38,18 @@ const DeviceSelectorControl = () => {
     }
 
     if (targetDeviceInfo != null) {
-      console.log("Connecting device..");
+      console.info("Connecting device..");
       return deviceViewModel.connectDevice(targetDeviceInfo).then((ok) => {
         setTimeout(() => {
-          if (connected == true) {
-            console.log("Connected, refreshing preset..");
+          if (ok == true) {
+            console.info("Connected, refreshing preset..");
+          } else {
+            console.error("Connection failed.");
           }
         }, 1000);
       });
     } else {
-      console.log("Target device not found..");
+      console.warn("Target device not found..");
     }
   };
 
@@ -63,7 +65,7 @@ const DeviceSelectorControl = () => {
       const lastConnectedDevice = deviceViewModel.getLastConnectedDevice();
 
       if (lastConnectedDevice) {
-        console.log(
+        console.info(
           "Re-connecting last known device [" + lastConnectedDevice.name + "]"
         );
         requestConnectDevice(lastConnectedDevice.address);

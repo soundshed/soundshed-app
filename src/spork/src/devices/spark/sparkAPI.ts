@@ -33,7 +33,7 @@ export class SparkAPI {
     api_base = env.IsWebMode ? "https://api-proxy.soundshed.com/pg-tones" : "https://api.positivegrid.com/v2";
 
     log(msg) {
-        console.log(msg);
+        console.info(msg);
     }
 
     async login(user, pwd): Promise<boolean> {
@@ -42,7 +42,7 @@ export class SparkAPI {
         let payload = { "username": user, "password": pwd };
 
         //post to API as JSON
-        let response = await fetch(url, { method: 'POST', mode: 'no-cors',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        let response = await fetch(url, { method: 'POST', mode: 'cors',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let data = <any>response.json();
 
         if (data.success == true) {
@@ -54,7 +54,7 @@ export class SparkAPI {
             return false;
         }
 
-        // example json response: 
+        // example json response:
         /*
         // OK
         {
@@ -78,14 +78,14 @@ export class SparkAPI {
         //post to API as JSON
         let response = await fetch(url, {
             method: 'POST',
-            mode: 'no-cors', 
+            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'JWT ' + this.access_token },
             body: null, credentials: 'include'
         });
         let data = <any>response.json();
 
         return data;
-        // example json response: 
+        // example json response:
         /*
         {
             "success": true,
@@ -132,7 +132,7 @@ export class SparkAPI {
 
         let response = await fetch(url, {
             method: 'GET',
-            mode: 'no-cors', 
+            mode: 'cors',
             headers: { 'Content-Type': 'application/json' }
         });
         let data = <any>response.json();
@@ -147,14 +147,13 @@ export class SparkAPI {
         //post to API as JSON
         let response = await fetch(url, {
             method: 'GET',
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'application/json' },
-            body: null, credentials: 'include'
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' }
         });
         let data = <any>response.json();
 
         return data;
-        // example json response: 
+        // example json response:
     }
 
 
