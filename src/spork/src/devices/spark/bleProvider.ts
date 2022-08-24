@@ -113,8 +113,7 @@ export class BleProvider implements SerialCommsProvider {
         }*/
 
         this.log("Writing command changes.."+uint8Array.length);
-        // await (this.commandCharacteristic).writeValueWithResponse(uint8Array);
-        await this.commandCharacteristic.writeValue(uint8Array);
+        await this.commandCharacteristic.writeValueWithResponse(uint8Array);
     }
 
     public async disconnect() {

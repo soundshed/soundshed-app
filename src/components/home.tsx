@@ -11,7 +11,7 @@ const HomeControl = () => {
         Browse and manage favourite tones, preview or store on your amp. Jam to backing tracks and browse video lessons.
       </p>
 
-      <NavLink to="/tones" exact>
+      <NavLink to="/tones">
         <section className="nav-section tones">
         <div className="section-container">
           <h2>Tones ▶</h2>
@@ -20,7 +20,7 @@ const HomeControl = () => {
         </section>
       </NavLink>
 
-      <NavLink to="/device" exact >
+      <NavLink to="/device" >
         <section className="nav-section amp">
         <div className="section-container">
           <h2>Control Your Amp ▶</h2>
@@ -30,7 +30,7 @@ const HomeControl = () => {
       </NavLink>
 
      
-        <NavLink to="/lessons" exact>
+        <NavLink to="/lessons">
           <section className="nav-section jam">
             <div className="section-container">
             <h2>Jam ▶</h2>
@@ -39,7 +39,7 @@ const HomeControl = () => {
           </section>
         </NavLink>
       
-        <NavLink to="/scalex" exact>
+        <NavLink to="/scalex">
           <section className="nav-section lessons">
             <div className="section-container">
             <h2>Toolkit ▶</h2>

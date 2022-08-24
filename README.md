@@ -54,8 +54,8 @@ Input event from keyboard or midi can be mapped to either a preset slot (e.g. ch
 ## Run Web Version
 - edit platformUtils.ts to include platformUtils.web.ts, edit env.ts to be web mode
 - Run `npm run watch-web` in one terminal to continuously rebuild the UI code or `npm run build-web` to just build once. Note that there is a build for the app UI and a build for the electron main process, some of which use the same files (types etc).
-- Run `http-server build` to start local web server on http://localhost:8080/
-- Example with SSL enabled: `http-server build --ssl -K C:/Work/Misc/ssl/localhost-key.pem -C C:/Work/Misc/ssl/localhost.pem`
+- Run `npx http-server build` to start local web server on http://localhost:8080/
+- Example with SSL enabled: `npx http-server build --ssl -K C:/Work/Misc/ssl/localhost-key.pem -C C:/Work/Misc/ssl/localhost.pem`
 
 ## Run Electron Version
 - edit platformUtils.ts to include platformUtils.electron.ts, edit env.ts not to be web mode

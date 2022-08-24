@@ -9,14 +9,17 @@ import Draggable from "react-draggable";
 import Container from "react-bootstrap/Container";
 import Button from "react-bootstrap/Button";
 import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import ReactPlayer from "react-player/youtube";
 import {
   HashRouter as Router,
   NavLink,
   Route,
-  Switch,
-  useHistory,
+  Routes,
+  unstable_HistoryRouter,
 } from "react-router-dom";
+
+import { createBrowserHistory } from "history";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/styles.css";
@@ -50,12 +53,12 @@ export const AppViewModelContext = React.createContext(appViewModel);
 export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
-  const history = useHistory();
+  const history = createBrowserHistory({ window });
 
   useEffect(() => {
-    return history?.listen((location) => {
-      console.log(`Navigated the page to: ${location.pathname}`);
-      appViewModel.logPageView(location.pathname);
+    return history?.listen((evt) => {
+      console.log(`Navigated the page to: ${evt.location.pathname}`);
+      appViewModel.logPageView(evt.location.pathname);
     });
   }, [history]);
 
@@ -144,6 +147,9 @@ const App = () => {
     });*/
   }, []);
 
+  let activeClassName = "nav-link active";
+  let inactiveClassName = "nav-link";
+
   return (
     <main>
       <Container fluid>
@@ -151,9 +157,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/"
-              exact
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Home
             </NavLink>
@@ -162,8 +168,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/tones"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Tones
             </NavLink>
@@ -171,8 +178,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/device"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Amp
             </NavLink>
@@ -180,8 +188,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/lessons"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Jam
             </NavLink>
@@ -189,8 +198,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/scalex"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Toolkit
             </NavLink>
@@ -198,8 +208,9 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/settings"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               Settings
             </NavLink>
@@ -207,37 +218,40 @@ const App = () => {
           <li className="nav-item">
             <NavLink
               to="/about"
-              className="nav-link"
-              activeClassName="nav-link active"
+              className={({ isActive }) =>
+                isActive ? activeClassName : inactiveClassName
+              }
             >
               About
             </NavLink>
           </li>
 
           {enableSoundshedLogin ? (
-          <li className="my-2">
-            {isUserSignedIn ? (
-              <span
-                className="badge rounded-pill bg-primary"
-                onClick={performSignOut}
-              >
-                {" "}
-                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
-                {userInfo?.name}
-              </span>
-            ) : (
-              <Button
-                className="btn btn-sm"
-                onClick={() => {
-                  requireSignIn();
-                }}
-              >
-                <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
-                Sign In
-              </Button>
-            )}
-          </li>
-          ):("")}
+            <li className="my-2">
+              {isUserSignedIn ? (
+                <span
+                  className="badge rounded-pill bg-primary"
+                  onClick={performSignOut}
+                >
+                  {" "}
+                  <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
+                  {userInfo?.name}
+                </span>
+              ) : (
+                <Button
+                  className="btn btn-sm"
+                  onClick={() => {
+                    requireSignIn();
+                  }}
+                >
+                  <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+                  Sign In
+                </Button>
+              )}
+            </li>
+          ) : (
+            ""
+          )}
         </ul>
 
         {enableSoundshedLogin ? (
@@ -312,31 +326,30 @@ const App = () => {
 
         <AppViewModelContext.Provider value={appViewModel}>
           <DeviceViewModelContext.Provider value={deviceViewModel}>
-            <Switch>
-              <Route path="/" exact component={HomeControl} />
-              <Route path="/device">
-                {isNativeMode ? (
-                  isConnected ? (
-                    <DeviceMainControl></DeviceMainControl>
+            <Routes>
+              <Route path="/" element={<HomeControl />} />
+              <Route
+                path="/device"
+                element={
+                  isNativeMode ? (
+                    isConnected ? (
+                      <DeviceMainControl></DeviceMainControl>
+                    ) : (
+                      <DeviceSelectorControl></DeviceSelectorControl>
+                    )
                   ) : (
-                    <DeviceSelectorControl></DeviceSelectorControl>
+                    <AmpOfflineControl></AmpOfflineControl>
                   )
-                ) : (
-                  <AmpOfflineControl></AmpOfflineControl>
-                )}
-              </Route>
-              <Route path="/tones">
-                <ToneBrowserControl></ToneBrowserControl>
-              </Route>
-              <Route path="/lessons">
-                <LessonsControl></LessonsControl>
-              </Route>
-              <Route path="/scalex">
-                <ScalexControl></ScalexControl>
-              </Route>
-              <Route path="/settings" exact component={SettingsControl} />
-              <Route path="/about" exact component={AboutControl} />
-            </Switch>
+                }
+              />
+
+              <Route path="/tones" element={<ToneBrowserControl />} />
+              <Route path="/lessons" element={<LessonsControl />} />
+              <Route path="/scalex" element={<ScalexControl />} />
+              <Route path="/settings" element={<SettingsControl />} />
+              <Route path="/about" element={<AboutControl />} />
+
+            </Routes>
           </DeviceViewModelContext.Provider>
         </AppViewModelContext.Provider>
 
@@ -346,9 +359,10 @@ const App = () => {
   );
 };
 
-ReactDOM.render(
+const container = document.getElementById("app");
+const root = createRoot(container!);
+root.render(
   <Router>
     <App />
-  </Router>,
-  document.getElementById("app")
+  </Router>
 );
