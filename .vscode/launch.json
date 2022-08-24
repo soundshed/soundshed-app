@@ -24,6 +24,19 @@
       "outFiles": [
           "${workspaceFolder}/dist/**/*.js"
       ]
-  }
+  },
+  ,{
+    "type": "pwa-node",
+    "request": "launch",
+    "name": "Test Spark BLE",
+    "skipFiles": [
+        "<node_internals>/**"
+    ],
+    "program": "${workspaceFolder}\\build\\spork\\src\\test\\sparkManagerTest.js",
+    "preLaunchTask": "tsc: build - tsconfig.json",
+    "outFiles": [
+        "${workspaceFolder}/dist/**/*.js"
+    ]
+}
   ]
 }

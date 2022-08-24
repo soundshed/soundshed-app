@@ -69,6 +69,10 @@ export class SparkCommandMessage {
         return buf2hex(b);
     }
 
+    get_raw_msg(): Uint8Array {
+        return this.mergeBytes([this.cmd,this.sub_cmd], this.data);
+    }
+
     end_message() {
 
         // determine how many chunks there are
@@ -186,13 +190,15 @@ export class SparkCommandMessage {
 
     // Functions to package a command for the Spark
 
-    request_preset_state() {
+    request_preset_state(preset_num) {
         const cmd = 0x02; // get
         const sub_cmd = 0x01 // preset
 
         this.start_message(cmd, sub_cmd)
 
-        this.add_bytes(bytes(1)) 
+        const cmdData = new Uint8Array([0,parseInt(preset_num),0]);
+        console.log("request preset info "+preset_num);
+        this.add_bytes(cmdData);
 
         return this.end_message()
     }
@@ -219,7 +225,7 @@ export class SparkCommandMessage {
         return this.end_message()
     }
 
-    change_amp_parameter(dspId: string, paramNumber: number, val:number) {
+    change_amp_parameter(dspId: string, paramNumber: number, val: number) {
         const cmd = 0x03
         const sub_cmd = 0x37
 
@@ -284,12 +290,17 @@ export class SparkCommandMessage {
 
     create_preset(preset) {
 
+
         const cmd = 0x01
         const sub_cmd = 0x01
 
         this.start_message(cmd, sub_cmd, true)
 
-        this.add_bytes(bytes([0x00, 0x7f]))
+        this.add_bytes(bytes([0x00, 0x7f])) // TODO: use actual preset number
+
+        //checksum is generated using bytes from here onwards..
+        let chkStart = this.data.length;
+
         this.add_long_string(preset["UUID"])
         this.add_string(preset["Name"])
         this.add_string(preset["Version"])
@@ -303,29 +314,41 @@ export class SparkCommandMessage {
         }
 
         this.add_string(preset["Icon"])
-        this.add_float(120.0) // preset["BPM"]
-        this.add_bytes(bytes(0x90 + 7))        //  always 7 pedals
+        this.add_float(120.0) // TODO: use actual BMP
+        this.add_bytes(bytes([0x90 + 7]))        //  always 7 pedals
 
         for (let i = 0; i < 7; i++) {
             this.add_string(preset["Pedals"][i]["Name"])
             this.add_onoff(preset["Pedals"][i]["OnOff"])
+
             let num_p = preset["Pedals"][i]["Parameters"].length;
-            this.add_bytes(bytes(num_p + 0x90))
+            this.add_bytes(bytes([num_p + 0x90]))
+
             for (let p = 0; p < num_p; p++) {
-                this.add_bytes(bytes(p))
-                this.add_bytes(bytes(0x91));
+                this.add_bytes(bytes([p]))
+                this.add_bytes(bytes([0x91]));
 
                 let val = preset["Pedals"][i]["Parameters"][p];
 
-                if (typeof val == "boolean") {
-                    this.add_onoff(val)
-                } else {
+                //if (typeof val == "boolean") {
+                //    this.add_onoff(val)
+                //} else {
                     this.add_float(val)
-                }
+                //}
             }
         }
 
-        this.add_bytes(bytes(preset["End Filler"]))
+        let chkSum = 0;
+        for(var b of Array.from(this.data.slice(chkStart)))
+        {
+            if (b>127) chkSum+=0xCC;
+            else {
+                chkSum+=b;
+            }
+        }
+        chkSum = chkSum %256;
+
+        this.add_bytes(bytes([chkSum]));
 
         return this.end_message()
     }
@@ -338,9 +361,13 @@ export class SparkCommandMessage {
         this.start_message(cmd, sub_cmd, true)
 
         this.add_bytes(bytes([0x00, 0x7f]))
+
+        //checksum is generated using bytes from here onwards..
+        let chkStart = this.data.length;
+
         this.add_long_string(preset.meta.id)
         this.add_string(preset.meta.name)
-        this.add_string(preset.meta.version ??"1")
+        this.add_string(preset.meta.version ?? "1")
 
         let descr = preset.meta.description;
 
@@ -351,9 +378,14 @@ export class SparkCommandMessage {
             this.add_string(descr)
         }
 
-        this.add_string(preset.meta.icon ??"icon.png")
+        this.add_string(preset.meta.icon ?? "icon.png")
         this.add_float(preset.bpm ?? 120)
         this.add_bytes(bytes(0x90 + preset.sigpath.length))        //  always 7 pedals
+
+        if (preset.sigpath.length!=7)
+        {
+            console.error("Signal path of preset is not expected 7 ["+preset.sigpath.length+"].");
+        }
 
         for (let i = 0; i < preset.sigpath.length; i++) {
             let fx = preset.sigpath[i];
@@ -361,6 +393,7 @@ export class SparkCommandMessage {
             this.add_onoff(fx.active)
             let num_p = fx.params.length;
             this.add_bytes(bytes(num_p + 0x90))
+
             for (let p = 0; p < num_p; p++) {
                 this.add_bytes(bytes(p));
                 this.add_bytes(bytes(0x91));
@@ -368,8 +401,18 @@ export class SparkCommandMessage {
             }
         }
 
-        //??
-        this.add_bytes(bytes(0))
+        // checksum
+        let chkSum = 0;
+        for(var b of Array.from(this.data.slice(chkStart)))
+        {
+            if (b>127) chkSum+=0xCC;
+            else {
+                chkSum+=b;
+            }
+        }
+        chkSum = chkSum %256;
+
+        this.add_bytes(bytes([chkSum]));
 
         return this.end_message()
     }

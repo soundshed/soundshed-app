@@ -13,7 +13,7 @@ module.exports = {
 	},
 	output: {
 		path: path.resolve(__dirname, 'build'),
-		filename: '[name].bundle.js',
+		filename: '[name].[contenthash].js',
 		sourceMapFilename: '[name].js.map'
 	},
 	resolve: {
@@ -28,14 +28,14 @@ module.exports = {
 				test: /\.css$/i,
 				use: ['style-loader', 'css-loader'],
 			},
-			{
+			/*{
 				test: /\.(woff(2)?|ttf|eot|svg)(\?v=\d+\.\d+\.\d+)?$/,
 				type: 'asset/resource'
 			 },
 			 {
 				test: /\.(png|jpe?g|gif)$/i,
 				type: 'asset/resource'
-			 }
+			 }*/
 		]
 	},
 	plugins: [

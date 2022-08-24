@@ -1,12 +1,16 @@
 import React, { useEffect } from "react";
+import { Utils } from "../../core/utils";
 import { DeviceStateStore } from "../../stores/devicestate";
-import { appViewModel, AppViewModelContext, deviceViewModel as vm } from "../app";
+import {
+  appViewModel,
+  AppViewModelContext,
+  deviceViewModel as vm,
+} from "../app";
 import DeviceControls from "./device-controls";
 import MiscControls from "./misc-controls";
 import SignalPathControl from "./signal-path";
 
 const DeviceMainControl = () => {
-
   const deviceViewModel = vm;
 
   const onViewModelStateChange = () => {
@@ -49,40 +53,47 @@ const DeviceMainControl = () => {
     }
 
     if (targetDeviceInfo != null) {
-      console.log("Connecting device..");
+      console.info("Connecting device..");
       return deviceViewModel.connectDevice(targetDeviceInfo).then((ok) => {
         setTimeout(() => {
           if (connected == true) {
-            console.log("Connected, refreshing preset..");
+            console.info("Connected, refreshing preset..");
             requestCurrentPreset();
           }
         }, 1000);
       });
     } else {
-      console.log("Target device not found..");
+      console.warn("Target device not found..");
     }
   };
 
   const requestCurrentPreset = async (reconnect: boolean = false) => {
     if (reconnect) {
       //
-      console.log("Reconnecting..");
+      console.info("Reconnecting..");
 
       await deviceViewModel.connectDevice(connectedDevice);
     }
 
-    deviceViewModel.requestCurrentChannelSelection().then(() => {
-      console.log("Got update channel selection info");
+    deviceViewModel.requestPresetConfig().then(async (ok) => {
+
+      await Utils.sleepAsync(500);
+
+      console.log(
+        "updating preset config in UI " +
+          JSON.stringify(DeviceStateStore.getRawState().presetTone)
+      );
     });
 
-    deviceViewModel.requestPresetConfig().then((ok) => {
-      setTimeout(() => {
-        console.log(
-          "updating preset config in UI " +
-            JSON.stringify(DeviceStateStore.getRawState().presetTone)
-        );
-      }, 500);
-    });
+
+   /* deviceViewModel.requestCurrentChannelSelection().then(async () => {
+      console.info("Got update channel selection info");
+
+      //await ack then proceed
+      await Utils.sleepAsync(500);
+
+     
+    });*/
   };
 
   const requestSetChannel = (channelNum: number) => {
@@ -96,7 +107,7 @@ const DeviceMainControl = () => {
   };
 
   const requestStoreHardwarePreset = () => {
-    console.log("Would apply current preset to hardware channel");
+    console.warn("Would apply current preset to hardware channel");
   };
 
   const fxParamChange = (args) => {
@@ -116,8 +127,6 @@ const DeviceMainControl = () => {
   ]);
 
   useEffect(() => {
-    console.log("Device main - component created");
-
     if (deviceViewModel) {
       deviceViewModel.addStateChangeListener(onViewModelStateChange);
 
@@ -129,7 +138,7 @@ const DeviceMainControl = () => {
       const lastConnectedDevice = deviceViewModel.getLastConnectedDevice();
 
       if (lastConnectedDevice) {
-        console.log(
+        console.info(
           "Re-connecting last known device [" + lastConnectedDevice.name + "]"
         );
         requestConnectDevice(lastConnectedDevice.address);

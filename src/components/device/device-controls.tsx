@@ -16,7 +16,7 @@ const DeviceControls = () => {
         <div className="container">
           <h6>
             Device Controls{" "}
-            <span className="badge rounded-pill bg-secondary">Spark 40</span>
+            <span className="badge rounded-pill bg-secondary">Spark</span>
           </h6>
 
           {showMainControls ? (

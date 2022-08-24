@@ -38,11 +38,11 @@ const ToneBrowserControl = () => {
 
   const onApplyTone = async (tone) => {
     let t = Object.assign({}, tone);
-    /*if (!isDeviceConnected) {
+    if (!isDeviceConnected) {
       alert("The device is not yet connected, see the Amp tab");
       return;
     }
-*/
+
 
     if (t.schemaVersion == "pg.preset.summary" && t.fx == null) {
       //need to fetch the preset details

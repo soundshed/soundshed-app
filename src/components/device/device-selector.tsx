@@ -38,16 +38,18 @@ const DeviceSelectorControl = () => {
     }
 
     if (targetDeviceInfo != null) {
-      console.log("Connecting device..");
+      console.info("Connecting device..");
       return deviceViewModel.connectDevice(targetDeviceInfo).then((ok) => {
         setTimeout(() => {
-          if (connected == true) {
-            console.log("Connected, refreshing preset..");
+          if (ok == true) {
+            console.info("Connected, refreshing preset..");
+          } else {
+            console.error("Connection failed.");
           }
         }, 1000);
       });
     } else {
-      console.log("Target device not found..");
+      console.warn("Target device not found..");
     }
   };
 
@@ -63,7 +65,7 @@ const DeviceSelectorControl = () => {
       const lastConnectedDevice = deviceViewModel.getLastConnectedDevice();
 
       if (lastConnectedDevice) {
-        console.log(
+        console.info(
           "Re-connecting last known device [" + lastConnectedDevice.name + "]"
         );
         requestConnectDevice(lastConnectedDevice.address);
@@ -116,7 +118,7 @@ const DeviceSelectorControl = () => {
     <div className="amp-intro">
       <h4>Connect Your Amp</h4>
       <p>
-        To get started, switch on your amp and select Scan to find your device.
+        To get started, switch on your amp, pair it via Bluetooth (Spark 40 Audio) and then select Scan to find your device.
         You should ensure that the amp is not already connected to a different
         device as the amp can only connect to one device at a time.
       </p>

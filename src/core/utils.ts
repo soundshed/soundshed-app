@@ -1,4 +1,7 @@
 export class Utils {
+
+    static sleepAsync = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+
     static generateUUID() { // Public Domain/MIT
         //https://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid
         let d = new Date().getTime();//Timestamp
