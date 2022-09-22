@@ -85,8 +85,7 @@ jobs:
         
     - run: sudo apt-get install build-essential libbluetooth-dev
   
-    - run: |
-        cp app-private/env.ts app-public/src     
+    - run: |   
         cd app-public
         cp ./src/core/platformUtils.electron.ts ./src/core/platformUtils.ts
         npm install
