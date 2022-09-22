@@ -18,15 +18,11 @@ const SignalPathControl = ({
   selectedChannel,
   onStoreFavourite,
 }) => {
-  React.useEffect(() => {
-    console.log("Signal Path UI updated.");
-  }, [signalPathState, selectedChannel]);
-
   const listItems = (t: Tone) => {
     if (!t) {
       return <div>Not Connected</div>;
     } else {
-      return t.fx.map((fx) => (
+      return t.fx.map((fx) => fx.type!="pg.spark40."? (
         <td key={fx.type.toString()}>
           <FxControl
             fx={fx}
@@ -34,7 +30,7 @@ const SignalPathControl = ({
             onFxToggle={onFxToggle}
           ></FxControl>
         </td>
-      ));
+      ):"");
     }
   };
 

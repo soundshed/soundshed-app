@@ -30,12 +30,17 @@ export class BleProvider implements SerialCommsProvider {
         const options = { acceptAllDevices: true, optionalServices: [this.serviceGenericUUID, this.serviceCustomUUID] };
 
         try {
-            // in browser this prompt the user to select a device, in electron this starts "select-bluetooth-device" and only resolves once a selection is indicated from the UI and the callback has fired
+            this.log("Requesting device..");
+
+            // in the browser this prompts the user to select a device, in electron this starts "select-bluetooth-device" and only resolves once a selection is indicated from the UI and the callback has fired
             this.selectedDevice = await navigator.bluetooth.requestDevice(options);
 
+            this.log("Got device selection from chooser. " + JSON.stringify(this.selectedDevice));
+
             devices.push({ name: this.selectedDevice.name, address: this.selectedDevice.id, port: null });
-        } catch {
-            this.log("BLE device discovery cancelled or failed.");
+
+        } catch (e) {
+            this.log("BLE device discovery cancelled or failed. " + JSON.stringify(e));
         }
 
         return devices;
@@ -48,6 +53,7 @@ export class BleProvider implements SerialCommsProvider {
         }
 
         this.server = await this.selectedDevice.gatt.connect();
+
         if (this.server.connected) {
             this.log("Connected to device..");
             this.isConnected = true;
@@ -108,22 +114,17 @@ export class BleProvider implements SerialCommsProvider {
 
         const uint8Array = new Uint8Array(commandStream);
 
-        /*if (!this.commandCharacteristic.writeValueWithoutResponse) {
-            alert("This browser does not support the latest web bluetooth API. Use Chrome or Edge with Experimental Web Platform features flag enabled.");
-        }*/
-
-        this.log("Writing command changes.."+uint8Array.length);
+        this.log("Writing command changes.." + uint8Array.length);
         await this.commandCharacteristic.writeValueWithResponse(uint8Array);
     }
 
     public async disconnect() {
 
-        /* this.btSerial.removeAllListeners();
+        if (this.selectedDevice.gatt.connected) {
+            this.selectedDevice.gatt.disconnect();
+        }
 
-         if (this.btSerial && this.btSerial.isOpen()) {
-             this.log("Disconnected");
-             this.btSerial.close();
-         }*/
+        this.isConnected = false;
     }
 
     public async listenForData(onListen: (buffer) => void) {
@@ -133,19 +134,11 @@ export class BleProvider implements SerialCommsProvider {
         this.changeCharacteristic.startNotifications().then(_ => {
             this.log('> Notifications started');
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-
                 var datavalue = (<any>event.target).value.buffer;
-                //this.log("characteristicvaluechanged: " + this.buf2hex(datavalue));
                 onListen(datavalue);
             });
 
         });
-    }
-
-    public listenForDevices(onDeviceFound: (address: string, name: string) => void) {
-        /* this.btSerial.on('found', (address: string, name: string) => {
-             onDeviceFound(address,name);
-         });*/
     }
 
     public async write(msg: any) {

@@ -33,7 +33,7 @@ export class SparkDeviceManager implements DeviceController {
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
         // disconnect if already connected
-        await this.disconnect();
+        //await this.disconnect();
 
         var connected = await this.connection.connect(device);
 

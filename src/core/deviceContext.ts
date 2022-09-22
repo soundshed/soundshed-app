@@ -70,11 +70,11 @@ export class DeviceContext {
         if (args.action == 'applyPreset') {
 
             // send preset
-            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(()=>{
- setTimeout(() => {
-                //apply preset to virtual channel 127
-                this.deviceManager.sendCommand("set_channel", 127);
-            }, 500);
+            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(() => {
+                setTimeout(() => {
+                    //apply preset to virtual channel 127
+                    this.deviceManager.sendCommand("set_channel", 127);
+                }, 100);
 
             });
 
@@ -94,10 +94,9 @@ export class DeviceContext {
         }
 
         if (args.action == 'getPreset') {
-            let ch=0;
-            if (args.data>=0)
-            {
-                ch=args.data;
+            let ch = 0;
+            if (args.data >= 0) {
+                ch = args.data;
             }
             this.deviceManager.sendCommand("get_preset", ch);
         }
@@ -117,10 +116,10 @@ export class DeviceContext {
         if (args.action == 'changeFx') {
             this.deviceManager.sendCommand("change_fx", args.data);
 
-            setTimeout(() => {
+            /*setTimeout(() => {
                 //apply preset to virtual channel 127
                 //  deviceManager.sendCommand("set_channel", 127);
-            }, 1000);
+            }, 1000);*/
         }
 
         if (args.action == 'changeAmp') {

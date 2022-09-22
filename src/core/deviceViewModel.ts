@@ -5,7 +5,7 @@ import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 import { Utils } from './utils';
 import { DeviceStateStore } from '../stores/devicestate';
-import { platformEvents } from './platformUtils';
+import { platformEvents, nativeEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import envSettings from '../env';
@@ -75,15 +75,11 @@ export class DeviceViewModel {
         if (this.deviceContext != null) {
             platformEvents.on("perform-action", (event, args) => {
                 // ... do hardware actions on behalf of the Renderer
-
-
                 this.deviceContext.performAction(args);
-
             });
         }
 
-        platformEvents.on('devices-discovered', (event, args) => {
-            console.log("platformEvents Devices discovered");
+        nativeEvents.on('devices-discovered', (event, args) => {
             this.onDevicesDiscovered(args);
         });
 
@@ -185,13 +181,11 @@ export class DeviceViewModel {
 
             this.onStateChangeHandler();
         });
-
-
     }
 
     onDevicesDiscovered(deviceList) {
 
-        DeviceStateStore.update(s => { s.devices = deviceList, s.isDeviceScanInProgress = false });
+        DeviceStateStore.update(s => { s.devices = deviceList, s.isDeviceScanInProgress = true });
 
         if (deviceList.length > 0) {
             localStorage.setItem("lastKnownDevices", JSON.stringify(deviceList));
@@ -241,16 +235,18 @@ export class DeviceViewModel {
 
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
 
+        this.log("connectDevice "+ device?.address);
+
         if (device == null) return false;
 
         // inform electron main that bluetooth device selection has completed;
         if (!this.deviceInitCompleted) {
-            platformEvents?.sendSync("perform-device-selection", device.address);
+           // nativeEvents?.sendSync("perform-device-selection", device.address);
             this.deviceInitCompleted = true;
         }
 
         DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
-
+        Utils.sleepAsync(300);
         try {
             var connected = await this.deviceContext.deviceManager.connect(device);
 

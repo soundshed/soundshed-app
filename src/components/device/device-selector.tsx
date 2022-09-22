@@ -53,13 +53,6 @@ const DeviceSelectorControl = () => {
     }
   };
 
-  useEffect(() => {}, [
-    connectionInProgress,
-    connected,
-    deviceScanInProgress,
-    attemptedDevice,
-  ]);
-
   useEffect(() => {
     if (!connected) {
       const lastConnectedDevice = deviceViewModel.getLastConnectedDevice();

@@ -1,24 +1,19 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { DeviceContext } from './core/deviceContext';
-import { BleProvider } from './spork/src/devices/spark/bleProvider';
 
 let win: BrowserWindow;
 let callbackForDeviceSelection = null;
-
-app.commandLine.appendSwitch('enable-web-bluetooth')
 
 const sendMessageToApp = (type: string, msg: any) => {
     if (win) {
         // send message to be handled by the UI/app (appViewModel)
         win.webContents.send(type, msg);
     } else {
-        console.log("Cannot send message to app, win not defined");
+        logInfo("Cannot send message to app, win not defined");
     }
 }
 
-const deviceContext: DeviceContext = new DeviceContext();
-deviceContext.init(new BleProvider(), sendMessageToApp);
+
 try {
     require('electron-reloader')(module)
 } catch (_) { }
@@ -39,22 +34,26 @@ else {
 }
 
 ///////////////////////////////////////////////////////////////
+function logInfo(msg) {
+    console.log("[Electron MAIN]: " + msg);
+}
 
 function initApp() {
 
-
     ipcMain.handle('perform-action', (event, args) => {
-        console.log("In electron perform-action..");
+        logInfo("In electron perform-action.. will do nothing:" + JSON.stringify(args));
 
         // ... do hardware actions on behalf of the Renderer
-        deviceContext.performAction(args);
+        //deviceContext.performAction(args);
     });
 
     ipcMain.on('perform-device-selection', (event, args) => {
         // complete device selection process
-        console.log("Completing device selection "+callbackForDeviceSelection );
+        logInfo("Completing device selection " + JSON.stringify(args));
         if (callbackForDeviceSelection) {
-            callbackForDeviceSelection(args);
+           // callbackForDeviceSelection(args);
+        } else {
+            logInfo("No callback for device selection. Cannot complete");
         }
     });
 
@@ -84,7 +83,8 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            webSecurity: false
+            webSecurity: false,
+            experimentalFeatures: true
         }
     })
 
@@ -94,35 +94,53 @@ function createWindow() {
 
     // setup permission handlers
 
-
+    let devicesDiscoveredCount = 0;
     // bluetooth device selection, fires multiple times as the process performs a scan, then the UI must present a device picker using deviceList, then the callback is used to resolve device selection
     win.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
         event.preventDefault();
 
         callbackForDeviceSelection = callback;
 
-        var mappedDevices = deviceList.map(x => { return { name: x.deviceName, address: x.deviceId, port: null } });
-        console.log(`Found ${mappedDevices.length} bluetooth devices, send to UI for selection.`);
-        // send current device list to UI
-        sendMessageToApp("devices-discovered", mappedDevices);
+        if (devicesDiscoveredCount != deviceList?.length) {
 
+            if (deviceList && deviceList.length > 0) {
+
+                devicesDiscoveredCount = deviceList.length;
+
+                var mappedDevices = deviceList
+                    .filter(x => x.deviceName.indexOf("Spark") > -1)
+                    .map(x => { return { name: x.deviceName, address: x.deviceId, port: null } });
+
+                logInfo(`Found ${mappedDevices.length} matching bluetooth devices out of ${deviceList.length}, send to UI for selection.`);
+                // send current device list to UI
+                sendMessageToApp("devices-discovered", mappedDevices);
+
+                var matched = deviceList.find(x => x.deviceName.indexOf("Spark") > -1);
+                if (matched) {
+                    logInfo("Auto selected device "+matched.deviceId);
+                    callback(matched.deviceId);
+                }
+            } else {
+                logInfo("No bluetooth devices found");
+            }
+
+        }
     })
 
     const ses = win.webContents.session;
 
     ses.setPermissionRequestHandler((webContents, permission, callback) => {
-        console.log("Requested permission: " + permission);
+        logInfo("Requested permission: " + permission);
         callback(true);
     });
 
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
 
-        console.log("Checked permission: " + permission);
+        logInfo("Checked permission: " + permission);
         return true;
 
     });
 
-    
     win.loadFile('./build/index.html'); //    win.loadFile('./build/index.html');
 }
 
