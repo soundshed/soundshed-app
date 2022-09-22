@@ -11,6 +11,7 @@ export interface VideoSearchResult {
     description: string;
     thumbnailUrl: string;
 }
+
 export class VideoSearchApi {
 
     async search(query: string) {

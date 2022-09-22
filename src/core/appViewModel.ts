@@ -1,29 +1,20 @@
 
 import { FxMappingSparkToTone } from './fxMapping';
 import { Login, SoundshedApi, Tone, UserRegistration } from './soundshedApi';
-import { ArtistInfoApi } from './artistInfoApi';
 
-//import { remote } from 'electron';
 import { Utils } from './utils';
 import { PGPresetQuery, SparkAPI } from '../spork/src/devices/spark/sparkAPI';
-//import Analytics from 'electron-google-analytics';
-import envSettings from '../env';
+
 import { AppStateStore } from '../stores/appstate';
 import { TonesStateStore } from '../stores/tonestate';
 import { InputEventMapping } from '../spork/src/interfaces/inputEventMapping';
 import { getAppVersion } from './platformUtils';
 
 export class AppViewModel {
-
-
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
-    // private artistInfoApi = new ArtistInfoApi();
-
-    // private analytics = new Analytics(envSettings.AnalyticsId);
 
     constructor() {
-
 
     }
 
@@ -227,15 +218,6 @@ export class AppViewModel {
                 favourites = favourites.filter(f => f.toneId.toLowerCase() != convertedTone.toneId.toLowerCase());
                 favourites.push(convertedTone);
                 presetStored = true;
-                /*
-               if (!autoOverwrite || confirm("You have changed the name of this preset. Do you wish to save this as a new preset (keep the original)?")) {
-                   // add new
-                   convertedTone.toneId = Utils.generateUUID();
-                   favourites.push(convertedTone);
-                   presetStored = true;
-               } else {
-
-               }*/
 
             }
 

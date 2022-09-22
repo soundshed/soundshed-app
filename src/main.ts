@@ -13,7 +13,6 @@ const sendMessageToApp = (type: string, msg: any) => {
     }
 }
 
-
 try {
     require('electron-reloader')(module)
 } catch (_) { }
@@ -51,7 +50,7 @@ function initApp() {
         // complete device selection process
         logInfo("Completing device selection " + JSON.stringify(args));
         if (callbackForDeviceSelection) {
-           // callbackForDeviceSelection(args);
+            // callbackForDeviceSelection(args);
         } else {
             logInfo("No callback for device selection. Cannot complete");
         }
@@ -117,7 +116,7 @@ function createWindow() {
 
                 var matched = deviceList.find(x => x.deviceName.indexOf("Spark") > -1);
                 if (matched) {
-                    logInfo("Auto selected device "+matched.deviceId);
+                    logInfo("Auto selected device " + matched.deviceId);
                     callback(matched.deviceId);
                 }
             } else {

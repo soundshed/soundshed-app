@@ -113,7 +113,7 @@ export class SoundshedApi {
     async registerUser(registration: UserRegistration): Promise<ActionResult<UserRegistrationResult>> {
 
         let url = this.baseUrl + "user/register";
-        let response = await fetch(url, { method: 'POST', mode: 'no-cors',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registration) });
+        let response = await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registration) });
         let result = await <UserRegistrationResult><any>response.json();
 
         if (result.error == null) {

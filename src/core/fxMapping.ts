@@ -1,4 +1,3 @@
-import YouTubePlayer from "react-player/youtube";
 import { FxParam, Preset, SignalPath } from "../spork/src/interfaces/preset";
 import { Tone, ToneFx, ToneFxParam } from "./soundshedApi";
 import { Utils } from "./utils";
@@ -63,7 +62,6 @@ export class FxMappingToneToSpark {
 
 export class FxMappingSparkToTone {
 
-
     static getReverbDspId(modeParam) {
         let reverbVariant = parseFloat((modeParam).toFixed(2));
 
@@ -98,7 +96,7 @@ export class FxMappingSparkToTone {
      *  soundshed tone fx ids are prefixed so fx catalog lookup requires normalised id
      * */
     static mapFxId(sourceId) {
-        
+
         if (sourceId.indexOf("pg.spark40") == -1) {
             return "pg.spark40." + sourceId;
         } else {
@@ -137,7 +135,6 @@ export class FxMappingSparkToTone {
             };
         }
     }
-
 
     mapFrom(source: Preset) {
 

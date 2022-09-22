@@ -10,10 +10,6 @@ import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import envSettings from '../env';
 
-
-// web mode
-
-
 const debounce = (func, delay) => {
     let timerId;
     return (...args) => {
@@ -140,7 +136,6 @@ export class DeviceViewModel {
                             DeviceStateStore.update(s => { s.presetTone = presetState });
                         }
 
-
                     } else if (args.lastMessageReceived.dspIdOld != null) {
                         //fx type change received from amp
                         // TODO: debounce this? this doesn't work if you update faster than the UI state as the current preset state doesn't match
@@ -235,13 +230,13 @@ export class DeviceViewModel {
 
     async connectDevice(device: BluetoothDeviceInfo): Promise<boolean> {
 
-        this.log("connectDevice "+ device?.address);
+        this.log("connectDevice " + device?.address);
 
         if (device == null) return false;
 
         // inform electron main that bluetooth device selection has completed;
         if (!this.deviceInitCompleted) {
-           // nativeEvents?.sendSync("perform-device-selection", device.address);
+            // nativeEvents?.sendSync("perform-device-selection", device.address);
             this.deviceInitCompleted = true;
         }
 
@@ -280,7 +275,7 @@ export class DeviceViewModel {
                 }
                 return false;
             }
-            //  });
+
         } catch (err) {
             DeviceStateStore.update(s => { s.isConnectionInProgress = false; s.isConnected = false; });
 
@@ -343,7 +338,6 @@ export class DeviceViewModel {
             () => {
                 return true;
             });
-        return true;
     }
 
     public normalizeDspId(dspId: string) {

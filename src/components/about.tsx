@@ -92,7 +92,7 @@ const AboutControl = () => {
           )}
         </div>
       ) : (
-        <span className="badge rounded-pill bg-secondary">Web Version</span>
+        <span className="badge rounded-pill bg-secondary">{env.Version} [Web]</span>
       )}
       <h3>Credits</h3>
       <p>
