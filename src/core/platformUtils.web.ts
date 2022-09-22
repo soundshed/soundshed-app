@@ -1,4 +1,7 @@
 import envSettings from "../env";
+import { PlatformEvents } from "./utils";
+
+const evt: PlatformEvents = new PlatformEvents();
 
 const openLink = (e, linkUrl) => {
     e.preventDefault();
@@ -9,4 +12,4 @@ const getAppVersion = () => {
     return envSettings.Version;
 }
 
-export { openLink, getAppVersion };
+export { openLink, evt as platformEvents, evt as nativeEvents, getAppVersion };
