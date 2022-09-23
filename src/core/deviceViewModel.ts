@@ -40,13 +40,10 @@ export class DeviceViewModel {
     constructor() {
         this.onStateChangeHandler = this.defaultStateChangeHandler;
 
-
         DeviceStateStore.update(s => { s.fxCatalog = FxCatalogProvider.getFxCatalog(); });
 
-        if (envSettings.IsWebMode) {
-            this.deviceContext = new DeviceContext();
-            this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
-        }
+        this.deviceContext = new DeviceContext();
+        this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
 
         this.setupEventListeners();
     }
