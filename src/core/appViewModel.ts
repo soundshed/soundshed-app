@@ -371,11 +371,10 @@ export class AppViewModel {
 
     public refreshAppInfo() {
 
-
         try {
 
-            // const info = { version: remote.app.getVersion(), name: remote.app.getName() };
-            // AppStateStore.update(s => { s.appInfo = info });
+            const info = { version: getAppVersion(), name: "Soundshed" };
+            AppStateStore.update(s => { s.appInfo = info });
         } catch (err) {
             this.log("Failed to get app version info: " + err)
         }

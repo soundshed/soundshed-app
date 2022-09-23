@@ -1,3 +1,7 @@
+1.0.29 :  2022/09/24
+- Use BLE instead of bluetooth serial for all versions
+- Avoid state corruption when changing patches quickly
+
 1.0.27 : 2021/09/14
 - Remove unused soundshed.com community features.
 

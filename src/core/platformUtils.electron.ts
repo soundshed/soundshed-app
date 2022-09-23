@@ -1,5 +1,6 @@
 import { app, shell, ipcRenderer } from "electron";
 import { PlatformEvents } from "./utils";
+import envSettings from "../env";
 
 const evt: PlatformEvents = new PlatformEvents();
 
@@ -9,7 +10,7 @@ const openLink = (e, linkUrl) => {
 };
 
 const getAppVersion = () => {
-    return app.getVersion()?.replace("v", "")
+    return envSettings.Version;
 }
 
 export { openLink, evt as platformEvents, ipcRenderer as nativeEvents, getAppVersion };
