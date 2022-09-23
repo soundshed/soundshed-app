@@ -22,7 +22,6 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.66",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.66",
     "@electron-forge/maker-zip": "^6.0.0-beta.66",
-    "@electron-forge/plugin-webpack": "6.0.0-beta.66",
     "@types/react": "18.0.20",
     "@types/react-dom": "^18.0.6",
     "@types/web-bluetooth": "0.0.15",
@@ -42,9 +41,7 @@
     "ts-loader": "9.3.1",
     "typescript": "4.7.3",
     "webpack": "5.74.0",
-    "webpack-cli": "4.10.0"
-  },
-  "dependencies": {
+    "webpack-cli": "4.10.0",
     "@electron-forge/plugin-webpack": "^6.0.0-beta.66",
     "@fortawesome/fontawesome-svg-core": "6.2.0",
     "@fortawesome/free-solid-svg-icons": "6.2.0",
@@ -68,9 +65,12 @@
     "react-draggable": "^4.4.5",
     "react-player": "^2.11.0",
     "react-router-dom": "^6.4.1",
-    "update-electron-app": "^2.0.1",
+
     "webmidi": "3.0.21",
     "youtube-search": "^1.1.6"
+  },
+  "dependencies": {
+    "update-electron-app": "^2.0.1"
   },
   "config": {
     "forge": "./forge.config.js"

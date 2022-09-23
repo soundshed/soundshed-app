@@ -19,7 +19,8 @@ module.exports = {
         "hardened-runtime": true,
         "entitlements": "entitlements.plist",
         "entitlements-inherit": "entitlements.plist",
-        "signature-flags": "library"
+        "signature-flags": "library",
+        "gatekeeper-assess": false
       },
       "osxNotarize": {
         "appBundleId":"com.soundshed.tones",
