@@ -30,6 +30,8 @@ export class DeviceViewModel {
 
     private lastCommandType = "";
 
+    private lastChannelChange = null;
+
     // if working in web mode the device context is held here, otherwise the device context is held in the main process
     deviceContext: DeviceContext
 
@@ -465,6 +467,21 @@ export class DeviceViewModel {
     }
 
     async setChannel(channelNum: number): Promise<boolean> {
+
+        if (this.lastChannelChange != null) {
+            let currentTime = new Date();
+
+            var secondsSinceLastRequest = (currentTime.getTime() - this.lastChannelChange.getTime()) / 1000;
+            if (secondsSinceLastRequest < 1) {
+                return false;
+            } else {
+                this.lastChannelChange = currentTime;
+            }
+
+        } else {
+            this.lastChannelChange = new Date();
+        }
+
         this.lastCommandType = "setChannel";
         try {
             await platformEvents.invoke('perform-action', { action: 'setChannel', data: channelNum });
