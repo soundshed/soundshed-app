@@ -16,9 +16,6 @@ Windows, macOS and Linux. 64-but OS and Bluetooth (BLE) connectivity required.
 
 
 ### Known Issues
-- Device controls (summary level - hidden) not hooked up
-- More keyword search/paging etc required
-- Amp sometimes returns garbled info
 - Invalid settings may crash amp, requiring amp to be switched off and on again.
 
 ## Roadmap
@@ -27,22 +24,19 @@ Possible future features include:
 
 - More reliable amp communication
 - UI refinements
-- Code refactoring and tidy
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
 
 #### Event Mapping
-Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4) or 
+Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4). The app can currently learn some midi control inputs and assign them to channel selections.
 
 #### Default FX
 - default slot settings (fx type, parameter settings) can be applied, e.g a default Noise Gate configuration which can either be applied all the time or on demand.
 
 ## Build
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
-- Prerequisites: Node JS 14.x or higher, npm 6.14 or higher. Windows, macOS or Linux
-
-- Building the bluetooth-serial-port node module has various requirements depending on the platform you are developing for: https://github.com/tinyprinter/node-bluetooth-serial-port - we are using a custom fork with minor fixes.
+- Prerequisites: Node JS 16.x or higher, npm 6.14 or higher. Windows, macOS or Linux
 
 - VS Code is the recommended editor
 
@@ -80,11 +74,9 @@ The final installable app is packaged using electron-forge:
     - Run build and deploy files
     
 ### Architecture
-The app is built using TypeScript. For the electron version, electron/node is the host process, talking to the electron renderer and back again (the standard electron way of working). For the web app version bluetooth is Web Bluetooth (BLE) instead of the bluetooth RFCOMM used by the electron version.
+The app is built using TypeScript. For the electron version, electron/node is the host process, talking to the electron renderer and back again (the standard electron way of working). Both web and electron versions now use Web Bluetooth (BLE).
 
 The UI is React (TypeScript variant) with bootstrap for UI css. The Pullstate library is use for app state management and a couple of view model classes exist to centralise common points of interaction with APIs, the devices and state.
-
-In the electron version, communication with the device works by connection/handling serial bluetooth comms events in the main process (electron/node), this then sends an IPC message to the renderer which has listeners in the appViewModel, these then pass relevant data to the react UI. Actions in the UI invoke appViewModel methods which in turn fire IPC messages back to the main process in order to perform bluetooth actions.
 
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
 
