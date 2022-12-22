@@ -119,13 +119,15 @@ export class SparkMessageReader {
         //in messages received from Spark
 
         for (let block of this.data) {
-            let block_length = block[6]
-            if (len(block) != block_length) {
+            let chunkoffset = 0;
+            if ((block[0] == 0x01) && (block[1] == 0xfe)) {
+                let block_length = block[6]
+                if (len(block) != block_length) {
                 this.log(`Block is length ${len(block)} and reports ${block_length}`)
+                }
+                chunkoffset = 16;
             }
-
-            let chunk = block.subarray(16);
-
+            let chunk = block.subarray(chunkoffset);
             block_content = this.mergeBytes(block_content, chunk);
         }
         //and split them into chunks now, splitting on each f7
