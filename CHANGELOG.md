@@ -1,3 +1,6 @@
+1.1.0 : 2022/12/23
+- Add support for Spark Mini
+
 1.0.29 :  2022/09/24
 - Use BLE instead of bluetooth serial for all versions
 - Avoid state corruption when changing patches quickly

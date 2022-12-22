@@ -13,6 +13,7 @@ const AmpOfflineControl = () => {
         </p>
         <ul>
           <li>Positive Grid Spark 40</li>
+          <li>Positive Grid Spark Mini</li>
         </ul>
       
     </div>
