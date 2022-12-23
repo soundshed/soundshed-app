@@ -32,6 +32,7 @@ Possible future features include:
     - For new devices implement read/write of presets/fx settings from the device and mappings to generic fx
     - Allow presets made for any device to be approximately mapped to any other support device.
     - Provide preset cloud for devices which don't natively have one.
+    - Possibly extend presets to include impulse response (IR) waveforms for devices that support them.
     - Example Target devices: Line 6 Pod Go, Boss Katana MK II
 
 #### Event Mapping
