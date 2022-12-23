@@ -27,6 +27,12 @@ Possible future features include:
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
+- Support for an extensible range of amp and FX units
+    - Abstraction to map device fx settings to a "soundshed" generic list of common FX.
+    - For new devices implement read/write of presets/fx settings from the device and mappings to generic fx
+    - Allow presets made for any device to be approximately mapped to any other support device.
+    - Provide preset cloud for devices which don't natively have one.
+    - Example Target devices: Line 6 Pod Go, Boss Katana MK II
 
 #### Event Mapping
 Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4). The app can currently learn some midi control inputs and assign them to channel selections.
