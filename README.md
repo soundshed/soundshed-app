@@ -7,12 +7,12 @@ Desktop and Web UI which can be used to:
 
 Download from https://soundshed.com or check out the web app version.
 
-Windows, macOS and Linux. 64-but OS and Bluetooth (BLE) connectivity required.
+Windows, macOS and Linux. 64-bit OS and Bluetooth (BLE) connectivity required.
 
 *Supported amps:*
 - Positive Grid Spark 40 and Spark Mini: https://www.positivegrid.com/spark/
 
-![](docs/screens/ui.png)
+![](https://github.com/soundshed/soundshed-app/raw/main/docs/screens/ui.png)
 
 
 ### Known Issues
@@ -36,14 +36,16 @@ Possible future features include:
     - Example Target devices: Line 6 Pod Go, Boss Katana MK II
 
 #### Event Mapping
-Input event from keyboard or midi can be mapped to either a preset slot (e.g. channels 1-4). The app can currently learn some midi control inputs and assign them to channel selections.
+Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 1-4). The app can currently learn some midi control inputs (note-on and program-change) and assign them to amp channel selections.
 
 #### Default FX
 - default slot settings (fx type, parameter settings) can be applied, e.g a default Noise Gate configuration which can either be applied all the time or on demand.
 
-## Build
+----------------------------------------
+
+## Developber Build Info
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
-- Prerequisites: Node JS 16.x or higher, npm 6.14 or higher. Windows, macOS or Linux
+- Prerequisites: Node 20.x or higher, npm 6.14 or higher. Windows, macOS or Linux
 
 - VS Code is the recommended editor
 
