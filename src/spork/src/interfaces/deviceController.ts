@@ -1,7 +1,7 @@
 export interface DeviceController {
     connect(device: BluetoothDeviceInfo): Promise<boolean>;
     disconnect(): Promise<void>;
-    readStateMessage(): Promise<void>;
+    readStateMessage(dataArray: Uint8Array[]): Promise<void>;
     sendCommand(type: string, data: any): Promise<void>;
 }
 export interface BluetoothDeviceInfo {
@@ -9,5 +9,5 @@ export interface BluetoothDeviceInfo {
     address: string;
     port: number;
     description?: string;
-    connectionFailed?:boolean
+    connectionFailed?: boolean
 }

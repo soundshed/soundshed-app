@@ -43,7 +43,7 @@ Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 
 
 ----------------------------------------
 
-## Developber Build Info
+## Developer Build Info
 ![app build](https://github.com/soundshed/soundshed-app/workflows/app%20build/badge.svg)
 - Prerequisites: Node 20.x or higher, npm 6.14 or higher. Windows, macOS or Linux
 
@@ -88,4 +88,16 @@ The app is built using TypeScript. For the electron version, electron/node is th
 The UI is React (TypeScript variant) with bootstrap for UI css. The Pullstate library is use for app state management and a couple of view model classes exist to centralise common points of interaction with APIs, the devices and state.
 
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
+
+#### Hardware communication
+
+[BLE Reader Data Received Queue]
+
+[Spark Reader Message Queue]
+
+[App Message Reader Loop]
+
+At the bluetooth level the app registers a listener to consume data changes for a hardware characteristic, this delivers a stream of bytes in chunks. The app continuously queues the data recieved and looks for message terminator bytes (F7). When encountered it queues the current data for message processing higher up the chain.
+
+The app then continuously runs a message processing loop to peek for terminated data chunks from the bluetooth reader, these are picked up from the bluetooth reader queue and parsed/interpreted into messages for our app, then added to our app message queue for later processing.
 

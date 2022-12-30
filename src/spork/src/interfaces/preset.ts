@@ -50,7 +50,7 @@ export interface DeviceState {
     selectedPresetNumber?: number;
     bpm?: number;
     presetConfig?: Preset;
-    lastMessageReceived?: any;
+    message?: any;
 }
 
 export interface FxCatalogItem {

@@ -1,6 +1,7 @@
 import React from "react";
 import { Dropdown } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
+import { WebConnectionTest } from "../core/tests/webConnectionTest";
 import { Utils } from "../core/utils";
 import { InputEventMapping } from "../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../stores/appstate";
@@ -18,6 +19,16 @@ const SettingsControl = () => {
 
   const deleteInputMapping = (mapping: InputEventMapping) => {};
 
+  const enableTestMode = true;
+
+  const runTests = async () => {
+    if (!(window as any).webTest) {
+      (window as any).webTest = new WebConnectionTest();
+    }
+
+    (window as any).webTest.RunTest();
+  };
+  
   const learnInputMapping = async (mapping: InputEventMapping) => {
     AppStateStore.update((s) => {
       s.lastMidiEvent = null;
@@ -148,6 +159,20 @@ const SettingsControl = () => {
       <table className="table table-striped">
         <tbody>{renderInputEventMappings()}</tbody>
       </table>
+
+      {enableTestMode ? (
+        <div>
+          <button
+            onClick={() => {
+              runTests();
+            }}
+          >
+            Test
+          </button>
+        </div>
+      ) : (
+        ""
+      )}
     </div>
   );
 };

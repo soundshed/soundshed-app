@@ -7,44 +7,46 @@ export class DeviceContext {
     deviceManager: SparkDeviceManager;
     msgSendDelegate: (type: string, msg: any) => void;
 
+    private log(msg:string){
+        console.debug(msg);
+    }
+
     public init(commsProvider: SerialCommsProvider, msgDelegate: (type: string, msg: any) => void) {
 
-        console.log("DeviceContext: Init");
+        this.log("DeviceContext: Init");
 
         this.deviceManager = new SparkDeviceManager(commsProvider);
 
         this.deviceManager.onStateChanged = (s: any) => {
-            console.log("DeviceContext: device state changed")
+            this.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
 
-
         this.msgSendDelegate = msgDelegate;
-
     }
 
     private sendMessageToApp(type: string, args: any) {
         if (this.msgSendDelegate) {
             this.msgSendDelegate(type, args);
         } else {
-            console.log("Cannot send message, no delegate provided");
+            this.log("Cannot send message, no delegate provided");
         }
     }
 
     public performAction(args: any) {
         // ... do actions on behalf of the Renderer
-        console.log("got event from render:" + args.action);
+        this.log("got event from render:" + args.action);
 
         if (args.action == 'scan') {
             this.deviceManager.scanForDevices().then((devices) => {
-                console.log(JSON.stringify(devices));
+                this.log(JSON.stringify(devices));
 
                 this.sendMessageToApp('devices-discovered', devices);
             });
         }
 
         if (args.action == 'connect') {
-            console.log("attempting to connect:: " + JSON.stringify(args));
+            this.log("attempting to connect:: " + JSON.stringify(args));
 
             try {
                 return this.deviceManager.connect(args.data).then(connectedOk => {
@@ -77,8 +79,6 @@ export class DeviceContext {
                 }, 100);
 
             });
-
-
         }
 
         if (args.action == 'getCurrentChannel') {

@@ -77,9 +77,9 @@ const DeviceMainControl = () => {
 
     deviceViewModel.requestPresetConfig().then(async (ok) => {
 
-      await Utils.sleepAsync(500);
+      //await Utils.sleepAsync(500);
 
-      console.log(
+      console.debug(
         "updating preset config in UI " +
           JSON.stringify(DeviceStateStore.getRawState().presetTone)
       );
@@ -161,6 +161,7 @@ const DeviceMainControl = () => {
       </div>
       <div className="row">
         <div className="col">
+   
           <MiscControls
             deviceScanInProgress={deviceScanInProgress}
             onScanForDevices={requestScanForDevices}

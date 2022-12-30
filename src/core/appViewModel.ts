@@ -410,7 +410,8 @@ export class AppViewModel {
             } else {
                 AppStateStore.update(s => { s.isUpdateAvailable = false; });
             }
-            console.log(JSON.stringify(updateInfo));
+
+            console.debug(JSON.stringify(updateInfo));
 
             return updateInfo;
         } catch {

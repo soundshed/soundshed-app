@@ -16,7 +16,12 @@ const DeviceSelectorControl = () => {
   const deviceScanInProgress = DeviceStateStore.useState(
     (s) => s.isDeviceScanInProgress
   );
-
+  const deviceScanFailed = DeviceStateStore.useState(
+    (s) => s.deviceScanFailed
+  );
+  const deviceConnectionFailed = DeviceStateStore.useState(
+    (s) => s.deviceConnectionFailed
+  );
   const requestScanForDevices = () => {
     deviceViewModel.scanForDevices();
   };
@@ -72,6 +77,10 @@ const DeviceSelectorControl = () => {
         ? attemptedDevice
         : i
     );
+
+    if (deviceScanFailed) {
+      return <div className="alert alert-warning">Could not scan for devices or scan was cancelled. Bluetooth may not be switched on or your browser/OS may not support Bluetooth.</div>;
+    }
 
     if (!list || list?.length == 0) {
       return <div>No devices found. Scan to check for devices.</div>;

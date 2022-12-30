@@ -1,6 +1,7 @@
 import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
-
 import { BluetoothDeviceInfo } from "../../interfaces/deviceController";
+import { Utils } from "../../../../core/utils";
+import { SparkMessageReader } from "./sparkMessageReader";
 
 export class BleProvider implements SerialCommsProvider {
     private targetDeviceName = "Spark 40 Audio";
@@ -18,9 +19,18 @@ export class BleProvider implements SerialCommsProvider {
     private changeCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     private isConnected: boolean;
+    private isConnectedForRead: boolean;
+
+    private sendQueue: Array<DataView>;
+    private receiveQueue: Array<Uint8Array>;
+    private lastReceivedData: DataView;
+    private lastTimeStamp = null;
 
     constructor() {
+        this.isConnectedForRead = false;
 
+        this.sendQueue = [];
+        this.receiveQueue = [];
     }
 
     public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
@@ -114,8 +124,24 @@ export class BleProvider implements SerialCommsProvider {
 
         const uint8Array = new Uint8Array(commandStream);
 
-        this.log("Writing command changes.." + uint8Array.length);
-        await this.commandCharacteristic.writeValueWithResponse(uint8Array);
+        this.log(`Writing command changes.. ${uint8Array.length} bytes`);
+
+        let attempts = 5;
+        let completed = false;
+
+        while (!completed && attempts > 0) {
+            try {
+                attempts--;
+                await this.commandCharacteristic.writeValueWithoutResponse(uint8Array);
+            } catch (err) {
+                if (attempts > 0) {
+                    this.log("Error writing command changes, retrying..");
+                    await Utils.sleepAsync(25);
+                } else {
+                    this.log("Error writing command changes, giving up..");
+                }
+            }
+        }
     }
 
     public async disconnect() {
@@ -127,18 +153,139 @@ export class BleProvider implements SerialCommsProvider {
         this.isConnected = false;
     }
 
+    private isDataEqual(a: DataView, b: DataView) {
+        if (a == null || b == null) return false;
+
+        if (a.byteLength !== b.byteLength) return false;
+
+        for (let i = 0; i < a.byteLength; i++) {
+            if (a.getUint8(i) !== b.getUint8(i)) return false;
+        }
+
+        return true;
+    }
+
+    /*
+     start receiving data for our target characteristic, storing in the receive queue
+    */
+    public async beginQueuedReceive() {
+
+        let enableMultiPartParsing = false;
+
+        try {
+            await this.changeCharacteristic.startNotifications();
+
+            this.log('> Notifications started');
+            this.isConnectedForRead = true;
+            let lastDataRemainder: Uint8Array = new Uint8Array();
+            this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                const dataView: DataView = (<any>event.target).value;
+                let dataChunk = new Uint8Array(dataView.buffer);
+
+                if (event.timeStamp < this.lastTimeStamp) {
+                    this.log(`[ERROR]: timestamp out of order`);
+                }
+
+                this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataView.buffer)}`);
+
+                if (enableMultiPartParsing) {
+                    if (lastDataRemainder.byteLength > 0) {
+                        //consumer remainder bytes from last time but prefixing to new chunk
+                        dataChunk = SparkMessageReader.mergeBytes(lastDataRemainder, dataChunk);
+
+                        this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
+                        lastDataRemainder = new Uint8Array();
+                    }
+
+                    let terminatorIndexes = [];
+                    for (let i = 0; i < dataChunk.byteLength - 1; i++) {
+                        if (dataChunk[i] == 0xf7) {
+                            //terminator in middle of chunk
+                            this.log("Terminator in middle of chunk " + i);
+                            terminatorIndexes.push(i);
+                        }
+                    }
+
+                    if (dataChunk[dataChunk.byteLength - 1] == 0xf7) {
+                        // chunk is one block with a terminator
+
+                        this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
+                        this.receiveQueue.push(dataChunk);
+                    } else {
+                        // data has one or more mid-block terminators
+                        if (terminatorIndexes.length > 0) {
+                            //split
+
+
+                            let lastIndex = 0;
+                            for (let i of terminatorIndexes) {
+                                let tmpChunk = dataChunk.slice(lastIndex, i + 1);
+                                this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
+                                lastIndex = i + 1;
+
+
+                                this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
+                                this.receiveQueue.push(new Uint8Array(tmpChunk));
+                            }
+
+                            let lastTerminator = terminatorIndexes.pop();
+                            if (lastTerminator < lastIndex - 1) {
+                                // remainder
+                                lastDataRemainder = new Uint8Array(dataChunk.slice(lastTerminator, dataChunk.byteLength - 1));
+
+                                this.log(`[SMALL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(lastDataRemainder)}`);
+                            }
+
+                        } else {
+                            // whole chunk has no terminator, use next time
+                            lastDataRemainder = new Uint8Array(dataChunk);
+
+                            this.log(`[LARGE REMAINDER BLE]: ${this.buf2hex(lastDataRemainder)}`);
+                        }
+                    }
+                } else {
+                    this.receiveQueue.push(dataChunk);
+                }
+            });
+        } catch (err) {
+            this.log('> Failed to begin listening for hardware data changes');
+        }
+
+    }
+
+    public readReceiveQueue(): Array<Uint8Array> {
+
+        const received = [...this.receiveQueue];
+        this.receiveQueue = new Array<Uint8Array>;
+
+        // parse
+        return received;
+    }
+
+    public peekReceiveQueueEnd(): Uint8Array {
+        if (this.receiveQueue.length > 0) {
+            return this.receiveQueue[this.receiveQueue.length - 1];
+        } else {
+            return null;
+        }
+    }
+
     public async listenForData(onListen: (buffer) => void) {
 
-        await this.selectedDevice.gatt.connect();
+        try {
+            await this.changeCharacteristic.startNotifications();
 
-        this.changeCharacteristic.startNotifications().then(_ => {
-            this.log('> Notifications started');
+            this.log('> listendForData: Notifications started');
+
+            this.isConnectedForRead = true;
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                var datavalue = (<any>event.target).value.buffer;
-                onListen(datavalue);
+                const dataView: DataView = (<any>event.target).value;
+                onListen(dataView.buffer);
             });
+        } catch (err) {
+            this.log('> Failed to begin listening for hardware data changes');
+        }
 
-        });
     }
 
     public async write(msg: any) {

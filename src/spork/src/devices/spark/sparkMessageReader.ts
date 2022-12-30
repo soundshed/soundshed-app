@@ -76,11 +76,12 @@ export class SparkMessageReader {
     private indent = "";
 
     public deviceState: DeviceState = {};
+    public receivedMessageQueue = [];
 
     constructor() {
         this.data = [];
         this.message = []
-        this.deviceState = {};
+        this.deviceState = {} ;
     }
 
     set_message(msgArray) {
@@ -88,11 +89,11 @@ export class SparkMessageReader {
         this.message = []
     }
 
-    mergeBytes(...arrays): Uint8Array {
-        return this.mergeTypedArrays(Uint8Array, arrays);
+    static mergeBytes(...arrays): Uint8Array {
+        return SparkMessageReader.mergeTypedArrays(Uint8Array, arrays);
     }
 
-    mergeTypedArrays(type, arrays) {
+    static mergeTypedArrays(type, arrays) {
         // https://2ality.com/2015/10/concatenating-typed-arrays.html
         let totalLength = 0;
         for (let al of arrays) {
@@ -123,12 +124,12 @@ export class SparkMessageReader {
             if ((block[0] == 0x01) && (block[1] == 0xfe)) {
                 let block_length = block[6]
                 if (len(block) != block_length) {
-                this.log(`Block is length ${len(block)} and reports ${block_length}`)
+                    this.log(`Block is length ${len(block)} and reports ${block_length}`)
                 }
                 chunkoffset = 16;
             }
             let chunk = block.subarray(chunkoffset);
-            block_content = this.mergeBytes(block_content, chunk);
+            block_content = SparkMessageReader.mergeBytes(block_content, chunk);
         }
         //and split them into chunks now, splitting on each f7
 
@@ -136,7 +137,7 @@ export class SparkMessageReader {
         let chunks: Array<Uint8Array> = []
 
         block_content.forEach(by => {
-            chunk_temp = this.mergeBytes(chunk_temp, bytes(by));
+            chunk_temp = SparkMessageReader.mergeBytes(chunk_temp, bytes(by));
 
             if (by == 0xf7) {
                 chunks.push(chunk_temp)
@@ -169,9 +170,9 @@ export class SparkMessageReader {
                     if ((bit8 & (1 << ind)) == (1 << ind)) {
                         dat |= 0x80
                     }
-                    seq = this.mergeBytes(seq, bytes([dat]))
+                    seq = SparkMessageReader.mergeBytes(seq, bytes([dat]))
                 }
-                data8bit = this.mergeBytes(data8bit, seq)
+                data8bit = SparkMessageReader.mergeBytes(data8bit, seq)
             }
 
             chunk_8bit.push([this_cmd, this_sub_cmd, data8bit])
@@ -189,17 +190,17 @@ export class SparkMessageReader {
                 //found a multi-message
                 let num_chunks = this_data[0]
                 let this_chunk = this_data[1]
-                concat_data = this.mergeBytes(concat_data, this_data.subarray(3))
+                concat_data = SparkMessageReader.mergeBytes(concat_data, this_data.subarray(3))
 
                 //if at last chunk of multi-chunk
                 if (this_chunk == num_chunks - 1) {
-                    this.message.push(this.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), concat_data))
+                    this.message.push(SparkMessageReader.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), concat_data))
                     concat_data = bytes([])
                 }
 
             } else {
                 //copy old one
-                this.message.push(this.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), this_data))
+                this.message.push(SparkMessageReader.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), this_data))
             }
 
         }
@@ -351,7 +352,7 @@ export class SparkMessageReader {
         this.add_float("Value", val)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxParamMessage>{ type:'fx_param_msg', dspId: effect, value: val, index: param };
+        this.receivedMessageQueue.push(<FxParamMessage>{ type: 'fx_param_msg', dspId: effect, value: val, index: param });
     }
 
     read_effect() {
@@ -362,7 +363,7 @@ export class SparkMessageReader {
         this.add_str("NewEffect", effect2)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxChangeMessage>{ type:'fx_change_msg',  dspIdOld: effect1, dspIdNew: effect2 };
+        this.receivedMessageQueue.push(<FxChangeMessage>{ type: 'fx_change_msg', dspIdOld: effect1, dspIdNew: effect2 });
     }
 
     read_hardware_preset() {
@@ -373,7 +374,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.selectedPresetNumber = preset_num;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{  type:'hardware_channel_current', presetNumber: preset_num }
+        this.receivedMessageQueue.push(<PresetChangeMessage>{ type: 'hardware_channel_current', presetNumber: preset_num });
     }
 
     read_store_hardware_preset() {
@@ -384,7 +385,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.selectedPresetNumber = preset_num;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ type:'hardware_preset_stored',presetNumber: preset_num }
+        this.receivedMessageQueue.push(<PresetChangeMessage>{ type: 'hardware_preset_stored', presetNumber: preset_num });
     }
 
     read_effect_onoff() {
@@ -395,7 +396,7 @@ export class SparkMessageReader {
         this.add_str("OnOff", onoff)
         this.end_str()
 
-        this.deviceState.lastMessageReceived = <FxToggleMessage>{ type:'fx_toggled', dspId: effect, active: onoff == "On" }
+        this.receivedMessageQueue.push(<FxToggleMessage>{ type: 'fx_toggled', dspId: effect, active: onoff == "On" });
     }
 
     read_current_preset_number() {
@@ -403,7 +404,7 @@ export class SparkMessageReader {
 
         const current_preset = this.read_byte();
         this.deviceState.selectedPresetNumber = current_preset;
-        this.deviceState.lastMessageReceived = <PresetChangeMessage>{ type:'hardware_channel_current', presetNumber: current_preset }
+        this.receivedMessageQueue.push(<PresetChangeMessage>{ type: 'hardware_channel_current', presetNumber: current_preset });
     }
 
     read_bpm() {
@@ -414,19 +415,23 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.bpm = bpm;
-        this.deviceState.lastMessageReceived = { type:'hardware_bpm', bpm: bpm };
+        this.receivedMessageQueue.push({ type: 'hardware_bpm', bpm: bpm });
     }
 
     read_preset() {
 
-        let deviceState: DeviceState = {};
         let preset: Preset = {};
 
         this.start_str()
-        this.read_byte()
+        const presetMsgType = this.read_byte()
+
+        if (presetMsgType!=0) {
+            this.receivedMessageQueue.push({ type: 'unknown', data: presetMsgType });
+            return; //only parse full preset info
+        }
 
         const presetNum = this.read_byte()
-        deviceState.selectedPresetNumber = presetNum;
+        this.deviceState.selectedPresetNumber = presetNum;
 
         this.add_int("Preset number", preset)
         const uuid = this.read_string()
@@ -503,8 +508,7 @@ export class SparkMessageReader {
         preset.sigpath = signalPaths;
         preset.type = "jamup_speaker";
 
-        this.deviceState.presetConfig = preset;
-        this.deviceState.lastMessageReceived = <Preset>preset;
+        this.receivedMessageQueue.push({type:'preset', preset:<Preset>preset});
     }
 
     //
@@ -594,10 +598,11 @@ export class SparkMessageReader {
 
 
     log(...msg) {
-        console.debug("[SparkMessageReader]: " , msg);
+        console.debug("[SparkMessageReader]: ", msg);
     }
 
     interpret_data() {
+        this.log(`Interpreting ${this.message.length} messages `);
         for (let msg of this.message) {
 
             this.log("[RAW MSG]:" + buf2hex(msg));
@@ -612,10 +617,14 @@ export class SparkMessageReader {
     }
 
     read_message() {
-        this.deviceState.lastMessageReceived={type:'unknown'};
-
         this.structure_data()
         this.interpret_data()
         return this.message
+    }
+
+    readMessageQueue(){
+        const received = [...this.receivedMessageQueue];
+        this.receivedMessageQueue = [];
+        return received;
     }
 }

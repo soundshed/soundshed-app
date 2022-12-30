@@ -9,5 +9,11 @@ export interface SerialCommsProvider {
 
     listenForData(onListen: (buffer) => void);
 
+    beginQueuedReceive();
+
+    readReceiveQueue() : Array<Uint8Array>;
+
+    peekReceiveQueueEnd() : Uint8Array;
+
     write(buffer): Promise<void>
 }

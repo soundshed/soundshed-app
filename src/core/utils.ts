@@ -75,7 +75,7 @@ export class PlatformEvents {
         return new Promise(res => {
             var e = this.evtListeners.find(f => f.type == type);
             if (e != null) {
-                console.info("invoking action type:" + type);
+                console.debug("invoking action type:" + type);
                 e.action(type, data);
             } else {
                 console.warn("cannot invoke action type, no event listener:" + type);
