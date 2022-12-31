@@ -1,5 +1,5 @@
 import { DeviceController, BluetoothDeviceInfo } from "../../interfaces/deviceController";
-import { DeviceState } from "../../interfaces/preset";
+import { DeviceMessage, DeviceState, Preset } from "../../interfaces/preset";
 import { SparkCommandMessage } from "./sparkCommandMessage";
 import { FxCatalogProvider } from "./sparkFxCatalog";
 import { SparkMessageReader } from "./sparkMessageReader";
@@ -66,53 +66,102 @@ export class SparkDeviceManager implements DeviceController {
 
         this.connection.beginQueuedReceive();
 
-        let chunkRemainder=new Uint8Array(); // used to store the data
+        let chunkRemainder = new Array<Uint8Array>(); // used to store the data
 
-        let msgLoop = async ()=>{
+        let msgLoop = async () => {
 
             let queueEnd = this.connection.peekReceiveQueueEnd();
 
+            let maxWait = 10;
+            while (queueEnd != null && queueEnd[queueEnd.byteLength - 1] != 0xf7 && maxWait > 0) {
+                await Utils.sleepAsync(50);
+                queueEnd = this.connection.peekReceiveQueueEnd();
+                maxWait--;
+            }
+
             if (queueEnd != null) {
 
-                let byteArray = new Uint8Array(queueEnd.buffer);
 
-                if (byteArray[byteArray.length - 1] == 0xf7) {
-                    // current queue of messages has a message terminator, read entire queue
+                // current queue of messages has a message terminator, read entire queue
 
-                    let queueContent = this.connection.readReceiveQueue();
+                let queueContent = this.connection.readReceiveQueue();
 
-                    this.log('Received last message in batch, processing messages ' + queueContent.length);
+                this.log('Received last message in batch, processing messages ' + queueContent.length);
+                await this.readStateMessage(queueContent);
 
-                    let prevData = null;
-                    let tmpArray =[];
+                /*
 
-                    for(let dat of queueContent)
-                    {
-                        let data = new Uint8Array(dat.buffer);
+                                let prevData = null;
+                                let tmpArray = [];
 
-                        if (this.isDataEqual(prevData, data)) {
-                            this.log("Skipped a duplicate message");
+                                for (let dat of queueContent) {
+                                    let data = new Uint8Array(dat.buffer);
 
-                        } else {
-                          tmpArray.push(data);
-                          prevData=data;
+                                    if (chunkRemainder.length>0) {
+                                        //use remainder from last processing in this pass
 
-                          this.log(`[Q]: ${this.buf2hex(data)}`);
-                        }
+                                        this.log(`[CR]: ${this.buf2hex(chunkRemainder)}`);
+
+                                        data = SparkMessageReader.mergeBytes(...chunkRemainder, data);
+                                        chunkRemainder = new Array<Uint8Array>();
+
+                                        this.log(`[CR + DAT]: ${this.buf2hex(data)}`);
+                                    }
+
+                                    if (this.isDataEqual(prevData, data)) {
+                                        this.log("Skipped a duplicate message");
+
+                                    } else {
+                                        tmpArray.push(data);
+                                        prevData = data;
+
+                                        this.log(`[Q]: ${this.buf2hex(data)}`);
+                                    }
 
 
-                    }
+                                }
 
-                    await this.readStateMessage(tmpArray);
+                                await this.readStateMessage(tmpArray);
 
-                    // TODO: identify if queue has not changed for over 1 second without terminating, this would suggest info/connection is broken.
-                }
+                                // TODO: identify if queue has not changed for over 1 second without terminating, this would suggest info/connection is broken.
 
+                                // find remainder after last terminator and keep for next time
+                                let lastTerminator = null;
+                                let terminatorQueueIndex = null;
+                                chunkRemainder = new Array<Uint8Array>();
+
+                                for (let i = queueContent.length - 1; i >= 0 && lastTerminator == null; i--) {
+                                    let tmp = queueContent[i];
+                                    let tmpIndex = tmp.lastIndexOf(0xf7);
+                                    if (tmpIndex > -1) {
+
+                                        if (tmpIndex == tmp.length - 1 && i == queueContent.length - 1) {
+                                            // last row end in terminator, no remainder to append
+                                            break;
+                                        }
+
+                                        lastTerminator = tmpIndex;
+                                        terminatorQueueIndex = i;
+                                        // grab remainder of rows from queue from our last terminator onwards for re=use
+                                        for (let t = terminatorQueueIndex; t < queueContent.length; t++) {
+                                            if (t == terminatorQueueIndex) {
+                                                let slice = tmp.slice(lastTerminator + 1);
+                                                chunkRemainder.push(slice);
+                                            } else {
+                                                chunkRemainder.push(queueContent[t]);
+                                            }
+                                        }
+
+
+                                        break;
+                                    }
+                                }
+                                */
             }
         };
 
-        // call msg loop every 50 ms
-        setInterval(msgLoop,50);
+        // call msg loop every 100 ms
+        setInterval(msgLoop, 50);
     }
 
     public async disconnect() {
@@ -125,7 +174,7 @@ export class SparkDeviceManager implements DeviceController {
         return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
     }
 
-    public async readStateMessage(dataArray: Array<Uint8Array>) {
+    public async readStateMessage(dataArray: Array<Uint8Array>): Promise<DeviceMessage[]> {
 
         let reader = this.reader;
 
@@ -140,7 +189,7 @@ export class SparkDeviceManager implements DeviceController {
             this.log("Final Msg: " + JSON.stringify(m));
 
             if (m.type == 'preset') {
-                reader.deviceState.presetConfig = m.preset;
+                reader.deviceState.presetConfig = <Preset>m.value;
                 this.hydrateDeviceStateInfo(reader.deviceState);
             }
 
@@ -151,6 +200,8 @@ export class SparkDeviceManager implements DeviceController {
                 this.log("No onStateChange handler defined.")
             }
         }
+
+        return msgList;
     }
 
     private hydrateDeviceStateInfo(deviceState: DeviceState) {
@@ -292,12 +343,12 @@ export class SparkDeviceManager implements DeviceController {
 
     }
 
-    hexToBytes(hex: string) {
+    hexToUint8Array(hex: string): Uint8Array {
         for (var bytes = [], c = 0; c < hex.length; c += 2) {
             bytes.push(parseInt(hex.substr(c, 2), 16));
         }
 
-        return bytes;
+        return new Uint8Array(bytes);
     }
 
     private log(msg) {

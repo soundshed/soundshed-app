@@ -165,19 +165,83 @@ export class BleProvider implements SerialCommsProvider {
         return true;
     }
 
+
+    lastDataRemainder: Uint8Array = new Uint8Array();
+    enableMultiPartParsing = false;
+
+    public handleAndQueueMessageData(dataChunk: Uint8Array) {
+
+        if (this.enableMultiPartParsing) {
+            if (this.lastDataRemainder.byteLength > 0) {
+                //consumer remainder bytes from last time but prefixing to new chunk
+                dataChunk = SparkMessageReader.mergeBytes(this.lastDataRemainder, dataChunk);
+
+                this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
+                this.lastDataRemainder = new Uint8Array();
+            }
+
+            let terminatorIndexes = [];
+            for (let i = 0; i < dataChunk.byteLength - 1; i++) {
+                if (dataChunk[i] == 0xf7) {
+                    //terminator in middle of chunk
+                    this.log("Terminator in middle of chunk " + i);
+                    terminatorIndexes.push(i);
+                }
+            }
+
+            if (dataChunk[dataChunk.byteLength - 1] == 0xf7) {
+                // chunk is one block with a terminator
+
+                this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
+                this.receiveQueue.push(dataChunk);
+            } else {
+                // data has one or more mid-block terminators
+                if (terminatorIndexes.length > 0) {
+                    //split
+
+                    let lastIndex = 0;
+                    for (let i of terminatorIndexes) {
+                        let tmpChunk = dataChunk.slice(lastIndex, i + 1);
+                        this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
+                        lastIndex = i + 1;
+
+
+                        this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
+                        this.receiveQueue.push(new Uint8Array(tmpChunk));
+                    }
+
+                    let lastTerminator = terminatorIndexes.pop();
+                    if (lastTerminator < lastIndex) {
+                        // remainder
+                        this.lastDataRemainder = new Uint8Array(dataChunk.slice(lastTerminator + 1));
+
+                        this.log(`[PARTIAL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(this.lastDataRemainder)}`);
+                    }
+
+                } else {
+                    // whole chunk has no terminator, use next time
+                    this.lastDataRemainder = new Uint8Array(dataChunk);
+
+                    this.log(`[FULL REMAINDER BLE]: ${this.buf2hex(this.lastDataRemainder)}`);
+                }
+            }
+        } else {
+            this.receiveQueue.push(dataChunk);
+        }
+    }
     /*
      start receiving data for our target characteristic, storing in the receive queue
     */
     public async beginQueuedReceive() {
 
-        let enableMultiPartParsing = false;
+
 
         try {
             await this.changeCharacteristic.startNotifications();
 
             this.log('> Notifications started');
             this.isConnectedForRead = true;
-            let lastDataRemainder: Uint8Array = new Uint8Array();
+
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
                 const dataView: DataView = (<any>event.target).value;
                 let dataChunk = new Uint8Array(dataView.buffer);
@@ -186,66 +250,9 @@ export class BleProvider implements SerialCommsProvider {
                     this.log(`[ERROR]: timestamp out of order`);
                 }
 
-                this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataView.buffer)}`);
+                this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
 
-                if (enableMultiPartParsing) {
-                    if (lastDataRemainder.byteLength > 0) {
-                        //consumer remainder bytes from last time but prefixing to new chunk
-                        dataChunk = SparkMessageReader.mergeBytes(lastDataRemainder, dataChunk);
-
-                        this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
-                        lastDataRemainder = new Uint8Array();
-                    }
-
-                    let terminatorIndexes = [];
-                    for (let i = 0; i < dataChunk.byteLength - 1; i++) {
-                        if (dataChunk[i] == 0xf7) {
-                            //terminator in middle of chunk
-                            this.log("Terminator in middle of chunk " + i);
-                            terminatorIndexes.push(i);
-                        }
-                    }
-
-                    if (dataChunk[dataChunk.byteLength - 1] == 0xf7) {
-                        // chunk is one block with a terminator
-
-                        this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
-                        this.receiveQueue.push(dataChunk);
-                    } else {
-                        // data has one or more mid-block terminators
-                        if (terminatorIndexes.length > 0) {
-                            //split
-
-
-                            let lastIndex = 0;
-                            for (let i of terminatorIndexes) {
-                                let tmpChunk = dataChunk.slice(lastIndex, i + 1);
-                                this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
-                                lastIndex = i + 1;
-
-
-                                this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
-                                this.receiveQueue.push(new Uint8Array(tmpChunk));
-                            }
-
-                            let lastTerminator = terminatorIndexes.pop();
-                            if (lastTerminator < lastIndex - 1) {
-                                // remainder
-                                lastDataRemainder = new Uint8Array(dataChunk.slice(lastTerminator, dataChunk.byteLength - 1));
-
-                                this.log(`[SMALL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(lastDataRemainder)}`);
-                            }
-
-                        } else {
-                            // whole chunk has no terminator, use next time
-                            lastDataRemainder = new Uint8Array(dataChunk);
-
-                            this.log(`[LARGE REMAINDER BLE]: ${this.buf2hex(lastDataRemainder)}`);
-                        }
-                    }
-                } else {
-                    this.receiveQueue.push(dataChunk);
-                }
+                this.handleAndQueueMessageData(dataChunk);
             });
         } catch (err) {
             this.log('> Failed to begin listening for hardware data changes');
@@ -257,8 +264,6 @@ export class BleProvider implements SerialCommsProvider {
 
         const received = [...this.receiveQueue];
         this.receiveQueue = new Array<Uint8Array>;
-
-        // parse
         return received;
     }
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { Dropdown } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
+import { MessageParsingTest } from "../core/tests/messageParsingTest";
 import { WebConnectionTest } from "../core/tests/webConnectionTest";
 import { Utils } from "../core/utils";
 import { InputEventMapping } from "../spork/src/interfaces/inputEventMapping";
@@ -21,12 +22,17 @@ const SettingsControl = () => {
 
   const enableTestMode = true;
 
-  const runTests = async () => {
+  const runConnectionTests = async () => {
     if (!(window as any).webTest) {
       (window as any).webTest = new WebConnectionTest();
     }
 
     (window as any).webTest.RunTest();
+  };
+
+  const runMessageTest = async () => {
+ 
+     await new MessageParsingTest().Test();
   };
   
   const learnInputMapping = async (mapping: InputEventMapping) => {
@@ -164,10 +170,18 @@ const SettingsControl = () => {
         <div>
           <button
             onClick={() => {
-              runTests();
+              runConnectionTests();
             }}
           >
-            Test
+            Connection Test
+          </button>
+
+          <button
+            onClick={() => {
+              runMessageTest();
+            }}
+          >
+            Message Reading Test
           </button>
         </div>
       ) : (
