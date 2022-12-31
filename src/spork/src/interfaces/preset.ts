@@ -1,6 +1,10 @@
-export interface Preset {
+export interface DeviceMessage {
+    type?:string;
+    value?:any;
+}
+
+export interface Preset extends DeviceMessage {
     meta?: Meta;
-    type?: string;
     sigpath?: SignalPath[];
     bpm?: number;
 }
@@ -13,11 +17,10 @@ export interface Meta {
     id: string;
 }
 
-export interface FxParam {
+export interface FxParam extends DeviceMessage {
     value: any;
     index: number;
     name?: string; // used in fx catalog to describe param in UI
-    type?: string;
 }
 
 export interface FxParamMessage extends FxParam {
@@ -27,14 +30,18 @@ export interface FxParamMessage extends FxParam {
 export interface PresetChangeMessage extends FxParam {
     presetNumber: number;
 }
-export interface FxChangeMessage {
+export interface FxChangeMessage extends DeviceMessage {
     dspIdOld: string;
     dspIdNew: string;
 }
 
-export interface FxToggleMessage {
+export interface FxToggleMessage extends DeviceMessage {
     dspId: string;
     active: boolean;
+}
+
+export interface BpmMessage extends DeviceMessage{
+    bpm: number;
 }
 
 export interface SignalPath {
@@ -50,7 +57,7 @@ export interface DeviceState {
     selectedPresetNumber?: number;
     bpm?: number;
     presetConfig?: Preset;
-    message?: any;
+    message?: DeviceMessage;
 }
 
 export interface FxCatalogItem {

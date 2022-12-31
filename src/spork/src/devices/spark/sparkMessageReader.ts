@@ -1,6 +1,6 @@
 // port of https://github.com/paulhamsh/Spark-Parser/blob/main/SparkClassNew/SparkReaderClass.py
 
-import { DeviceState, FxChangeMessage, FxParam, FxParamMessage, FxToggleMessage, Preset, PresetChangeMessage, SignalPath } from "../../interfaces/preset";
+import { BpmMessage, DeviceMessage, DeviceState, FxChangeMessage, FxParam, FxParamMessage, FxToggleMessage, Preset, PresetChangeMessage, SignalPath } from "../../interfaces/preset";
 
 //
 //Spark Class
@@ -76,12 +76,12 @@ export class SparkMessageReader {
     private indent = "";
 
     public deviceState: DeviceState = {};
-    public receivedMessageQueue = [];
+    public receivedMessageQueue:DeviceMessage[] = [];
 
     constructor() {
         this.data = [];
         this.message = []
-        this.deviceState = {} ;
+        this.deviceState = {};
     }
 
     set_message(msgArray) {
@@ -415,7 +415,7 @@ export class SparkMessageReader {
         this.end_str()
 
         this.deviceState.bpm = bpm;
-        this.receivedMessageQueue.push({ type: 'hardware_bpm', bpm: bpm });
+        this.receivedMessageQueue.push(<BpmMessage>{ type: 'hardware_bpm', bpm: bpm });
     }
 
     read_preset() {
@@ -425,8 +425,8 @@ export class SparkMessageReader {
         this.start_str()
         const presetMsgType = this.read_byte()
 
-        if (presetMsgType!=0) {
-            this.receivedMessageQueue.push({ type: 'unknown', data: presetMsgType });
+        if (presetMsgType != 0) {
+            this.receivedMessageQueue.push({ type: 'unknown', value: presetMsgType });
             return; //only parse full preset info
         }
 
@@ -508,7 +508,7 @@ export class SparkMessageReader {
         preset.sigpath = signalPaths;
         preset.type = "jamup_speaker";
 
-        this.receivedMessageQueue.push({type:'preset', preset:<Preset>preset});
+        this.receivedMessageQueue.push({ type: 'preset', value: <Preset>preset });
     }
 
     //
@@ -622,7 +622,7 @@ export class SparkMessageReader {
         return this.message
     }
 
-    readMessageQueue(){
+    readMessageQueue(): DeviceMessage[] {
         const received = [...this.receivedMessageQueue];
         this.receivedMessageQueue = [];
         return received;
