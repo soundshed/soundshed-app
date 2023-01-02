@@ -25,6 +25,7 @@ export class BleProvider implements SerialCommsProvider {
     private receiveQueue: Array<Uint8Array>;
     private lastReceivedData: DataView;
     private lastTimeStamp = null;
+    private extendedLogging = false;
 
     constructor() {
         this.isConnectedForRead = false;
@@ -167,16 +168,28 @@ export class BleProvider implements SerialCommsProvider {
 
 
     lastDataRemainder: Uint8Array = new Uint8Array();
-    enableMultiPartParsing = false;
-
+    enableMultiPartParsing = true;
+    lastMsgTime: Date = null;
     public handleAndQueueMessageData(dataChunk: Uint8Array) {
+
+        let current = new Date();
+        if (this.lastMsgTime != null) {
+
+            if (Math.abs(current.getTime() - this.lastMsgTime.getTime()) > 500 && (this.receiveQueue.length > 0 || this.lastDataRemainder, length > 0)) {
+                //any data we have in queue is stale by 500ms, discarding
+                this.lastDataRemainder = new Uint8Array();
+                this.receiveQueue = new Array<Uint8Array>();
+                this.log(`Q data is stale, discarding`);
+            }
+        }
+        this.lastMsgTime = current;
 
         if (this.enableMultiPartParsing) {
             if (this.lastDataRemainder.byteLength > 0) {
                 //consumer remainder bytes from last time but prefixing to new chunk
                 dataChunk = SparkMessageReader.mergeBytes(this.lastDataRemainder, dataChunk);
 
-                this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
+                if (this.extendedLogging) this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
                 this.lastDataRemainder = new Uint8Array();
             }
 
@@ -184,7 +197,7 @@ export class BleProvider implements SerialCommsProvider {
             for (let i = 0; i < dataChunk.byteLength - 1; i++) {
                 if (dataChunk[i] == 0xf7) {
                     //terminator in middle of chunk
-                    this.log("Terminator in middle of chunk " + i);
+                    if (this.extendedLogging) this.log("Terminator in middle of chunk " + i);
                     terminatorIndexes.push(i);
                 }
             }
@@ -192,7 +205,7 @@ export class BleProvider implements SerialCommsProvider {
             if (dataChunk[dataChunk.byteLength - 1] == 0xf7) {
                 // chunk is one block with a terminator
 
-                this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
+                if (this.extendedLogging) this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
                 this.receiveQueue.push(dataChunk);
             } else {
                 // data has one or more mid-block terminators
@@ -202,11 +215,11 @@ export class BleProvider implements SerialCommsProvider {
                     let lastIndex = 0;
                     for (let i of terminatorIndexes) {
                         let tmpChunk = dataChunk.slice(lastIndex, i + 1);
-                        this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
+                        if (this.extendedLogging) this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
                         lastIndex = i + 1;
 
 
-                        this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
+                        if (this.extendedLogging) this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
                         this.receiveQueue.push(new Uint8Array(tmpChunk));
                     }
 
@@ -215,20 +228,23 @@ export class BleProvider implements SerialCommsProvider {
                         // remainder
                         this.lastDataRemainder = new Uint8Array(dataChunk.slice(lastTerminator + 1));
 
-                        this.log(`[PARTIAL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(this.lastDataRemainder)}`);
+                        if (this.extendedLogging) this.log(`[PARTIAL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(this.lastDataRemainder)}`);
                     }
 
                 } else {
                     // whole chunk has no terminator, use next time
                     this.lastDataRemainder = new Uint8Array(dataChunk);
 
-                    this.log(`[FULL REMAINDER BLE]: ${this.buf2hex(this.lastDataRemainder)}`);
+                    if (this.extendedLogging) this.log(`[FULL REMAINDER BLE]: ${this.buf2hex(this.lastDataRemainder)}`);
                 }
             }
         } else {
             this.receiveQueue.push(dataChunk);
         }
     }
+
+
+
     /*
      start receiving data for our target characteristic, storing in the receive queue
     */
@@ -253,6 +269,7 @@ export class BleProvider implements SerialCommsProvider {
                 this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
 
                 this.handleAndQueueMessageData(dataChunk);
+
             });
         } catch (err) {
             this.log('> Failed to begin listening for hardware data changes');
@@ -262,14 +279,31 @@ export class BleProvider implements SerialCommsProvider {
 
     public readReceiveQueue(): Array<Uint8Array> {
 
-        const received = [...this.receiveQueue];
-        this.receiveQueue = new Array<Uint8Array>;
-        return received;
+        // get index of first complete message where index is greater than or equal to the number of messages in the batch
+        let msgEnd = this.receiveQueue.findIndex(c => c[8] >= c[7] - 1);
+
+        if (msgEnd > -1) {
+            let msgBatch = this.receiveQueue.slice(0, msgEnd + 1);
+            let msgRemainder = this.receiveQueue.slice(msgEnd + 2);
+
+            this.receiveQueue = msgRemainder;
+            return msgBatch;
+        } else {
+            // no complete message in queue yet
+            return new Array<Uint8Array>;
+        }
+        /* this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
+         const received = [...this.receiveQueue];
+         this.receiveQueue = new Array<Uint8Array>;
+         return received;*/
     }
 
     public peekReceiveQueueEnd(): Uint8Array {
         if (this.receiveQueue.length > 0) {
-            return this.receiveQueue[this.receiveQueue.length - 1];
+            let msgEnd = this.receiveQueue.findIndex(c => c[8] >= c[7] - 1);
+            if (msgEnd > -1) {
+                return this.receiveQueue[msgEnd];
+            }
         } else {
             return null;
         }
@@ -280,7 +314,7 @@ export class BleProvider implements SerialCommsProvider {
         try {
             await this.changeCharacteristic.startNotifications();
 
-            this.log('> listendForData: Notifications started');
+            this.log('> listenForData: Notifications started');
 
             this.isConnectedForRead = true;
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {

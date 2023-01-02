@@ -53,6 +53,93 @@ export class MessageParsingTest {
         console.log(msgs);
     }
 
+    async Test4() {
+
+        // Spark Mini Example, possibly garbled
+        let data = [
+            "f0013a120301200f001900005924003631463032",
+            "464500392d444637382d00343142342d4231f7f0",
+            "013a470301000f011941362d4300453646373345",
+            "331035313536265248105954484d23302ef7f001",
+            "3a550301300f02193720",
+            "286900636f6e2e706e67654a42700000172e0062",
+            "6961732e6e6ff7f0013a390301000f0319697365",
+            "6758617465421300115d4a3d756e4301114d4a3e",
+            "292f120211f7f0013a340301080f04194a000000",
+            "02002a436f6d70726065",
+            "73736f7243127600114a3e7e3b10f7f0013a2003",
+            "01300f051901114a3f0874000027426f6f307374",
+            "657242130003114a3f0f1f7801f7f0013a0b0301",
+            "180f0619114a000018000002114a000004000024",
+            "5477696e1b431500114a",
+            "3f34f7f0013a6e0301500f07194f4a0111454a3e",
+            "3e51660211594a3f0360640311494a3f2b785204",
+            "11f7f0013a5b0301680f08194a3e3138020f2c43",
+            "686f72750073416e616c6f671b421400114a3f42",
+            "f7f0013a750301480f09",
+            "1966250111554a3e0f2f3a0211494a3f3e6a4e03",
+            "11214a3f115b1d2a44f7f0013a350301000f0a19",
+            "656c617960526532303143152600114a3e636716",
+            "1601114a3e1b2012f7f0013a4c0301300f0b1902",
+            "114a3e3107556c03114a",
+            "3e3139551a04114a3f090000002b626961f7f001",
+            "3a070301000f0c19732e72653076657262431700",
+            "03114a3f010761013b114a3e46745f02f7f0013a",
+            "0d0301580f0d19114a3e601b173203114a3f315b",
+            "162004114a3e795b797a",
+            "05114a3e6ef7f0013a420301480f0e0a4a380611",
+            "1d4a3e19191a17f7f0013a120301200f00190000",
+            "5924003631463032464500392d444637382d0034",
+            "3142342d4231f7f0013a470301000f011941362d"
+        ]
+
+
+        var dev = new SparkDeviceManager(null);
+        let devBytes = new Array<Uint8Array>();
+        for (let hex of data) {
+            devBytes.push(dev.hexToUint8Array(hex));
+        }
+
+        let msgs = await dev.readStateMessage(devBytes);
+        console.log(msgs);
+
+        //split data on f7
+        // get all bytes into single stream
+        let allBytes = [];
+        devBytes.forEach(element => {
+            element.forEach(d => {
+                allBytes.push(d);
+            });
+        });
+
+        // split stream into rows on f7
+        let allRows = new Array<Uint8Array>();
+        let currentRow = [];
+        for (let d of allBytes) {
+            currentRow.push(d);
+
+            if (d == 0xf7) {
+                allRows.push(new Uint8Array(currentRow));
+                currentRow = [];
+            }
+
+        }
+        if (currentRow.length > 0) allRows.push(new Uint8Array(currentRow));
+
+        console.log("Rows split by f7:");
+        for (let c of allRows) {
+
+            console.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
+        }
+
+        msgs = await dev.readStateMessage(allRows);
+        console.log(msgs);
+    }
+
+    buf2hex(buffer) { // buffer is an ArrayBuffer
+        return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+    }
+
     async Test3() {
 
         // Spark mini response stream
@@ -205,6 +292,6 @@ export class MessageParsingTest {
     }
 
     async Test() {
-        return await this.Test3();
+        return await this.Test4();
     }
 }

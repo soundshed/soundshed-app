@@ -66,18 +66,9 @@ export class SparkDeviceManager implements DeviceController {
 
         this.connection.beginQueuedReceive();
 
-        let chunkRemainder = new Array<Uint8Array>(); // used to store the data
-
         let msgLoop = async () => {
 
             let queueEnd = this.connection.peekReceiveQueueEnd();
-
-            let maxWait = 10;
-            while (queueEnd != null && queueEnd[queueEnd.byteLength - 1] != 0xf7 && maxWait > 0) {
-                await Utils.sleepAsync(50);
-                queueEnd = this.connection.peekReceiveQueueEnd();
-                maxWait--;
-            }
 
             if (queueEnd != null) {
 
@@ -87,6 +78,9 @@ export class SparkDeviceManager implements DeviceController {
                 let queueContent = this.connection.readReceiveQueue();
 
                 this.log('Received last message in batch, processing messages ' + queueContent.length);
+                for (var c of queueContent) {
+                    this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
+                }
                 await this.readStateMessage(queueContent);
 
                 /*
