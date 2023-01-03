@@ -68,93 +68,18 @@ export class SparkDeviceManager implements DeviceController {
 
         let msgLoop = async () => {
 
-            let queueEnd = this.connection.peekReceiveQueueEnd();
+            let queueContent = this.connection.readReceiveQueue();
 
-            if (queueEnd != null) {
-
-
-                // current queue of messages has a message terminator, read entire queue
-
-                let queueContent = this.connection.readReceiveQueue();
-
+            if (queueContent != null) {
                 this.log('Received last message in batch, processing messages ' + queueContent.length);
                 for (var c of queueContent) {
                     this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
                 }
                 await this.readStateMessage(queueContent);
-
-                /*
-
-                                let prevData = null;
-                                let tmpArray = [];
-
-                                for (let dat of queueContent) {
-                                    let data = new Uint8Array(dat.buffer);
-
-                                    if (chunkRemainder.length>0) {
-                                        //use remainder from last processing in this pass
-
-                                        this.log(`[CR]: ${this.buf2hex(chunkRemainder)}`);
-
-                                        data = SparkMessageReader.mergeBytes(...chunkRemainder, data);
-                                        chunkRemainder = new Array<Uint8Array>();
-
-                                        this.log(`[CR + DAT]: ${this.buf2hex(data)}`);
-                                    }
-
-                                    if (this.isDataEqual(prevData, data)) {
-                                        this.log("Skipped a duplicate message");
-
-                                    } else {
-                                        tmpArray.push(data);
-                                        prevData = data;
-
-                                        this.log(`[Q]: ${this.buf2hex(data)}`);
-                                    }
-
-
-                                }
-
-                                await this.readStateMessage(tmpArray);
-
-                                // TODO: identify if queue has not changed for over 1 second without terminating, this would suggest info/connection is broken.
-
-                                // find remainder after last terminator and keep for next time
-                                let lastTerminator = null;
-                                let terminatorQueueIndex = null;
-                                chunkRemainder = new Array<Uint8Array>();
-
-                                for (let i = queueContent.length - 1; i >= 0 && lastTerminator == null; i--) {
-                                    let tmp = queueContent[i];
-                                    let tmpIndex = tmp.lastIndexOf(0xf7);
-                                    if (tmpIndex > -1) {
-
-                                        if (tmpIndex == tmp.length - 1 && i == queueContent.length - 1) {
-                                            // last row end in terminator, no remainder to append
-                                            break;
-                                        }
-
-                                        lastTerminator = tmpIndex;
-                                        terminatorQueueIndex = i;
-                                        // grab remainder of rows from queue from our last terminator onwards for re=use
-                                        for (let t = terminatorQueueIndex; t < queueContent.length; t++) {
-                                            if (t == terminatorQueueIndex) {
-                                                let slice = tmp.slice(lastTerminator + 1);
-                                                chunkRemainder.push(slice);
-                                            } else {
-                                                chunkRemainder.push(queueContent[t]);
-                                            }
-                                        }
-
-
-                                        break;
-                                    }
-                                }
-                                */
             }
         };
 
-        // call msg loop every 100 ms
+        // call msg loop every 50 ms
         setInterval(msgLoop, 50);
     }
 

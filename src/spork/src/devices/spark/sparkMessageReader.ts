@@ -119,6 +119,7 @@ export class SparkMessageReader {
         //no point in retaining the block structure as chunks can span blocks
         //in messages received from Spark
 
+        /* Sorry - skipping this makes this code Mini-specific, but I couldn't get it to work otherwise*/
         for (let block of this.data) {
             let chunkoffset = 0;
             if ((block[0] == 0x01) && (block[1] == 0xfe)) {
@@ -152,10 +153,25 @@ export class SparkMessageReader {
 
         let chunk_8bit = []
 
-        for (let chunk of chunks) {
+        for (let chunk of this.data) {
             let this_cmd = chunk[4]
             let this_sub_cmd = chunk[5]
-            let data7bit = chunk.subarray(6, chunk.length - 1);
+            //let data7bit = chunk.subarray(6, chunk.length - 1);
+            // for some reason, I get a TypeError subarrry is not a function here (why?), so I had to replace it with some ghetto code
+            const uint8 = new Uint8Array(39);
+            let original_chunk_len = 39;
+            let data7bit : Uint8Array = new Uint8Array;
+            for(let i = original_chunk_len - 1; i >= 6; i--) {
+                if(chunk[i] == 0xf7)
+                {
+                    //data7bit = chunk.subarray(6,i);
+                    data7bit = new Uint8Array(i-6);
+                    for(let j = 6; j < i; j++) {
+                        data7bit[j-6] = chunk[j];
+                    }
+                    i = 0;
+                }
+            }
 
             let chunk_len = len(data7bit)
             let num_seq = Math.floor((chunk_len + 7) / 8)
@@ -569,25 +585,7 @@ export class SparkMessageReader {
             }
         }
         else if (cmd == 0x04) {
-            let ackMsg = "Acknowledgement: ";
-
-            switch (sub_cmd) {
-                case 0x01: ackMsg += "Preset Chunk";
-                    break;
-                case 0x05: ackMsg += "Preset Final Chunk";
-                    break;
-                case 0x06: ackMsg += "Changed Amp Model";
-                    break;
-                case 0x15: ackMsg += "Turn FX On/Off";
-                    break;
-                case 0x38: ackMsg += "Changed Preset Number";
-                    break;
-                case 0x70: ackMsg += "License Key";
-                    break;
-
-            }
-
-            this.log(ackMsg);
+            this.log(SparkMessageReader.getAckMessage(sub_cmd));
         }
         else {
             this.log("Unprocessed")
@@ -596,6 +594,26 @@ export class SparkMessageReader {
         return 1
     }
 
+    public static getAckMessage(sub_cmd) : string {
+        let ackMsg = "Acknowledgement: ";
+
+        switch (sub_cmd) {
+            case 0x01: ackMsg += "Preset Chunk";
+                break;
+            case 0x05: ackMsg += "Preset Final Chunk";
+                break;
+            case 0x06: ackMsg += "Changed Amp Model";
+                break;
+            case 0x15: ackMsg += "Turn FX On/Off";
+                break;
+            case 0x38: ackMsg += "Changed Preset Number";
+                break;
+            case 0x70: ackMsg += "License Key";
+                break;
+
+        }
+        return ackMsg;
+    }
 
     log(...msg) {
         console.debug("[SparkMessageReader]: ", msg);

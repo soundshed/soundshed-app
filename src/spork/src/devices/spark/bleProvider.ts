@@ -26,6 +26,8 @@ export class BleProvider implements SerialCommsProvider {
     private lastReceivedData: DataView;
     private lastTimeStamp = null;
     private extendedLogging = false;
+    public chunkBytesAccumulated = 0;
+    private latestChunk = new Uint8Array(39);
 
     constructor() {
         this.isConnectedForRead = false;
@@ -86,9 +88,12 @@ export class BleProvider implements SerialCommsProvider {
             this.commandCharacteristic = await service.getCharacteristic(parseInt(this.deviceCommandCharacteristicUUID));
             this.changeCharacteristic = await service.getCharacteristic(parseInt(this.deviceChangesCharacteristicUUID));
 
+        this.log("in connect() - flushing receive queue");
+        this.flushReceiveQueue();
+
             return true;
         } else {
-            this.log("Failed to connected to device..");
+            this.log("Failed to connect to device..");
             return false;
         }
     }
@@ -122,6 +127,19 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     async sendCommandBytes(commandStream) {
+        if (this.lastMsgTime!=null)
+        {
+            // check we have waited 200ms since last received data
+            let current=new Date();
+            if (Math.abs(current.getTime() - this.lastMsgTime.getTime()) <200)
+            {
+                this.log("Pausing before sending next command");
+                await Utils.sleepAsync(1000);
+            }
+        }
+
+        this.log("in sendCommandBytes() - flushing receive queue");
+        this.flushReceiveQueue();
 
         const uint8Array = new Uint8Array(commandStream);
 
@@ -134,6 +152,7 @@ export class BleProvider implements SerialCommsProvider {
             try {
                 attempts--;
                 await this.commandCharacteristic.writeValueWithoutResponse(uint8Array);
+                completed = true;
             } catch (err) {
                 if (attempts > 0) {
                     this.log("Error writing command changes, retrying..");
@@ -173,7 +192,7 @@ export class BleProvider implements SerialCommsProvider {
     public handleAndQueueMessageData(dataChunk: Uint8Array) {
 
         let current = new Date();
-        if (this.lastMsgTime != null) {
+        /* if (this.lastMsgTime != null) {
 
             if (Math.abs(current.getTime() - this.lastMsgTime.getTime()) > 500 && (this.receiveQueue.length > 0 || this.lastDataRemainder, length > 0)) {
                 //any data we have in queue is stale by 500ms, discarding
@@ -181,7 +200,7 @@ export class BleProvider implements SerialCommsProvider {
                 this.receiveQueue = new Array<Uint8Array>();
                 this.log(`Q data is stale, discarding`);
             }
-        }
+        } */
         this.lastMsgTime = current;
 
         if (this.enableMultiPartParsing) {
@@ -239,7 +258,47 @@ export class BleProvider implements SerialCommsProvider {
                 }
             }
         } else {
-            this.receiveQueue.push(dataChunk);
+                this.accumulateChunk(dataChunk);
+        }
+    }
+
+    // accumumlate partial chunks and only push complete chunks into receiveQueue
+    public accumulateChunk(receivedBytes: Uint8Array) {
+        for(let i = 0;i<receivedBytes.length;++i){
+            // ignore initial bytes that are not 0xf0
+            if (this.latestChunk[0] != 0xf0 && receivedBytes[i] != 0xf0)
+            {
+                continue;
+            }
+
+            this.latestChunk[this.chunkBytesAccumulated++] = receivedBytes[i];
+            if (receivedBytes[i] == 0xf7)
+            {
+                // chunk complete
+
+                /* Just logging - can uncomment for debugging
+                if (this.latestChunk[4] == 4)
+                {
+                    // this is an ACK - there's no other chunks to follow
+                    this.log(`Received ${SparkMessageReader.getAckMessage(this.latestChunk[5])}`);
+                }
+                else if (this.latestChunk[4] == 3 && this.latestChunk[7] == 0)
+                {
+                    // some type 3 commands contain only one chunk
+                    this.log(`Chunk complete: ${this.buf2hex(this.latestChunk.subarray(0,this.chunkBytesAccumulated))}`);
+                }
+                // other types of messages are multi-chunk
+                else
+                {
+                    this.log(`Chunk complete: ${this.buf2hex(this.latestChunk.subarray(0,this.chunkBytesAccumulated))} (${this.latestChunk[8] + 1} of ${this.latestChunk[7]})`);
+                } */
+
+                // push complete chunk onto receive queue and reset
+                let deepCopy = JSON.parse(JSON.stringify(this.latestChunk)) as typeof this.latestChunk;
+                this.receiveQueue.push(deepCopy);
+                this.latestChunk.fill(0);
+                this.chunkBytesAccumulated = 0;
+            }
         }
     }
 
@@ -277,25 +336,67 @@ export class BleProvider implements SerialCommsProvider {
 
     }
 
+    private isSingleChunkMessage(chunk : Uint8Array) : boolean {
+        return ((chunk[4] == 4) || (chunk[4] == 3 && chunk[7] == 0));
+        // command type 4 is an ACK, which is only one chunk
+        // some command type 3 commands are only one chunk
+        // all other types of messages are multi-chunk
+    }
+
     public readReceiveQueue(): Array<Uint8Array> {
-
-        // get index of first complete message where index is greater than or equal to the number of messages in the batch
-        let msgEnd = this.receiveQueue.findIndex(c => c[8] >= c[7] - 1);
-
-        if (msgEnd > -1) {
-            let msgBatch = this.receiveQueue.slice(0, msgEnd + 1);
-            let msgRemainder = this.receiveQueue.slice(msgEnd + 2);
-
-            this.receiveQueue = msgRemainder;
-            return msgBatch;
-        } else {
-            // no complete message in queue yet
-            return new Array<Uint8Array>;
+        if (this.receiveQueue.length == 0) {
+            return null;
         }
-        /* this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
-         const received = [...this.receiveQueue];
-         this.receiveQueue = new Array<Uint8Array>;
-         return received;*/
+
+        // process single chunk messages first
+        for (let i = 0; i < this.receiveQueue.length; i++) {
+            if (this.isSingleChunkMessage(this.receiveQueue[i]))
+            {
+                // let chunkArr = this.receiveQueue.splice(i, 1);
+                // received.push(chunkArr[0]);
+                // return received;
+                return this.receiveQueue.splice(i,1);
+            }
+        }
+
+        // this is a multi-chunk message
+        let nChunks = this.receiveQueue[0][7];
+        if (this.receiveQueue.length < nChunks) {
+            // missing chunk(s)
+            return null;
+        }
+
+        // inefficient, but handles cases where:
+        // a) chunks are out of order,
+        // b) we have enough chunks, but not (at least) 1 of each numbered chunk
+        for (let i = 0; i < nChunks; i++) {
+            let foundChunkj = false;
+            for (let j = 0; j < this.receiveQueue.length; j++) {
+                if (this.receiveQueue[j][8] == i)
+                {
+                    foundChunkj = true;
+                    j = this.receiveQueue.length;
+                }
+            }
+            if (foundChunkj == false) {
+                // missing a chunk
+                return null;
+            }
+        }
+
+        // this.log(`Received all chunks (${nChunks})`);
+        const received = new Array<Uint8Array>;
+        for (let i = 0; i < nChunks; i++) {
+            for (let j = 0; j < this.receiveQueue.length; j++) {
+                if (this.receiveQueue[j][8] == i)
+                {
+                    let chunkArr = this.receiveQueue.splice(j, 1);
+                    received.push(chunkArr[0]);
+                    j = this.receiveQueue.length;
+                }
+            }
+        }
+        return received;
     }
 
     public peekReceiveQueueEnd(): Uint8Array {
@@ -328,6 +429,14 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     public async write(msg: any) {
+
+
         return this.sendCommandBytes(msg);
+    }
+
+    public flushReceiveQueue() {
+        this.chunkBytesAccumulated = 0;
+        this.latestChunk.fill(0);
+        this.receiveQueue.splice(0);    // this empties the queue
     }
 }
