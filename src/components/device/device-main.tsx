@@ -54,13 +54,8 @@ const DeviceMainControl = () => {
 
     if (targetDeviceInfo != null) {
       console.info("Connecting device..");
-      return deviceViewModel.connectDevice(targetDeviceInfo).then((ok) => {
-        setTimeout(() => {
-          if (connected == true) {
-            console.info("Connected, refreshing preset..");
-            requestCurrentPreset();
-          }
-        }, 1000);
+      deviceViewModel.connectDevice(targetDeviceInfo).then((connectedOk) => {
+        console.warn("Completed initial connection to device..");
       });
     } else {
       console.warn("Target device not found..");
@@ -69,31 +64,11 @@ const DeviceMainControl = () => {
 
   const requestCurrentPreset = async (reconnect: boolean = false) => {
     if (reconnect) {
-      //
       console.info("Reconnecting..");
-
       await deviceViewModel.connectDevice(connectedDevice);
+    } else {
+      await deviceViewModel.requestPresetConfig();
     }
-
-    deviceViewModel.requestPresetConfig().then(async (ok) => {
-
-      //await Utils.sleepAsync(500);
-
-      console.debug(
-        "updating preset config in UI " +
-          JSON.stringify(DeviceStateStore.getRawState().presetTone)
-      );
-    });
-
-
-   /* deviceViewModel.requestCurrentChannelSelection().then(async () => {
-      console.info("Got update channel selection info");
-
-      //await ack then proceed
-      await Utils.sleepAsync(500);
-
-     
-    });*/
   };
 
   const requestSetChannel = (channelNum: number) => {
@@ -161,7 +136,6 @@ const DeviceMainControl = () => {
       </div>
       <div className="row">
         <div className="col">
-   
           <MiscControls
             deviceScanInProgress={deviceScanInProgress}
             onScanForDevices={requestScanForDevices}

@@ -268,20 +268,19 @@ export class DeviceViewModel {
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 
-                await Utils.sleepAsync(300);
+                await Utils.sleepAsync(50);
 
                 await this.requestCurrentChannelSelection();
 
-
-                await Utils.sleepAsync(300);
-
-                /*while(DeviceStateStore.getRawState().selectedChannel<0)
+                let maxWait =50;
+                while(maxWait>0 && DeviceStateStore.getRawState().selectedChannel<0)
                 {
                     console.log("waiting for channel selection info");
                     await Utils.sleepAsync(100);
-                }*/
+                    maxWait--;
+                }
 
-                await this.requestPresetConfig(DeviceStateStore.getRawState().selectedChannel);
+                //await this.requestPresetConfig(DeviceStateStore.getRawState().selectedChannel);
 
                 return true;
             } else {
@@ -314,8 +313,6 @@ export class DeviceViewModel {
     async requestPresetConfig(channelNum: number = null): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
 
-
-        //DeviceStateStore.getRawState().selectedChannel
         await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : 0x100 }).then(
             () => {
                 this.log("Completed preset query");
