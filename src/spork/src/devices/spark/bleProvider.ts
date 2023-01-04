@@ -27,7 +27,7 @@ export class BleProvider implements SerialCommsProvider {
     private lastMsgReceivedTime: Date = null;
     private lastMsgSentTime: Date = null;
 
-    private minWaitTimeMSBetweenCommands = 1000;
+    private minWaitTimeMSBetweenCommands = 500;
     private minWaitTimeForMessageQueue = 300;
 
     constructor() {
@@ -163,6 +163,10 @@ export class BleProvider implements SerialCommsProvider {
 
             for (let i of terminatorIndexes) {
 
+
+                if (this.getTimeDeltaSinceLastMsg() > 100 && this.lastDataChunkRemainder.length > 0) {
+                    this.log("Warning: outdated chunk remainder consumed");
+                }
                 // split item, push result and keep remainder
                 let partial = dataChunk.slice(currentSliceStartIndex, i + 1);
                 let merged = SparkMessageReader.mergeBytes(this.lastDataChunkRemainder, partial);
@@ -271,13 +275,22 @@ export class BleProvider implements SerialCommsProvider {
         if (!this.isSendQueueProcessing) {
             while (this.sendQueue.length > 0) {
                 this.isSendQueueProcessing = true;
-                let currentMsg = this.sendQueue.pop();
 
+                this.log(`Time since last command ${this.getTimeDeltaSinceLastCmd()}`);
                 // todo: consider the type of command last sent to determine wait (presets take longer than fx param changes)
-                while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeMSBetweenCommands) {
+                while (this.getTimeDeltaSinceLastCmd() < this.minWaitTimeMSBetweenCommands) {
                     this.log("Pausing for messages to be received before sending next command ");
                     await Utils.sleepAsync(this.minWaitTimeMSBetweenCommands);
                 }
+
+                while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
+                    this.log("Pausing [again] for messages to be received before sending next command ");
+                    await Utils.sleepAsync(this.minWaitTimeForMessageQueue);
+                }
+
+                this.lastMsgSentTime = new Date();
+
+                let currentMsg = this.sendQueue.pop();
 
                 const uint8Array = new Uint8Array(currentMsg);
 
