@@ -262,6 +262,7 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     isSendQueueProcessing = false;
+
     public async write(msg: any) {
 
         // add this message to start of queue, queue will be processed end-first

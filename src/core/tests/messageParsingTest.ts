@@ -221,7 +221,7 @@ export class MessageParsingTest {
         console.debug("Performing Multipart parsing of data into queue:")
         // test message queuing with split on terminator
         var serial = new BleProvider();
-        serial.enableMultiPartParsing = true;
+
         for (let dat of devBytes) {
             serial.handleAndQueueMessageData(dat);
         }
@@ -240,7 +240,7 @@ export class MessageParsingTest {
         ////////////// read data into message queue in two batches, unconsumed data should remain in queue for next batch
         console.debug("Preforming multi-stage queue parsing")
         serial = new BleProvider();
-        serial.enableMultiPartParsing = true;
+
         for (let dat of devBytes.slice(0, 9)) {
             serial.handleAndQueueMessageData(dat);
         }
