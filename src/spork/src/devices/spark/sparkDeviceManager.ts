@@ -25,37 +25,18 @@ export class SparkDeviceManager implements DeviceController {
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
-        // disconnect if already connected
-        //await this.disconnect();
-
         var connected = await this.connection.connect(device);
 
         if (connected) {
 
-            // setup serial read listener
-            // run as async message receiver
-
-            setTimeout(() => {
-                this.startReceiver();
-            }, 100);
+            // setup device read listener, running as background message receiver
+            this.startReceiver();
 
         } else {
             this.log('Device not yet connected! Cannot listen for data');
         }
 
         return connected;
-    }
-
-    private isDataEqual(a: Uint8Array, b: Uint8Array) {
-        if (a == null || b == null) return false;
-
-        if (a.byteLength !== b.byteLength) return false;
-
-        for (let i = 0; i < a.byteLength; i++) {
-            if (a[i] != b[i]) return false;
-        }
-
-        return true;
     }
 
     public async startReceiver() {
@@ -68,9 +49,10 @@ export class SparkDeviceManager implements DeviceController {
 
         let msgLoop = async () => {
 
+
             let queueContent = this.connection.readReceiveQueue();
 
-            if (queueContent != null) {
+            if (queueContent != null && queueContent.length > 0) {
                 this.log('Received last message in batch, processing messages ' + queueContent.length);
                 for (var c of queueContent) {
                     this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
@@ -78,6 +60,9 @@ export class SparkDeviceManager implements DeviceController {
                 await this.readStateMessage(queueContent);
             }
         };
+
+        // initial run
+        msgLoop();
 
         // call msg loop every 50 ms
         setInterval(msgLoop, 50);
@@ -89,7 +74,7 @@ export class SparkDeviceManager implements DeviceController {
         } catch { }
     }
 
-    private buf2hex(buffer) { // buffer is an ArrayBuffer
+    private buf2hex(buffer: ArrayBuffer) {
         return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
     }
 
@@ -105,7 +90,7 @@ export class SparkDeviceManager implements DeviceController {
         let msgList = reader.readMessageQueue();
         for (let m of msgList) {
 
-            this.log("Final Msg: " + JSON.stringify(m));
+            this.log(m);
 
             if (m.type == 'preset') {
                 reader.deviceState.presetConfig = <Preset>m.value;
@@ -271,6 +256,7 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     private log(msg) {
-        console.info("[SparkDeviceManager]: " + msg);
+        console.info("[SparkDeviceManager]:");
+        console.info(msg);
     }
 }

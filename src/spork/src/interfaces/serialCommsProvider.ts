@@ -7,8 +7,6 @@ export interface SerialCommsProvider {
 
     scanForDevices(): Promise<any>;
 
-    listenForData(onListen: (buffer) => void);
-
     beginQueuedReceive();
 
     readReceiveQueue() : Array<Uint8Array>;

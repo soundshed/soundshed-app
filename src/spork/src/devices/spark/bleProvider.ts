@@ -4,38 +4,40 @@ import { Utils } from "../../../../core/utils";
 import { SparkMessageReader } from "./sparkMessageReader";
 
 export class BleProvider implements SerialCommsProvider {
-    private targetDeviceName = "Spark 40 Audio";
+
     private selectedDevice: BluetoothDevice;
     private server: BluetoothRemoteGATTServer;
-    private service: BluetoothRemoteGATTService;
 
-    serviceGenericUUID = '00001800-0000-1000-8000-00805f9b34fb'; // service 'generic_access'
-    serviceCustomUUID = '0000ffc0-0000-1000-8000-00805f9b34fb'; // service 'FFC0'
+    private serviceGenericUUID = '00001800-0000-1000-8000-00805f9b34fb'; // service 'generic_access'
+    private serviceCustomUUID = '0000ffc0-0000-1000-8000-00805f9b34fb'; // service 'FFC0'
 
-    deviceCommandCharacteristicUUID = '0xffc1'; // device command messages
-    deviceChangesCharacteristicUUID = '0xffc2'; // device change messages
+    private deviceCommandCharacteristicUUID = '0xffc1'; // device command messages
+    private deviceChangesCharacteristicUUID = '0xffc2'; // device change messages
 
     private commandCharacteristic: BluetoothRemoteGATTCharacteristic;
     private changeCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     private isConnected: boolean;
-    private isConnectedForRead: boolean;
 
-    private sendQueue: Array<DataView>;
     private receiveQueue: Array<Uint8Array>;
-    private lastReceivedData: DataView;
+    private sendQueue: Array<Uint8Array>;
+
     private lastTimeStamp = null;
-    private extendedLogging = false;
-    public chunkBytesAccumulated = 0;
-    private latestChunk = new Uint8Array(39);
+    private lastDataChunkRemainder: Uint8Array = new Uint8Array();
+    private lastMsgReceivedTime: Date = null;
+    private lastMsgSentTime: Date = null;
+
+    private minWaitTimeMSBetweenCommands = 1000;
+    private minWaitTimeForMessageQueue = 300;
 
     constructor() {
-        this.isConnectedForRead = false;
-
-        this.sendQueue = [];
         this.receiveQueue = [];
+        this.sendQueue = [];
     }
 
+    /**
+    * Find one or more bluetooth devices to choose from
+    **/
     public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
 
         let devices: BluetoothDeviceInfo[] = [];
@@ -75,21 +77,10 @@ export class BleProvider implements SerialCommsProvider {
 
             const service = await this.server.getPrimaryService(this.serviceCustomUUID);
 
-            // generic access service:
-            // 00002a00-0000-1000-8000-00805f9b34fb : device name
-            // 00002a04-0000-1000-8000-00805f9b34fb : peripheral parameters
-
-            // 65472 [0000ffc0-0000-1000-8000-00805f9b34fb] service
-            // characteristic name: 65474 (0xFFC2), handle  7
-            // characteristic name: 65473 (0xFFC1), handle  10
-
             this.log("Getting Device Characteristics..");
 
             this.commandCharacteristic = await service.getCharacteristic(parseInt(this.deviceCommandCharacteristicUUID));
             this.changeCharacteristic = await service.getCharacteristic(parseInt(this.deviceChangesCharacteristicUUID));
-
-        this.log("in connect() - flushing receive queue");
-        this.flushReceiveQueue();
 
             return true;
         } else {
@@ -121,46 +112,21 @@ export class BleProvider implements SerialCommsProvider {
         }
     }
 
-    async sendCommand(targetCMD: string) {
-        let commandStream = this.hexToBytes(targetCMD);
-        return await this.sendCommandBytes(commandStream);
+    getTimeDeltaSinceLastMsg() {
+        if (this.lastMsgReceivedTime != null) {
+            let current = new Date();
+            return Math.abs(current.getTime() - this.lastMsgReceivedTime.getTime())
+        } else {
+            this.lastMsgReceivedTime = new Date();
+        }
     }
 
-    async sendCommandBytes(commandStream) {
-        if (this.lastMsgTime!=null)
-        {
-            // check we have waited 200ms since last received data
-            let current=new Date();
-            if (Math.abs(current.getTime() - this.lastMsgTime.getTime()) <200)
-            {
-                this.log("Pausing before sending next command");
-                await Utils.sleepAsync(1000);
-            }
-        }
-
-        this.log("in sendCommandBytes() - flushing receive queue");
-        this.flushReceiveQueue();
-
-        const uint8Array = new Uint8Array(commandStream);
-
-        this.log(`Writing command changes.. ${uint8Array.length} bytes`);
-
-        let attempts = 5;
-        let completed = false;
-
-        while (!completed && attempts > 0) {
-            try {
-                attempts--;
-                await this.commandCharacteristic.writeValueWithoutResponse(uint8Array);
-                completed = true;
-            } catch (err) {
-                if (attempts > 0) {
-                    this.log("Error writing command changes, retrying..");
-                    await Utils.sleepAsync(25);
-                } else {
-                    this.log("Error writing command changes, giving up..");
-                }
-            }
+    getTimeDeltaSinceLastCmd() {
+        if (this.lastMsgSentTime != null) {
+            let current = new Date();
+            return Math.abs(current.getTime() - this.lastMsgSentTime.getTime())
+        } else {
+            this.lastMsgSentTime = new Date();
         }
     }
 
@@ -173,149 +139,67 @@ export class BleProvider implements SerialCommsProvider {
         this.isConnected = false;
     }
 
-    private isDataEqual(a: DataView, b: DataView) {
-        if (a == null || b == null) return false;
-
-        if (a.byteLength !== b.byteLength) return false;
-
-        for (let i = 0; i < a.byteLength; i++) {
-            if (a.getUint8(i) !== b.getUint8(i)) return false;
-        }
-
-        return true;
-    }
-
-
-    lastDataRemainder: Uint8Array = new Uint8Array();
-    enableMultiPartParsing = true;
-    lastMsgTime: Date = null;
     public handleAndQueueMessageData(dataChunk: Uint8Array) {
 
-        let current = new Date();
-        /* if (this.lastMsgTime != null) {
+        this.lastMsgReceivedTime = new Date();
 
-            if (Math.abs(current.getTime() - this.lastMsgTime.getTime()) > 500 && (this.receiveQueue.length > 0 || this.lastDataRemainder, length > 0)) {
-                //any data we have in queue is stale by 500ms, discarding
-                this.lastDataRemainder = new Uint8Array();
-                this.receiveQueue = new Array<Uint8Array>();
-                this.log(`Q data is stale, discarding`);
+        dataChunk = this.trimHeader(dataChunk);
+
+        // look for f7
+        let terminatorIndexes = [];
+        for (let b = 0; b < dataChunk.byteLength; b++) {
+            if (dataChunk[b] == 0xf7) {
+                terminatorIndexes.push(b);
             }
-        } */
-        this.lastMsgTime = current;
+        }
 
-        if (this.enableMultiPartParsing) {
-            if (this.lastDataRemainder.byteLength > 0) {
-                //consumer remainder bytes from last time but prefixing to new chunk
-                dataChunk = SparkMessageReader.mergeBytes(this.lastDataRemainder, dataChunk);
-
-                if (this.extendedLogging) this.log(`[REMAINDER + RAW]: ${this.buf2hex(dataChunk)}`);
-                this.lastDataRemainder = new Uint8Array();
-            }
-
-            let terminatorIndexes = [];
-            for (let i = 0; i < dataChunk.byteLength - 1; i++) {
-                if (dataChunk[i] == 0xf7) {
-                    //terminator in middle of chunk
-                    if (this.extendedLogging) this.log("Terminator in middle of chunk " + i);
-                    terminatorIndexes.push(i);
-                }
-            }
-
-            if (dataChunk[dataChunk.byteLength - 1] == 0xf7) {
-                // chunk is one block with a terminator
-
-                if (this.extendedLogging) this.log(`[PUSHING FULL MSG]: ${this.buf2hex(dataChunk)}`);
-                this.receiveQueue.push(dataChunk);
-            } else {
-                // data has one or more mid-block terminators
-                if (terminatorIndexes.length > 0) {
-                    //split
-
-                    let lastIndex = 0;
-                    for (let i of terminatorIndexes) {
-                        let tmpChunk = dataChunk.slice(lastIndex, i + 1);
-                        if (this.extendedLogging) this.log(`[CHUNK RAW BLE ${lastIndex}-${i + 1}]: ${this.buf2hex(tmpChunk)}`);
-                        lastIndex = i + 1;
-
-
-                        if (this.extendedLogging) this.log(`[PUSHING CHUNK MSG]: ${this.buf2hex(tmpChunk)}`);
-                        this.receiveQueue.push(new Uint8Array(tmpChunk));
-                    }
-
-                    let lastTerminator = terminatorIndexes.pop();
-                    if (lastTerminator < lastIndex) {
-                        // remainder
-                        this.lastDataRemainder = new Uint8Array(dataChunk.slice(lastTerminator + 1));
-
-                        if (this.extendedLogging) this.log(`[PARTIAL REMAINDER BLE ${lastTerminator + 1}-${dataChunk.byteLength - 1}]: ${this.buf2hex(this.lastDataRemainder)}`);
-                    }
-
-                } else {
-                    // whole chunk has no terminator, use next time
-                    this.lastDataRemainder = new Uint8Array(dataChunk);
-
-                    if (this.extendedLogging) this.log(`[FULL REMAINDER BLE]: ${this.buf2hex(this.lastDataRemainder)}`);
-                }
-            }
+        if (terminatorIndexes.length == 0) {
+            // no terminator, append all to remainder
+            this.lastDataChunkRemainder = SparkMessageReader.mergeBytes(this.lastDataChunkRemainder, dataChunk);
         } else {
-                this.accumulateChunk(dataChunk);
-        }
-    }
 
-    // accumumlate partial chunks and only push complete chunks into receiveQueue
-    public accumulateChunk(receivedBytes: Uint8Array) {
-        for(let i = 0;i<receivedBytes.length;++i){
-            // ignore initial bytes that are not 0xf0
-            if (this.latestChunk[0] != 0xf0 && receivedBytes[i] != 0xf0)
-            {
-                continue;
-            }
+            let currentSliceStartIndex = 0;
+            let currentTerminatorItemIdx = 0;
 
-            this.latestChunk[this.chunkBytesAccumulated++] = receivedBytes[i];
-            if (receivedBytes[i] == 0xf7)
-            {
-                // chunk complete
+            for (let i of terminatorIndexes) {
 
-                /* Just logging - can uncomment for debugging
-                if (this.latestChunk[4] == 4)
-                {
-                    // this is an ACK - there's no other chunks to follow
-                    this.log(`Received ${SparkMessageReader.getAckMessage(this.latestChunk[5])}`);
+                // split item, push result and keep remainder
+                let partial = dataChunk.slice(currentSliceStartIndex, i + 1);
+                let merged = SparkMessageReader.mergeBytes(this.lastDataChunkRemainder, partial);
+
+                this.receiveQueue.push(merged);
+
+                currentTerminatorItemIdx++;
+
+                if (terminatorIndexes.length > currentTerminatorItemIdx) {
+                    // if our next slice will be a full message there is no remainder to add
+                    this.lastDataChunkRemainder = new Uint8Array();
+                } else {
+                    // preserve the remainder of the data chunk for prepending to our next message
+                    this.lastDataChunkRemainder = dataChunk.slice(i + 1);
                 }
-                else if (this.latestChunk[4] == 3 && this.latestChunk[7] == 0)
-                {
-                    // some type 3 commands contain only one chunk
-                    this.log(`Chunk complete: ${this.buf2hex(this.latestChunk.subarray(0,this.chunkBytesAccumulated))}`);
-                }
-                // other types of messages are multi-chunk
-                else
-                {
-                    this.log(`Chunk complete: ${this.buf2hex(this.latestChunk.subarray(0,this.chunkBytesAccumulated))} (${this.latestChunk[8] + 1} of ${this.latestChunk[7]})`);
-                } */
 
-                // push complete chunk onto receive queue and reset
-                let deepCopy = JSON.parse(JSON.stringify(this.latestChunk)) as typeof this.latestChunk;
-                this.receiveQueue.push(deepCopy);
-                this.latestChunk.fill(0);
-                this.chunkBytesAccumulated = 0;
+                currentSliceStartIndex = i + 1;
             }
         }
     }
 
-
+    trimHeader(data: Uint8Array) {
+        // Spark 40 multi-part messages have a 16 byte header we can discard
+        if ((data[0] == 0x01) && (data[1] == 0xfe)) {
+            data = data.subarray(16);
+        }
+        return data;
+    }
 
     /*
      start receiving data for our target characteristic, storing in the receive queue
     */
     public async beginQueuedReceive() {
-
-
-
         try {
             await this.changeCharacteristic.startNotifications();
 
             this.log('> Notifications started');
-            this.isConnectedForRead = true;
 
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
                 const dataView: DataView = (<any>event.target).value;
@@ -336,7 +220,7 @@ export class BleProvider implements SerialCommsProvider {
 
     }
 
-    private isSingleChunkMessage(chunk : Uint8Array) : boolean {
+    private isSingleChunkMessage(chunk: Uint8Array): boolean {
         return ((chunk[4] == 4) || (chunk[4] == 3 && chunk[7] == 0));
         // command type 4 is an ACK, which is only one chunk
         // some command type 3 commands are only one chunk
@@ -344,99 +228,80 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     public readReceiveQueue(): Array<Uint8Array> {
+
         if (this.receiveQueue.length == 0) {
             return null;
         }
 
-        // process single chunk messages first
-        for (let i = 0; i < this.receiveQueue.length; i++) {
-            if (this.isSingleChunkMessage(this.receiveQueue[i]))
-            {
-                // let chunkArr = this.receiveQueue.splice(i, 1);
-                // received.push(chunkArr[0]);
-                // return received;
-                return this.receiveQueue.splice(i,1);
-            }
-        }
-
-        // this is a multi-chunk message
-        let nChunks = this.receiveQueue[0][7];
-        if (this.receiveQueue.length < nChunks) {
-            // missing chunk(s)
+        // wait a minimum amount of time (e.g. 200ms) before returning our message queue
+        if (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
             return null;
         }
 
-        // inefficient, but handles cases where:
-        // a) chunks are out of order,
-        // b) we have enough chunks, but not (at least) 1 of each numbered chunk
-        for (let i = 0; i < nChunks; i++) {
-            let foundChunkj = false;
-            for (let j = 0; j < this.receiveQueue.length; j++) {
-                if (this.receiveQueue[j][8] == i)
-                {
-                    foundChunkj = true;
-                    j = this.receiveQueue.length;
-                }
-            }
-            if (foundChunkj == false) {
-                // missing a chunk
-                return null;
-            }
-        }
+        let lastItem = this.receiveQueue[this.receiveQueue.length - 1];
 
-        // this.log(`Received all chunks (${nChunks})`);
-        const received = new Array<Uint8Array>;
-        for (let i = 0; i < nChunks; i++) {
-            for (let j = 0; j < this.receiveQueue.length; j++) {
-                if (this.receiveQueue[j][8] == i)
-                {
-                    let chunkArr = this.receiveQueue.splice(j, 1);
-                    received.push(chunkArr[0]);
-                    j = this.receiveQueue.length;
-                }
-            }
-        }
-        return received;
-    }
-
-    public peekReceiveQueueEnd(): Uint8Array {
-        if (this.receiveQueue.length > 0) {
-            let msgEnd = this.receiveQueue.findIndex(c => c[8] >= c[7] - 1);
-            if (msgEnd > -1) {
-                return this.receiveQueue[msgEnd];
-            }
+        // only return our queue if the last item ends in an f7 terminator
+        if (lastItem[lastItem.length - 1] == 0xf7) {
+            const received = [...this.receiveQueue];
+            this.receiveQueue = new Array<Uint8Array>;
+            return received;
         } else {
             return null;
         }
     }
 
-    public async listenForData(onListen: (buffer) => void) {
+    public peekReceiveQueueEnd(): Uint8Array {
 
-        try {
-            await this.changeCharacteristic.startNotifications();
-
-            this.log('> listenForData: Notifications started');
-
-            this.isConnectedForRead = true;
-            this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                const dataView: DataView = (<any>event.target).value;
-                onListen(dataView.buffer);
-            });
-        } catch (err) {
-            this.log('> Failed to begin listening for hardware data changes');
+        // only return our queue end if the last item ends in an f7 terminator
+        let lastItem = this.receiveQueue[this.receiveQueue.length - 1];
+        if (lastItem[lastItem.length - 1] == 0xf7) {
+            return lastItem;
+        } else {
+            return null;
         }
-
     }
 
+    isSendQueueProcessing = false;
     public async write(msg: any) {
 
+        // add this message to start of queue, queue will be processed end-first
+        this.sendQueue.unshift(msg);
 
-        return this.sendCommandBytes(msg);
-    }
+        if (!this.isSendQueueProcessing) {
+            while (this.sendQueue.length > 0) {
+                this.isSendQueueProcessing = true;
+                let currentMsg = this.sendQueue.pop();
 
-    public flushReceiveQueue() {
-        this.chunkBytesAccumulated = 0;
-        this.latestChunk.fill(0);
-        this.receiveQueue.splice(0);    // this empties the queue
+                // todo: consider the type of command last sent to determine wait (presets take longer than fx param changes)
+                while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeMSBetweenCommands) {
+                    this.log("Pausing for messages to be received before sending next command ");
+                    await Utils.sleepAsync(this.minWaitTimeMSBetweenCommands);
+                }
+
+                const uint8Array = new Uint8Array(currentMsg);
+
+                this.log(`Writing command changes.. ${uint8Array.length} bytes`);
+
+                let attempts = 5;
+                let completed = false;
+
+                while (!completed && attempts > 0) {
+                    try {
+                        attempts--;
+                        await this.commandCharacteristic.writeValueWithoutResponse(uint8Array);
+                        completed = true;
+                    } catch (err) {
+                        if (attempts > 0) {
+                            this.log("Error writing command changes, retrying..");
+                            await Utils.sleepAsync(25);
+                        } else {
+                            this.log("Error writing command changes, giving up..");
+                        }
+                    }
+                }
+            }
+
+            this.isSendQueueProcessing = false;
+        }
     }
 }
