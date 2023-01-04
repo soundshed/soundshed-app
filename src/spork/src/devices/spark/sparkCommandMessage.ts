@@ -70,7 +70,7 @@ export class SparkCommandMessage {
     }
 
     get_raw_msg(): Uint8Array {
-        return this.mergeBytes([this.cmd,this.sub_cmd], this.data);
+        return this.mergeBytes([this.cmd, this.sub_cmd], this.data);
     }
 
     end_message() {
@@ -196,7 +196,7 @@ export class SparkCommandMessage {
 
         this.start_message(cmd, sub_cmd)
 
-        const cmdData = new Uint8Array([0,parseInt(preset_num),0]);
+        const cmdData = new Uint8Array([0, parseInt(preset_num), 0]);
         console.log("request preset info "+preset_num);
         this.add_bytes(cmdData);
 
@@ -333,20 +333,19 @@ export class SparkCommandMessage {
                 //if (typeof val == "boolean") {
                 //    this.add_onoff(val)
                 //} else {
-                    this.add_float(val)
+                this.add_float(val)
                 //}
             }
         }
 
         let chkSum = 0;
-        for(var b of Array.from(this.data.slice(chkStart)))
-        {
-            if (b>127) chkSum+=0xCC;
+        for (var b of Array.from(this.data.slice(chkStart))) {
+            if (b > 127) chkSum += 0xCC;
             else {
-                chkSum+=b;
+                chkSum += b;
             }
         }
-        chkSum = chkSum %256;
+        chkSum = chkSum % 256;
 
         this.add_bytes(bytes([chkSum]));
 
@@ -382,9 +381,8 @@ export class SparkCommandMessage {
         this.add_float(preset.bpm ?? 120)
         this.add_bytes(bytes(0x90 + preset.sigpath.length))        //  always 7 pedals
 
-        if (preset.sigpath.length!=7)
-        {
-            console.error("Signal path of preset is not expected 7 ["+preset.sigpath.length+"].");
+        if (preset.sigpath.length != 7) {
+            console.error("Signal path of preset is not expected 7 [" + preset.sigpath.length + "].");
         }
 
         for (let i = 0; i < preset.sigpath.length; i++) {
@@ -403,14 +401,13 @@ export class SparkCommandMessage {
 
         // checksum
         let chkSum = 0;
-        for(var b of Array.from(this.data.slice(chkStart)))
-        {
-            if (b>127) chkSum+=0xCC;
+        for (var b of Array.from(this.data.slice(chkStart))) {
+            if (b > 127) chkSum += 0xCC;
             else {
-                chkSum+=b;
+                chkSum += b;
             }
         }
-        chkSum = chkSum %256;
+        chkSum = chkSum % 256;
 
         this.add_bytes(bytes([chkSum]));
 
