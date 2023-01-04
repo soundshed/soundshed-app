@@ -1,6 +1,6 @@
 import React from "react";
 import { Dropdown } from "react-bootstrap";
-import Button from "react-bootstrap/Button";
+
 import { MessageParsingTest } from "../core/tests/messageParsingTest";
 import { WebConnectionTest } from "../core/tests/webConnectionTest";
 import { Utils } from "../core/utils";
@@ -105,7 +105,7 @@ const SettingsControl = () => {
         <td>{mapping.target.value}</td>
         <td>
           {" "}
-          <Button
+          <button
             disabled
             className="btn btn-sm"
             onClick={() => {
@@ -113,18 +113,18 @@ const SettingsControl = () => {
             }}
           >
             Delete
-          </Button>
+          </button>
         </td>
         <td>
           {" "}
-          <Button
+          <button
             className="btn btn-sm"
             onClick={() => {
               learnInputMapping(mapping);
             }}
           >
             Learn
-          </Button>
+          </button>
         </td>
       </tr>
     ));
@@ -132,7 +132,7 @@ const SettingsControl = () => {
 
   const renderMidiInputs = () => {
     return midiInputs.map((i) => (
-      <Dropdown.Item
+   <Dropdown.Item
         key={i.name}
         onClick={() => {
           selectMidiInput(i);
@@ -140,6 +140,7 @@ const SettingsControl = () => {
       >
         {i.name}
       </Dropdown.Item>
+    
     ));
   };
 

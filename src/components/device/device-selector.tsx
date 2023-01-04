@@ -72,8 +72,8 @@ const DeviceSelectorControl = () => {
   }, []);
 
   useEffect(() => {
-   // listen for specific state changes
-    }, [deviceConnectionFailed,deviceScanFailed,deviceScanInProgress]);
+    // listen for specific state changes
+  }, [deviceConnectionFailed, deviceScanFailed, deviceScanInProgress]);
 
   const listItems = (l: BluetoothDeviceInfo[]) => {
     let list = l.map((i) =>
@@ -156,8 +156,13 @@ const DeviceSelectorControl = () => {
         <h4>Devices</h4>
         <div>{listItems(devices)}</div>
       </div>
+
     </div>
   );
 };
 
+
+     /*<div className="pedalboard">
+        <ExampleControl></ExampleControl>
+      </div>*/
 export default DeviceSelectorControl;

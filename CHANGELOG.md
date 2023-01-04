@@ -1,3 +1,6 @@
+1.2.0 : 2023/01/04
+- Updated communications for Spark 40 and Spark Mini to improve reliability
+
 1.1.0 : 2022/12/23
 - Add support for Spark Mini
 

@@ -297,3 +297,8 @@ th {
 .table-striped>tbody>tr:nth-of-type(odd)>* {
     color:#9c9c9c;
 }
+
+.pedalboard{
+    height:500px;
+    background-color: rgba(0, 0, 0, 0.466);
+}
