@@ -37,7 +37,7 @@ const LessonsControl = () => {
   React.useEffect(() => {
     if (videoSearchResults == null || videoSearchResults.length == 0) {
       lessonManager.getVideoSearchResults(true, "backing track");
-      console.log("Lessons updating.");
+      console.debug("Lessons updating.");
     }
   }, []);
 

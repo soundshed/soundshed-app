@@ -1,20 +1,15 @@
 import { DeviceController, BluetoothDeviceInfo } from "../../interfaces/deviceController";
-import { DeviceState } from "../../interfaces/preset";
+import { DeviceMessage, DeviceState, Preset } from "../../interfaces/preset";
 import { SparkCommandMessage } from "./sparkCommandMessage";
 import { FxCatalogProvider } from "./sparkFxCatalog";
 import { SparkMessageReader } from "./sparkMessageReader";
-
 import { FxMappingSparkToTone } from "../../../../core/fxMapping";
 import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { Utils } from "../../../../core/utils";
 
 export class SparkDeviceManager implements DeviceController {
 
-    private latestStateReceived = [];
-    private stateInfo: any;
-
     public onStateChanged;
-    private lastStateTime = new Date().getTime()
 
     public deviceAddress = "";
 
@@ -24,48 +19,53 @@ export class SparkDeviceManager implements DeviceController {
 
     }
 
-    static sleepAsync = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
-
     public async scanForDevices(): Promise<BluetoothDeviceInfo[]> {
         return this.connection.scanForDevices();
     }
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
-        // disconnect if already connected
-        //await this.disconnect();
-
         var connected = await this.connection.connect(device);
 
         if (connected) {
-            // setup serial read listeners
-            this.connection.listenForData((buffer: ArrayBuffer) => {
 
-                let currentTime = new Date().getTime();
-                this.lastStateTime = currentTime;
+            // setup device read listener, running as background message receiver
+            this.startReceiver();
 
-                let byteArray = new Uint8Array(buffer);
-
-                this.log("[RECV]: " + this.buf2hex(byteArray));
-
-                this.latestStateReceived.push(byteArray);
-
-                if (byteArray[byteArray.length - 1] == 0xf7) {
-                    // end message
-
-                    this.log('Received last message in batch, processing message ' + this.latestStateReceived.length);
-
-                    this.readStateMessage().then(() => {
-
-                    }).finally(() => {
-                        this.latestStateReceived = [];
-                    });
-                }
-
-            });
+        } else {
+            this.log('Device not yet connected! Cannot listen for data');
         }
 
         return connected;
+    }
+
+    public async startReceiver() {
+
+        // continuously peek message queue for message terminator, then consume queue
+
+        this.log("Starting background receiver");
+
+        this.connection.beginQueuedReceive();
+
+        let msgLoop = async () => {
+
+
+            let queueContent = this.connection.readReceiveQueue();
+
+            if (queueContent != null && queueContent.length > 0) {
+                this.log('Received last message in batch, processing messages ' + queueContent.length);
+                for (var c of queueContent) {
+                    this.log(`MSG:${c[2]} IDX: ${c[8]} of ${c[7]} \t${this.buf2hex(c)}`);
+                }
+                await this.readStateMessage(queueContent);
+            }
+        };
+
+        // initial run
+        msgLoop();
+
+        // call msg loop every 50 ms
+        setInterval(msgLoop, 50);
     }
 
     public async disconnect() {
@@ -74,32 +74,38 @@ export class SparkDeviceManager implements DeviceController {
         } catch { }
     }
 
-    private buf2hex(buffer) { // buffer is an ArrayBuffer
+    private buf2hex(buffer: ArrayBuffer) {
         return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
     }
 
-    public async readStateMessage() {
-
-        this.log("Reading state message:" + this.buf2hex(this.latestStateReceived));
+    public async readStateMessage(dataArray: Array<Uint8Array>): Promise<DeviceMessage[]> {
 
         let reader = this.reader;
 
-        reader.set_message(this.latestStateReceived);
+        reader.set_message(dataArray);
 
+        reader.read_message();
 
-        let b = reader.read_message();
+        // reader receivedMessageQueue now contains an ordered list of interpreted messages
+        let msgList = reader.readMessageQueue();
+        for (let m of msgList) {
 
-        this.stateInfo = reader.text;
+            this.log(m);
 
-        if (reader.deviceState.lastMessageReceived.type == 'jamup_speaker') {
-            this.hydrateDeviceStateInfo(reader.deviceState);
+            if (m.type == 'preset') {
+                reader.deviceState.presetConfig = <Preset>m.value;
+                this.hydrateDeviceStateInfo(reader.deviceState);
+            }
+
+            if (this.onStateChanged) {
+                reader.deviceState.message = m;
+                this.onStateChanged(reader.deviceState);
+            } else {
+                this.log("No onStateChange handler defined.")
+            }
         }
 
-        if (this.onStateChanged) {
-            this.onStateChanged(reader.deviceState);
-        } else {
-            this.log("No onStateChange handler defined.")
-        }
+        return msgList;
     }
 
     private hydrateDeviceStateInfo(deviceState: DeviceState) {
@@ -108,8 +114,11 @@ export class SparkDeviceManager implements DeviceController {
 
         // populate metadata about fx etc
         if (deviceState.presetConfig) {
+
             for (let fx of deviceState.presetConfig.sigpath) {
+
                 let dspId = fx.dspId;
+
                 if (dspId.indexOf("bias.reverb") > -1) {
                     //map mode variant to our config dspId
                     dspId = FxMappingSparkToTone.getReverbDspId(fx.params[6].value);
@@ -130,6 +139,7 @@ export class SparkDeviceManager implements DeviceController {
                             p.name = paramInfo.name;
                         }
                     }
+
                 } else {
                     this.log("DSP Id is not present in FX Catalog: " + dspId);
 
@@ -146,20 +156,7 @@ export class SparkDeviceManager implements DeviceController {
         }
     }
 
-
     public async sendCommand(type, data) {
-
-        this.latestStateReceived = [];
-
-        /*if (this.sendInProgress) {
-            // if we are already sending something wait until we're finished that before doing anything else
-            while (this.sendInProgress) {
-                this.log("Send request while still sending another command. Queuing..")
-                await SparkDeviceManager.sleepAsync(100);
-            }
-
-        }*/
-        this.log("sending command");
 
         let msg = new SparkCommandMessage();
 
@@ -230,10 +227,10 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_info(0x23);
         }
 
+        // todo: convert to a send queue
         for (let dat of msgArray) {
             try {
                 this.log("[SEND RAW]: " + this.buf2hex(dat));
-                // this.log("[SEND]: " + this.buf2hex(msg));
 
                 if (typeof (Buffer) != "undefined") {
                     await this.connection.write(Buffer.from(dat));
@@ -241,24 +238,25 @@ export class SparkDeviceManager implements DeviceController {
                     await this.connection.write(dat);
                 }
 
-                await Utils.sleepAsync(100);
+
             } catch (err) {
                 console.warn("Caught err writing msg array");
+                await Utils.sleepAsync(100);
             }
         }
 
     }
 
-
-    hexToBytes(hex: string) {
+    hexToUint8Array(hex: string): Uint8Array {
         for (var bytes = [], c = 0; c < hex.length; c += 2) {
             bytes.push(parseInt(hex.substr(c, 2), 16));
         }
 
-        return bytes;
+        return new Uint8Array(bytes);
     }
 
     private log(msg) {
-        console.debug("[SparkDeviceManager]: " + msg);
+        console.info("[SparkDeviceManager]:");
+        console.info(msg);
     }
 }

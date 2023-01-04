@@ -128,7 +128,7 @@ export class SparkAPI {
 
         //https://api.positivegrid.com/v2/user_create/4fa1ffb3727a300001000000?page=1&page_size=12&preset_for=fx2
         let url = `${this.api_base}/user_create/${userId}?page=${page}&page_size=${page_size}&preset_for=spark`;
-        console.log(url);
+        console.debug(url);
 
         let response = await fetch(url, {
             method: 'GET',

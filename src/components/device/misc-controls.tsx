@@ -50,7 +50,7 @@ const MiscControls = ({
         )}
 
         <div className="col-md-4">
-          <label>Channel </label>
+          <label>Channel {selectedChannel} </label>
           <div
             className="btn-group ms-2"
             role="group"

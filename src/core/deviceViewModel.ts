@@ -1,5 +1,5 @@
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
-import { FxCatalog, FxCatalogItem, FxChangeMessage, Preset } from '../spork/src/interfaces/preset';
+import { DeviceState, FxCatalog, FxCatalogItem, FxChangeMessage, FxParamMessage, Preset, PresetChangeMessage } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone } from './fxMapping';
 import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
@@ -78,49 +78,55 @@ export class DeviceViewModel {
             this.onDevicesDiscovered(args);
         });
 
-        platformEvents.on('device-state-changed', (event, args) => {
+        platformEvents.on('device-state-changed', (event, args: DeviceState) => {
             this.log("got device state update from main.");
 
             // change to preset config update, ignore if is in response to fx change/toggle etc
             if (args.presetConfig && !this.lastCommandType.startsWith("requestFx")) {
                 // got a preset, convert to Tone object model as required,
-                let t: Tone = args.presetConfig;
+                let t: Tone;
                 if (args.presetConfig.meta) {
                     t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
+                } else {
+                    t = <Tone>args.presetConfig;
                 }
 
                 DeviceStateStore.update(s => { s.presetTone = t });
             }
 
-            if (args.lastMessageReceived) {
+            if (args.message) {
+                let message = args.message;
+                if (message.type == 'hardware_channel_current') {
+                    let presetChange = <PresetChangeMessage>message;
 
-                if (args.lastMessageReceived.presetNumber != null) {
+                    if (DeviceStateStore.getRawState().selectedChannel != presetChange.presetNumber) {
 
-                    if (DeviceStateStore.getRawState().selectedChannel != args.lastMessageReceived.presetNumber) {
-
-                        DeviceStateStore.update(s => { s.selectedChannel = args.lastMessageReceived.presetNumber });
+                        DeviceStateStore.update(s => { s.selectedChannel = presetChange.presetNumber });
 
                         // preset number has changed, refresh the details
-                        this.requestPresetConfig();
+                        this.requestPresetConfig(presetChange.presetNumber);
                     }
+
                 } else {
-                    if (args.lastMessageReceived.dspId != null) {
+                    if (message.type == 'fx_param_msg') {
                         //fx param change received from amp
                         // TODO: debounce this?
+                        let msg = <FxParamMessage>message;
 
                         // find param to change and set it in our model before sending to amp
                         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
 
-                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
+                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(msg.dspId));
+
                         if (!fx) {
-                            this.log("Updating device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
+                            this.log("Updating device state for UI: " + msg.dspId + " not found in current preset state");
 
                             // we didn't know the preset had this fx selected,attempt to use default params from fx catalog
-                            let newFx = (<FxCatalog>DeviceStateStore.getRawState().fxCatalog).catalog.find(f => f.dspId == this.expandedDspId(args.lastMessageReceived.dspId));
+                            let newFx = (<FxCatalog>DeviceStateStore.getRawState().fxCatalog).catalog.find(f => f.dspId == this.expandedDspId(msg.dspId));
 
                             // get whatever we have in this category and update it
                             /*
-                            var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspId));
+                            var fx = presetState.fx.find(f => f.type == this.expandedDspId(message.dspId));
                             fx.type = args.dspIdNew;
                             fx.name = newFx.name;
 
@@ -131,24 +137,26 @@ export class DeviceViewModel {
                         }
 
                         if (fx) {
-                            fx.params.find(p => p.paramId == args.lastMessageReceived.index).value = args.lastMessageReceived.value;
+                            fx.params.find(p => p.paramId == msg.index.toString()).value = message.value;
                             DeviceStateStore.update(s => { s.presetTone = presetState });
                         }
 
-                    } else if (args.lastMessageReceived.dspIdOld != null) {
+                    } else if (message.type == 'fx_change_msg') {
                         //fx type change received from amp
+
+                        let msg = <FxChangeMessage>message;
                         // TODO: debounce this? this doesn't work if you update faster than the UI state as the current preset state doesn't match
 
                         // find param to change and set it in our model before sending to amp
                         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
 
-                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(args.lastMessageReceived.dspIdOld));
+                        var fx = presetState.fx.find(f => f.type == this.expandedDspId(msg.dspIdOld));
+
                         if (!fx) {
-                            this.log("Cannot update device state for UI: " + args.lastMessageReceived.dspId + " not found in current preset state");
+                            this.log(`Cannot update device state for UI: ${msg.dspIdOld} not found in current preset state`);
                         } else {
 
-
-                            fx.type = this.expandedDspId(args.lastMessageReceived.dspIdNew);
+                            fx.type = this.expandedDspId(msg.dspIdNew);
                             let catalog: FxCatalogItem[] = DeviceStateStore.getRawState().fxCatalog.catalog;
                             fx.name = catalog.find(c => c.dspId == fx.type).name;
                             DeviceStateStore.update(s => { s.presetTone = presetState });
@@ -183,13 +191,16 @@ export class DeviceViewModel {
 
         if (deviceList.length > 0) {
             localStorage.setItem("lastKnownDevices", JSON.stringify(deviceList));
+        } else {
+            DeviceStateStore.update(s => { s.isDeviceScanInProgress = false, s.deviceScanFailed = true });
+
         }
 
         this.onStateChangeHandler();
     }
 
     log(msg: string) {
-        console.log(msg);
+        console.debug(msg);
     }
 
     getLastKnownDevices() {
@@ -206,7 +217,7 @@ export class DeviceViewModel {
 
         this.log("BLE scanning");
 
-        DeviceStateStore.update(s => { s.isDeviceScanInProgress = true });
+        DeviceStateStore.update(s => { s.isDeviceScanInProgress = true, s.deviceScanFailed = false });
 
         await platformEvents.invoke('perform-action', { action: 'scan' });
 
@@ -240,43 +251,49 @@ export class DeviceViewModel {
         }
 
         DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
-        Utils.sleepAsync(300);
+
+        Utils.sleepAsync(50);
+
         try {
             var connected = await this.deviceContext.deviceManager.connect(device);
 
-            Utils.sleepAsync(300);
+            Utils.sleepAsync(50);
 
             DeviceStateStore.update(s => { s.isConnectionInProgress = false });
 
             if (connected) {
                 // store last connected devices
 
-                DeviceStateStore.update(s => { s.isConnected = true });
-
-                DeviceStateStore.update(s => { s.connectedDevice = device });
-
-                DeviceStateStore.update(s => { s.lastAttemptedDevice = null });
+                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null });
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 
+                await Utils.sleepAsync(50);
+
                 await this.requestCurrentChannelSelection();
 
-                await Utils.sleepAsync(300);
+                let maxWait =50;
+                while(maxWait>0 && DeviceStateStore.getRawState().selectedChannel<0)
+                {
+                    console.log("waiting for channel selection info");
+                    await Utils.sleepAsync(100);
+                    maxWait--;
+                }
 
-                await this.requestPresetConfig();
+                //await this.requestPresetConfig(DeviceStateStore.getRawState().selectedChannel);
 
                 return true;
             } else {
                 const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStateStore.getRawState().lastAttemptedDevice);
                 if (attemptedDevice) {
                     attemptedDevice.connectionFailed = true;
-                    DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice; s.isConnected = false; s.isConnectionInProgress = false; });
+                    DeviceStateStore.update(s => { s.lastAttemptedDevice = attemptedDevice; s.isDeviceScanInProgress = false; s.isConnected = false; s.isConnectionInProgress = false; s.deviceConnectionFailed = true; });
                 }
                 return false;
             }
 
         } catch (err) {
-            DeviceStateStore.update(s => { s.isConnectionInProgress = false; s.isConnected = false; });
+            DeviceStateStore.update(s => { s.isConnectionInProgress = false; s.isDeviceScanInProgress = false; s.isConnected = false; s.deviceConnectionFailed = true; });
 
             this.log("Failed to connect:" + err.toString());
             return false;
@@ -293,9 +310,10 @@ export class DeviceViewModel {
         return true;
     }
 
-    async requestPresetConfig(): Promise<boolean> {
+    async requestPresetConfig(channelNum: number = null): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
-        await platformEvents.invoke('perform-action', { action: 'getPreset', data: DeviceStateStore.getRawState().selectedChannel }).then(
+
+        await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : 0x100 }).then(
             () => {
                 this.log("Completed preset query");
             });
@@ -489,11 +507,13 @@ export class DeviceViewModel {
             this.log("Completed setting channel");
 
             // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
-            await Utils.sleepAsync(300);
+            await Utils.sleepAsync(100);
 
             DeviceStateStore.update(s => { s.selectedChannel = channelNum });
-            this.log("...Performing follow up preset query after channel change")
-            return await this.requestPresetConfig();
+
+            this.log("...Performing follow up preset query after channel change");
+
+            return await this.requestPresetConfig(channelNum);
 
         } catch {
             return false;

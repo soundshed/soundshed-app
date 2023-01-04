@@ -57,7 +57,7 @@ const App = () => {
 
   useEffect(() => {
     return history?.listen((evt) => {
-      console.log(`Navigated the page to: ${evt.location.pathname}`);
+      console.debug(`Navigated the page to: ${evt.location.pathname}`);
       appViewModel.logPageView(evt.location.pathname);
     });
   }, [history]);
@@ -145,6 +145,7 @@ const App = () => {
       s.presetTone=TonesStateStore.getRawState().storedPresets[0];
       s.connectedDevice= {name:"Mock Amp", address:"A1:B2:C3:D4:E5"};
     });*/
+
   }, []);
 
   let activeClassName = "nav-link active";

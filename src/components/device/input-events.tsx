@@ -12,16 +12,14 @@ const InputEventsControl = () => {
     (s) => s.selectedMidiInput
   );
 
-  const lastMidiEvent: object = AppStateStore.useState(
-    (s) => s.lastMidiEvent
-  );
+  const lastMidiEvent: object = AppStateStore.useState((s) => s.lastMidiEvent);
 
   useEffect(() => {
     console.log("Midi/input events changed : " + selectedMidiInput);
 
     if (selectedMidiInput != null) {
       setupMidiEvents(true, selectedMidiInput.toString());
-    } 
+    }
 
     if (inputEventMappings != null && inputEventMappings.length > 0) {
       setupKeyboardEvents();
@@ -55,14 +53,14 @@ const InputEventsControl = () => {
             });
           });
 
-          console.log(WebMidi.inputs);
-          console.log(WebMidi.outputs);
+          console.debug(WebMidi.inputs);
+          console.debug(WebMidi.outputs);
 
           if (midiDeviceName != null) {
             let input = WebMidi.inputs.find((i) => i.name == midiDeviceName);
 
             if (input != null) {
-              console.log("midi input mapped: " + midiDeviceName);
+              console.debug("midi input mapped: " + midiDeviceName);
 
               // listen for midi inputs and match inputs to mapping
 
@@ -70,20 +68,23 @@ const InputEventsControl = () => {
               input.removeListener();
 
               let eventListener = (e) => {
-
-                if (lastMidiEvent != null && (lastMidiEvent as any).value==e.value){
-                  console.log("skipping duplicate midi event ");
+                if (
+                  lastMidiEvent != null &&
+                  (lastMidiEvent as any).value == e.value
+                ) {
+                  console.debug("skipping duplicate midi event ");
                   return;
-                 
+                } else {
+                  console.debug(e);
                 }
-                else {
-                  console.log(e);
-                }
-   
+
                 for (let mapping of inputEventMappings) {
                   if (mapping.source.type === "midi") {
                     try {
-                      if (mapping.source.code == e.note?.number.toString() || mapping.source.code == e.value?.toString()) {
+                      if (
+                        mapping.source.code == e.note?.number.toString() ||
+                        mapping.source.code == e.value?.toString()
+                      ) {
                         deviceViewModel
                           .setChannel(parseInt(mapping.target.value))
                           .catch((err) => {
