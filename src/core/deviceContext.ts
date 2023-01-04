@@ -125,5 +125,10 @@ export class DeviceContext {
         if (args.action == 'changeAmp') {
             this.deviceManager.sendCommand("change_amp", args.data);
         }
+
+        if (args.action == 'storePreset') {
+            this.deviceManager.sendCommand("store_current_preset", args.data);
+        }
+
     }
 }

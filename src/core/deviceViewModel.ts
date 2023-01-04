@@ -313,7 +313,7 @@ export class DeviceViewModel {
     async requestPresetConfig(channelNum: number = null): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
 
-        await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : 0x100 }).then(
+        await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : 0x7f }).then(
             () => {
                 this.log("Completed preset query");
             });
@@ -530,6 +530,14 @@ export class DeviceViewModel {
 
     async getDeviceSerial(): Promise<boolean> {
         await platformEvents.invoke('perform-action', { action: 'getDeviceSerial', data: {} }).then(
+            () => {
+
+            });
+        return true;
+    }
+
+    async storeCurrentPreset(presetNum: number): Promise<boolean> {
+        await platformEvents.invoke('perform-action', { action: 'storePreset', data: presetNum }).then(
             () => {
 
             });

@@ -82,7 +82,7 @@ const DeviceMainControl = () => {
   };
 
   const requestStoreHardwarePreset = () => {
-    console.warn("Would apply current preset to hardware channel");
+    deviceViewModel.storeCurrentPreset(selectedChannel);  
   };
 
   const fxParamChange = (args) => {

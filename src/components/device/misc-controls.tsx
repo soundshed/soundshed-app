@@ -12,7 +12,7 @@ const MiscControls = ({
   selectedChannel,
   onSetPreset,
 }) => {
-  const enableStorePreset = false;
+  const enableStorePreset = true;
   React.useEffect(() => {
     // watch for changes
   }, [
@@ -40,9 +40,10 @@ const MiscControls = ({
             <button
               type="button"
               className="btn btn-sm btn-secondary"
-              id="storePreset"
+              id="storePreset" title="Store settings to the current channel"
+              onClick={()=>{ onSetPreset()}}
             >
-              Store Preset
+              Store Settings
             </button>
           </div>
         ) : (
