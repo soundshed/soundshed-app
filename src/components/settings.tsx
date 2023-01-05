@@ -31,10 +31,9 @@ const SettingsControl = () => {
   };
 
   const runMessageTest = async () => {
- 
-     await new MessageParsingTest().Test();
+    await new MessageParsingTest().Test();
   };
-  
+
   const learnInputMapping = async (mapping: InputEventMapping) => {
     AppStateStore.update((s) => {
       s.lastMidiEvent = null;
@@ -132,26 +131,40 @@ const SettingsControl = () => {
 
   const renderMidiInputs = () => {
     return midiInputs.map((i) => (
-   <Dropdown.Item
-        key={i.name}
-        onClick={() => {
-          selectMidiInput(i);
-        }}
-      >
-        {i.name}
-      </Dropdown.Item>
-    
+      <li>
+        <a
+          className="dropdown-item"
+          href="#"
+          key={i.name}
+          onClick={() => {
+            selectMidiInput(i);
+          }}
+        >
+          {i.name}
+        </a>
+      </li>
     ));
   };
 
   return (
     <div className="settings-intro">
       <h1>Settings</h1>
-
-      <Dropdown>
-        <Dropdown.Toggle variant="success" id="dropdown-basic">
+      <div className="dropdown">
+        <button
+          className="btn btn-secondary dropdown-toggle"
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
           Select Midi Input
-        </Dropdown.Toggle>
+        </button>
+        <ul className="dropdown-menu">{renderMidiInputs()}</ul>
+      </div>
+      <Dropdown>
+        <Dropdown.Toggle
+          variant="success"
+          id="dropdown-basic"
+        ></Dropdown.Toggle>
 
         <Dropdown.Menu>{renderMidiInputs()}</Dropdown.Menu>
       </Dropdown>

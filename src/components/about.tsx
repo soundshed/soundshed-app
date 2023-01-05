@@ -1,7 +1,6 @@
 import React from "react";
 
 import { appViewModel } from "./app";
-import Button from "react-bootstrap/Button";
 import { AppStateStore } from "../stores/appstate";
 import { openLink } from "../core/platformUtils";
 import env from "../env";
@@ -66,28 +65,28 @@ const AboutControl = () => {
           {appUpdateAvailable == true ? (
             <p className="alert alert-info m-2 p-2">
               There is a new app version available. Updating is recommended.
-              <Button
+              <button
                 className="btn btn-sm ms-2"
                 onClick={(e) => {
                   openLink(e, "https://soundshed.com");
                 }}
               >
                 Download Update
-              </Button>
+              </button>
             </p>
           ) : (
             <p>
               <span className="badge rounded-pill bg-secondary">
                 {appInfo?.name} {appInfo?.version}
               </span>
-              <Button
+              <button
                 className="btn btn-sm ms-2"
                 onClick={() => {
                   checkForUpdates(true);
                 }}
               >
                 Check For Updates
-              </Button>
+              </button>
             </p>
           )}
         </div>

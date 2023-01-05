@@ -66,13 +66,13 @@
     "webmidi": "3.0.25",
     "webpack": "5.75.0",
     "webpack-cli": "5.0.1",
-    "youtube-search": "^1.1.6"
+    "youtube-search": "^1.1.6",
+    "@react-three/drei": "9.51.3",
+    "@react-three/fiber": "8.10.0",
+    "@types/three": "0.148.0",
+    "three": "0.148.0"
   },
   "dependencies": {
-    "@react-three/drei": "^9.50.4",
-    "@react-three/fiber": "9.0.0-alpha.2",
-    "@types/three": "^0.147.0",
-    "three": "^0.147.0",
     "update-electron-app": "^2.0.1"
   },
   "config": {
