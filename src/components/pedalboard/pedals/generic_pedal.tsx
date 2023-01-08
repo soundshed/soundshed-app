@@ -1,19 +1,17 @@
 import React, { Suspense } from "react";
-import { useLoader } from "@react-three/fiber";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { useGLTF } from "@react-three/drei";
 
 const GenericFXPedal = ({ position }) => {
-  const model = useLoader(
-    GLTFLoader,
-    "./images/models/pedal.glb"
+  const model = useGLTF(
+    "./images/models/test_pedal.glb"
   );
 
   return (
     <Suspense fallback={null}>
       <primitive
         position={position}
-        object={model.scene} rotation={[1.57,3.14159,0]}
-        scale={[0.3, 0.3, 0.3]}
+        object={model.scene} rotation={[1.6,0,0]}
+        scale={[2, 2, 2]}
       />
     </Suspense>
   );

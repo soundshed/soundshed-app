@@ -26,8 +26,11 @@
     "@fortawesome/fontawesome-svg-core": "6.2.1",
     "@fortawesome/free-solid-svg-icons": "6.2.1",
     "@fortawesome/react-fontawesome": "0.2.0",
+    "@react-three/drei": "9.51.3",
+    "@react-three/fiber": "8.10.0",
     "@types/react": "18.0.20",
     "@types/react-dom": "^18.0.6",
+    "@types/three": "0.148.0",
     "@types/web-bluetooth": "0.0.16",
     "@typescript-eslint/eslint-plugin": "5.47.0",
     "@typescript-eslint/parser": "5.47.0",
@@ -61,18 +64,16 @@
     "react-player": "^2.11.0",
     "react-router-dom": "^6.6.0",
     "style-loader": "3.3.1",
+    "three": "0.148.0",
     "ts-loader": "9.4.2",
     "typescript": "4.9.4",
     "webmidi": "3.0.25",
     "webpack": "5.75.0",
     "webpack-cli": "5.0.1",
-    "youtube-search": "^1.1.6",
-    "@react-three/drei": "9.51.3",
-    "@react-three/fiber": "8.10.0",
-    "@types/three": "0.148.0",
-    "three": "0.148.0"
+    "youtube-search": "^1.1.6"
   },
   "dependencies": {
+    "@react-three/postprocessing": "^2.7.0",
     "update-electron-app": "^2.0.1"
   },
   "config": {

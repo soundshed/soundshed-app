@@ -10,7 +10,7 @@ const AmpMesaDual = ({ position }) => {
 
   return (
     <Suspense fallback={null}>
-      <primitive
+      <primitive 
         position={position}
         object={model.scene}
         scale={[0.2, 0.2, 0.2]}
