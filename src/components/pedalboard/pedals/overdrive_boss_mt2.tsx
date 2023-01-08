@@ -1,13 +1,10 @@
 import React, { Suspense } from "react";
-import { useLoader } from "@react-three/fiber";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { useGLTF } from "@react-three/drei";
 
 const OverdriveBossMT2 = ({ position }) => {
-  const model = useLoader(
-    GLTFLoader,
+  const model = useGLTF(
     "./images/models/boss_metal_zone_mt2_-_guitar_pedal.glb"
   );
-
   return (
     <Suspense fallback={null}>
       <primitive
