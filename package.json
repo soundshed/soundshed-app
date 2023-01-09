@@ -74,6 +74,7 @@
   },
   "dependencies": {
     "@react-three/postprocessing": "^2.7.0",
+    "@react-three/rapier": "^0.11.3",
     "update-electron-app": "^2.0.1"
   },
   "config": {
