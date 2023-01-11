@@ -28,6 +28,8 @@
     "@fortawesome/react-fontawesome": "0.2.0",
     "@react-three/drei": "9.51.3",
     "@react-three/fiber": "8.10.0",
+    "@react-three/postprocessing": "^2.7.0",
+    "@react-three/rapier": "^0.11.3",
     "@types/react": "18.0.20",
     "@types/react-dom": "^18.0.6",
     "@types/three": "0.148.0",
@@ -73,8 +75,6 @@
     "youtube-search": "^1.1.6"
   },
   "dependencies": {
-    "@react-three/postprocessing": "^2.7.0",
-    "@react-three/rapier": "^0.11.3",
     "update-electron-app": "^2.0.1"
   },
   "config": {
