@@ -352,14 +352,15 @@ export class SparkCommandMessage {
         return this.end_message()
     }
 
-    create_preset_from_model(preset: Preset) {
+    create_preset_from_model(preset: Preset, channelNum:number = 0x7f) {
 
         const cmd = 0x01
         const sub_cmd = 0x01
 
-        this.start_message(cmd, sub_cmd, true)
+        this.start_message(cmd, sub_cmd, true);
 
-        this.add_bytes(bytes([0x00, 0x7f]))
+        //channelNum=1;
+        this.add_bytes(bytes([0x00, channelNum]))
 
         //checksum is generated using bytes from here onwards..
         let chkStart = this.data.length;

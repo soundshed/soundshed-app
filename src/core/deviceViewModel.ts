@@ -1,6 +1,6 @@
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
 import { DeviceState, FxCatalog, FxCatalogItem, FxChangeMessage, FxParamMessage, Preset, PresetChangeMessage } from '../spork/src/interfaces/preset';
-import { FxMappingSparkToTone } from './fxMapping';
+import { FxMappingSparkToTone, FxMappingToneToSpark } from './fxMapping';
 import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 import { Utils } from './utils';
@@ -537,7 +537,12 @@ export class DeviceViewModel {
     }
 
     async storeCurrentPreset(presetNum: number): Promise<boolean> {
-        await platformEvents.invoke('perform-action', { action: 'storePreset', data: presetNum }).then(
+
+        this.lastCommandType = "requestPresetChange";
+        let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
+        let p = new FxMappingToneToSpark().mapFrom(presetState);
+
+        await platformEvents.invoke('perform-action', { action: 'storePreset', data: [p, presetNum] }).then(
             () => {
 
             });

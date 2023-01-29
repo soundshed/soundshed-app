@@ -7,7 +7,7 @@ export class DeviceContext {
     deviceManager: SparkDeviceManager;
     msgSendDelegate: (type: string, msg: any) => void;
 
-    private log(msg:string){
+    private log(msg: string) {
         console.debug(msg);
     }
 
@@ -74,8 +74,8 @@ export class DeviceContext {
             // send preset
             this.deviceManager.sendCommand("set_preset_from_model", args.data).then(() => {
                 setTimeout(() => {
-                    //apply preset to virtual channel 127
-                    this.deviceManager.sendCommand("set_channel", 127);
+                    //apply preset to virtual channel 127 (0x7f)
+                    this.deviceManager.sendCommand("set_channel", 0x7f);
                 }, 100);
 
             });
@@ -127,7 +127,10 @@ export class DeviceContext {
         }
 
         if (args.action == 'storePreset') {
-            this.deviceManager.sendCommand("store_current_preset", args.data);
+
+            // send current preset with preset and channel num we want to store to
+            this.deviceManager.sendCommand("set_preset_from_model", args.data);
+
         }
 
     }

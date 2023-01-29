@@ -169,7 +169,16 @@ export class SparkDeviceManager implements DeviceController {
 
         if (type == "set_preset_from_model") {
             this.log("Setting preset" + JSON.stringify(data));
-            msgArray = msg.create_preset_from_model(data);
+
+            if (Array.isArray(data)){
+                this.log("Got preset and target channel number");
+                // if data is array with preset and channel number  use that
+                msgArray = msg.create_preset_from_model(data[0], data[1]);
+            }else {
+                // set preset to soft channel (not stored to hardware)
+                msgArray = msg.create_preset_from_model(data);
+            }
+
         }
 
         if (type == "store_current_preset") {
