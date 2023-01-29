@@ -1,8 +1,7 @@
 import React from "react";
 import Alert from "react-bootstrap/Alert";
-import Button from "react-bootstrap/Button";
-import Form  from "react-bootstrap/Form";
-import Modal  from "react-bootstrap/Modal";
+import Form from "react-bootstrap/Form";
+import Modal from "react-bootstrap/Modal";
 import Tags from "@yaireo/tagify/dist/react.tagify"; // React-wrapper file
 import "@yaireo/tagify/dist/tagify.css"; // Tagify CSS
 
@@ -26,38 +25,37 @@ const EditToneControl = () => {
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (tone.name.trim().length==0){
+    if (tone.name.trim().length == 0) {
       alert("Tone name can't be blank.");
       return;
     }
-    
-    if (tone.name.length>30){
+
+    if (tone.name.length > 30) {
       alert("Tone name can be a maximum of 30 characters.");
       return;
     }
 
     //apply edits
-    if (updatedArtistTags?.filter(t=>t!=null).length>0) {
+    if (updatedArtistTags?.filter((t) => t != null).length > 0) {
       ToneEditStore.update((s) => {
-        s.editTone.artists = updatedArtistTags.filter(t=>t!=null);
+        s.editTone.artists = updatedArtistTags.filter((t) => t != null);
       });
     }
 
-    if (updatedCategoryTags?.filter(t=>t!=null).length>0) {
+    if (updatedCategoryTags?.filter((t) => t != null).length > 0) {
       ToneEditStore.update((s) => {
-        s.editTone.categories = updatedCategoryTags.filter(t=>t!=null);
+        s.editTone.categories = updatedCategoryTags.filter((t) => t != null);
       });
     }
 
     // save tone. hack to ensure state updated before save
     setTimeout(() => {
       appViewModel.storeFavourite(ToneEditStore.getRawState().editTone);
-      
     }, 500);
 
     ToneEditStore.update((s) => {
       s.isToneEditorOpen = false;
-      s.tone=s.editTone;
+      s.tone = s.editTone;
     });
   };
 
@@ -125,14 +123,17 @@ const EditToneControl = () => {
 
               <Form.Group controlId="formEditTone">
                 <Form.Label>Description</Form.Label>
-                <Form.Control as="textarea" rows={2}  placeholder="Enter an optional description for this tone"
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Enter an optional description for this tone"
                   value={tone.description}
                   onChange={(event) => {
                     ToneEditStore.update((s) => {
                       s.editTone.description = event.target.value;
                     });
-                  }}/>
-                
+                  }}
+                />
               </Form.Group>
 
               <Form.Group controlId="formArtists">
@@ -142,7 +143,9 @@ const EditToneControl = () => {
                   onChange={(e) => {
                     e.persist();
                     if (e.target.value?.length > 0) {
-                      let list = JSON.parse(e.target.value).filter(t=>t!=null).map((t) => t.value);
+                      let list = JSON.parse(e.target.value)
+                        .filter((t) => t != null)
+                        .map((t) => t.value);
 
                       setUpdatedArtistsTags(list);
                     } else {
@@ -159,9 +162,11 @@ const EditToneControl = () => {
                   onChange={(e) => {
                     e.persist();
                     if (e.target.value?.length > 0) {
-                      let list = JSON.parse(e.target.value).filter(t=>t!=null).map((t) => t.value);
+                      let list = JSON.parse(e.target.value)
+                        .filter((t) => t != null)
+                        .map((t) => t.value);
                       setUpdatedCategoryTags(list);
-                    }else {
+                    } else {
                       setUpdatedCategoryTags([]);
                     }
                   }}
@@ -172,21 +177,20 @@ const EditToneControl = () => {
               ) : (
                 ""
               )}
-              <Button variant="secondary" type="button" onClick={handleCancel}>
+              <button type="button" onClick={handleCancel}>
                 Cancel
-              </Button>
-              <Button
-                variant="danger"
+              </button>
+              <button
                 type="button"
-                className="ms-4"
+                className="ms-4 btn btn-danger"
                 onClick={handleDelete}
               >
                 Delete
-              </Button>
+              </button>
 
-              <Button variant="primary" type="submit" className="float-end">
+              <button type="submit" className="btn btn-primary float-end">
                 Save
-              </Button>
+              </button>
             </Form>
           </div>
         </Modal.Body>

@@ -17,6 +17,7 @@ import { faChevronRight } from "@fortawesome/free-solid-svg-icons/faChevronRight
 import { faSearch } from "@fortawesome/free-solid-svg-icons/faSearch";
 import { TonesStateStore } from "../../stores/tonestate";
 import { DeviceStateStore } from "../../stores/devicestate";
+import { Utils } from "../../core/utils";
 
 const TcBrowserControl = () => {
   const deviceViewModel = React.useContext(DeviceViewModelContext);
@@ -125,6 +126,10 @@ const TcBrowserControl = () => {
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
       alert("Could not load tone. Please wait and try again");
     }
+
+    // request current preset state
+    await Utils.sleepAsync(1000);
+    await deviceViewModel.requestPresetConfig();
   };
 
   return (

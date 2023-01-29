@@ -1,6 +1,5 @@
 import React from "react";
 import Alert from "react-bootstrap/Alert";
-import Button from "react-bootstrap/Button";
 import Form  from "react-bootstrap/Form";
 import Modal  from "react-bootstrap/Modal";
 import { AppStateStore } from "../../stores/appstate";
@@ -58,21 +57,21 @@ const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
 
             
             {!isRegMode ? (
-              <Button className="btn btn-sm btn-secondary ms-2"
+              <button className="btn btn-sm btn-secondary ms-2"
                 onClick={() => {
                   setIsRegMode(true);
                 }}
               >
                 New User
-              </Button>
+              </button>
             ) : (
-              <Button className="btn btn-sm btn-secondary ms-2"
+              <button className="btn btn-sm btn-secondary ms-2"
                 onClick={() => {
                   setIsRegMode(false);
                 }}
               >
                 Existing User
-              </Button>
+              </button>
             )}
           </p>
 
@@ -135,28 +134,26 @@ const LoginControl = ({ signInRequired, onSignIn , onRegistration}) => {
                 ""
               )}
 
-              <Button variant="secondary" type="button" onClick={handleCancel}>
+              <button className="btn btn-secondary" type="button" onClick={handleCancel}>
                 Cancel
-              </Button>
+              </button>
 
               {!isRegMode ? (
-                <Button
-                  variant="primary"
+                <button
+                className="float-end btn btn-primary"
                   type="button"
                   onClick={handleSignIn}
-                  className="float-end"
                 >
                   Sign In
-                </Button>
+                </button>
               ) : (
-                <Button
-                  variant="info"
+                <button
+                  className="btn btn-info float-end"
                   type="button"
-                  className="float-end"
                   onClick={handleRegister}
                 >
                   New User
-                </Button>
+                </button>
               )}
             </div>
           </Form>

@@ -239,7 +239,7 @@ const App = () => {
                   {userInfo?.name}
                 </span>
               ) : (
-                <Button
+                <button type="button"
                   className="btn btn-sm"
                   onClick={() => {
                     requireSignIn();
@@ -247,7 +247,7 @@ const App = () => {
                 >
                   <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
                   Sign In
-                </Button>
+                </button>
               )}
             </li>
           ) : (
