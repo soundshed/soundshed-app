@@ -31,7 +31,7 @@
     "concurrently": "7.6.0",
     "copy-webpack-plugin": "11.0.0",
     "css-loader": "6.7.3",
-    "electron": "22.0.0",
+    "electron": "22.1.0",
     "file-loader": "^6.2.0",
     "fs-extra": "11.1.0",
     "html-webpack-plugin": "5.5.0",
@@ -65,7 +65,7 @@
     "react-draggable": "^4.4.5",
     "react-player": "^2.11.0",
     "react-router-dom": "^6.6.0",
-    "webmidi": "3.0.25",
+    "webmidi": "3.1.2",
     "youtube-search": "^1.1.6"
   },
   "dependencies": {
