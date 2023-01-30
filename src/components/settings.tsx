@@ -20,7 +20,7 @@ const SettingsControl = () => {
 
   const deleteInputMapping = (mapping: InputEventMapping) => {};
 
-  const enableTestMode = true;
+  const enableTestMode = false;
 
   const runConnectionTests = async () => {
     if (!(window as any).webTest) {
