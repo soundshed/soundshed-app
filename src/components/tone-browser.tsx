@@ -67,6 +67,10 @@ const ToneBrowserControl = () => {
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
       alert("Could not load tone. Please wait and try again.");
     }
+
+    // request current preset state
+    await Utils.sleepAsync(2000);
+    await deviceViewModel.requestPresetConfig();
   };
 
   const onEditTone = (t) => {

@@ -128,7 +128,7 @@ const TcBrowserControl = () => {
     }
 
     // request current preset state
-    await Utils.sleepAsync(1000);
+    await Utils.sleepAsync(2000);
     await deviceViewModel.requestPresetConfig();
   };
 
