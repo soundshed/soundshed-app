@@ -113,6 +113,20 @@ const MiscControls = ({
             >
               4
             </button>
+            <button
+              type="button"
+              className={
+                selectedChannel == 4
+                  ? "btn btn-sm btn-secondary active"
+                  : "btn btn-sm btn-secondary"
+              }
+              id="ch5"
+              onClick={() => {
+                setChannel(4);
+              }}
+            >
+              Green 1
+            </button>
           </div>
         </div>
       </div>
