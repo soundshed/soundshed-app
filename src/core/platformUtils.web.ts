@@ -5,7 +5,7 @@ const evt: PlatformEvents = new PlatformEvents();
 
 const openLink = (e, linkUrl) => {
     e.preventDefault();
-    // open link...
+    window.open(linkUrl, "_blank", "noopener,noreferrer");
 };
 
 const getAppVersion = () => {
