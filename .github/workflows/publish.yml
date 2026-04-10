@@ -26,9 +26,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     - name: Download workflow artifact
-      # You may pin to the exact commit or the version.
-      # uses: dawidd6/action-download-artifact@8c96194455d424a24437ec57817e0aa1a1d72adb
-      uses: dawidd6/action-download-artifact@v2.14.1
+      uses: dawidd6/action-download-artifact@v3
       with:
         # Workflow name
         workflow: build.yml
@@ -39,9 +37,7 @@ jobs:
       run: ls -R
     
     - name: Create Release
-      # You may pin to the exact commit or the version.
-      # uses: ncipollo/release-action@4b71ee3b25951e6098e7434cdc485edc5b3adab2
-      uses: ncipollo/release-action@v1.8.6
+      uses: ncipollo/release-action@v1
       with:
         # An optional flag which indicates if we should update a release if it already exists. Defaults to false.
         allowUpdates: true
@@ -50,19 +46,3 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: $TAGNAME
         commit: main
-
-        
-    
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        # Wanted conclusion to search for in recent runs
-        path: # optional, default is ./
