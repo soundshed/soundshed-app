@@ -39,7 +39,6 @@ import LessonsControl from "./lessons";
 import AmpOfflineControl from "./soundshed/amp-offline";
 import EditToneControl from "./soundshed/edit-tone";
 import LoginControl from "./soundshed/login";
-import ToneBrowserControl from "./tone-browser";
 import SettingsControl from "./settings";
 import InputEventsControl from "./device/input-events";
 import ScalexControl from "./scalex";
@@ -166,16 +165,6 @@ const App = () => {
             </NavLink>
           </li>
 
-          <li className="nav-item">
-            <NavLink
-              to="/tones"
-              className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
-              }
-            >
-              Tones
-            </NavLink>
-          </li>
           <li className="nav-item">
             <NavLink
               to="/device"
@@ -344,7 +333,6 @@ const App = () => {
                 }
               />
 
-              <Route path="/tones" element={<ToneBrowserControl />} />
               <Route path="/lessons" element={<LessonsControl />} />
               <Route path="/scalex" element={<ScalexControl />} />
               <Route path="/settings" element={<SettingsControl />} />

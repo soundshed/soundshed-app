@@ -1,5 +1,6 @@
 import React from "react";
 import { Tone } from "../../core/soundshedApi";
+import ToneChooserModal from "../soundshed/tone-chooser-modal";
 import FxControl from "./fx-control";
 
 declare global {
@@ -18,6 +19,7 @@ const SignalPathControl = ({
   selectedChannel,
   onStoreFavourite,
 }) => {
+  const [showToneChooser, setShowToneChooser] = React.useState(false);
   const listItems = (t: Tone) => {
     if (!t) {
       return <div>Not Connected</div>;
@@ -65,6 +67,14 @@ const SignalPathControl = ({
                 ⭐
               </button>
             </div>
+            <div className="col-md-2">
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => setShowToneChooser(true)}
+              >
+                Browse Tones
+              </button>
+            </div>
           
           </div>
           <table>
@@ -74,6 +84,7 @@ const SignalPathControl = ({
           </table>
         </div>
       )}
+      <ToneChooserModal show={showToneChooser} onClose={() => setShowToneChooser(false)} />
     </div>
   );
 };
