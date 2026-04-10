@@ -78,10 +78,18 @@ export class AppViewModel {
             { id: "2", name: "D3 to CH2", source: { type: "midi", code: "50", channel: "1" }, target: { type: "amp-channel", value: "1" } },
             { id: "3", name: "E3 to CH3", source: { type: "midi", code: "52", channel: "1" }, target: { type: "amp-channel", value: "2" } },
             { id: "4", name: "F3 to CH4", source: { type: "midi", code: "53", channel: "1" }, target: { type: "amp-channel", value: "3" } },
-            { id: "5", name: "Key 1 to CH1", source: { type: "keyboard", code: "1" }, target: { type: "amp-channel", value: "0" } },
-            { id: "6", name: "Key 2 to CH1", source: { type: "keyboard", code: "2" }, target: { type: "amp-channel", value: "1" } },
-            { id: "7", name: "Key 3 to CH1", source: { type: "keyboard", code: "3" }, target: { type: "amp-channel", value: "2" } },
-            { id: "8", name: "Key 4 to CH1", source: { type: "keyboard", code: "4" }, target: { type: "amp-channel", value: "3" } }
+            { id: "5", name: "G3 to CH5", source: { type: "midi", code: "55", channel: "1" }, target: { type: "amp-channel", value: "4" } },
+            { id: "6", name: "A3 to CH6", source: { type: "midi", code: "57", channel: "1" }, target: { type: "amp-channel", value: "5" } },
+            { id: "7", name: "B3 to CH7", source: { type: "midi", code: "59", channel: "1" }, target: { type: "amp-channel", value: "6" } },
+            { id: "8", name: "C4 to CH8", source: { type: "midi", code: "60", channel: "1" }, target: { type: "amp-channel", value: "7" } },
+            { id: "9", name: "Key 1 to CH1", source: { type: "keyboard", code: "1" }, target: { type: "amp-channel", value: "0" } },
+            { id: "10", name: "Key 2 to CH2", source: { type: "keyboard", code: "2" }, target: { type: "amp-channel", value: "1" } },
+            { id: "11", name: "Key 3 to CH3", source: { type: "keyboard", code: "3" }, target: { type: "amp-channel", value: "2" } },
+            { id: "12", name: "Key 4 to CH4", source: { type: "keyboard", code: "4" }, target: { type: "amp-channel", value: "3" } },
+            { id: "13", name: "Key 5 to CH5", source: { type: "keyboard", code: "5" }, target: { type: "amp-channel", value: "4" } },
+            { id: "14", name: "Key 6 to CH6", source: { type: "keyboard", code: "6" }, target: { type: "amp-channel", value: "5" } },
+            { id: "15", name: "Key 7 to CH7", source: { type: "keyboard", code: "7" }, target: { type: "amp-channel", value: "6" } },
+            { id: "16", name: "Key 8 to CH8", source: { type: "keyboard", code: "8" }, target: { type: "amp-channel", value: "7" } }
         ];
         let selectedMidiInput = null;
         let numPresetSlots = 4;
