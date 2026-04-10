@@ -74,6 +74,21 @@ There are two message directions:
 5. Start notifications on `ffc2`
 6. You're connected and ready to send commands
 
+### Spark 2 — Secondary BLE Service
+
+The Spark 2 exposes a **second BLE service** alongside FFC0, used for
+firmware and pedal control interactions.
+
+| Item | UUID |
+|------|------|
+| Service | `0000ffc8-0000-1000-8000-00805f9b34fb` |
+| Send commands on | Characteristic `ffc9` |
+| Receive updates on | Characteristic `ffca` |
+
+Subscribe to notifications on `ffca` in addition to `ffc2`. Tone upload and control
+commands use `ffc1`/`ffc2` as normal; the secondary service is used for the post-upload
+live sync handshake (see Section 5).
+
 ### Bluetooth Classic (Desktop / Raspberry Pi)
 
 1. Scan for a device named "Spark 40 Audio"
@@ -139,6 +154,10 @@ When a message is too large for one block (e.g. a full preset), it gets split in
 - Sending to amp: **~173 bytes** (`0xad`)
 - Receiving from amp: **~106 bytes** (`0x6a`)
 - Maximum chunk payload (before encoding): **128 bytes** (`0x80`)
+
+**ATT write length by model:**
+- Spark 40 / Spark GO: use the peripheral's reported MTU
+- Spark 2: cap each ATT write at **100 bytes** regardless of MTU — fragment larger blocks into consecutive writes before proceeding
 
 > **Note:** When receiving from the amp, chunks can span across block boundaries — a chunk might start in one block and end in the next. When sending to the amp, each block contains exactly one chunk.
 
@@ -209,7 +228,10 @@ Every message has a **command** byte and a **sub-command** byte that identify wh
 | **SET** | `01` | App tells the amp to change effects, parameters, or presets |
 | **GET** | `02` | App asks the amp for information |
 | **RESPONSE / SET** | `03` | Amp sends updates to app; also used by the app for amp model and store commands (see below) |
-| **ACK** | `04` | Amp acknowledges a command |
+| **NOTIFY** | `04` | Amp-initiated notification (hardware knob turns, preset switches, effect toggles) |
+| **ACK** | `05` | Amp acknowledges a tone chunk during a Spark 2 upload |
+
+> **Note on `04` vs `05`:** On the Spark 40, preset chunk acknowledgements arrive as cmd `04`. On the Spark 2, they arrive as cmd `05`. Both use sub-command `01`.
 
 ### SET Commands — cmd `01` (App → Amp)
 
@@ -252,7 +274,9 @@ The amp sends these to report its state. Note that sub-commands `06`, `27`, and 
 | `15` | **Effect toggled** | Effect name + on/off |
 | `27` | **Preset was stored** | `00` + slot number |
 | `37` | **Knob changed on amp** | Effect name + parameter index + new value |
+| `1a` | **Live sync** | Spark 2 only — confirms post-upload tone state is ready (see Spark 2 Upload Protocol below) |
 | `38` | **Preset was switched** | `00` + preset number |
+| `62` | **Post-upload ACK** | Spark 2 only — signals write completion |
 | `63` | **BPM update** | BPM as a float |
 
 ### ACK Commands (Amp → App)
@@ -269,6 +293,56 @@ After most SET commands, the amp sends back an ACK with the same sequence number
 | `70` | License key |
 
 > **Note:** Changing a knob value (sub-command `04`) does NOT produce an ACK.
+
+### Spark 2 Tone Upload Protocol
+
+The Spark 2 uses a **chunk-acked** upload flow. Each chunk must be acknowledged before
+the next is sent, unlike the Spark 40 which accepts all chunks in quick succession.
+
+```
+App → Amp   cmd=01 sub=01 chunk[0]
+Amp → App   cmd=05 sub=01              ← chunk ACK; send next chunk
+App → Amp   cmd=01 sub=01 chunk[1]
+Amp → App   cmd=05 sub=01
+  … repeat for remaining chunks …
+App → Amp   cmd=01 sub=38 00 7f        ← preset switch (~500 ms after final chunk)
+App → Amp   cmd=02 sub=1a [01 12 00 01]← live sync request (raw bytes, not 7-bit encoded)
+Amp → App   cmd=03 sub=1a [...]        ← live sync response; upload complete
+```
+
+#### Sequence numbers
+
+On the Spark 2, **all chunks of a single tone upload share the same sequence number**.
+The sequence byte advances once after the full upload is dispatched — not per chunk.
+This differs from the Spark 40, which increments the sequence byte with each chunk.
+
+#### Preset switch timing
+
+Insert a **~500 ms delay** between the final chunk and the preset switch command.
+Sending the switch too soon can cause the amp to discard the uploaded tone.
+
+#### Live sync request payload
+
+The live sync request (cmd `02` sub `1a`) carries a fixed 4-byte payload sent as
+**raw bytes** (not 7-bit encoded):
+
+```
+01 12 00 01
+```
+
+Receipt of the live sync response (cmd `03` sub `1a`, any payload) signals that the
+tone upload is complete.
+
+#### Param/toggle/swap payload suffix
+
+For the Spark 2, append a trailing `00` byte to `01 04` (change parameter), `01 15`
+(toggle effect), and `01 06` (swap effect) payloads:
+
+```
+0c ac 56 69 6e 74 61 67 65 44 65 6c 61 79   ← prefixed string "VintageDelay"
+c2                                            ← boolean Off
+00                                            ← Spark 2 trailing byte
+```
 
 ---
 
@@ -305,6 +379,11 @@ BPM                         ← float (e.g. 120.0)
 
 Checksum                    ← 1 byte (see below)
 ```
+
+> **Spark 2 compact format:** Tone response payloads from the Spark 2 (`cmd=03 sub=01`)
+> omit the classic header fields — version, description, icon, BPM, and the `0x97`
+> array marker are absent. Effect data begins immediately after the tone name. Parsers
+> must handle this gracefully rather than treating it as a malformed payload.
 
 ### Preset Channels
 
@@ -608,9 +687,13 @@ This gives you the amp's identity and its full current state.
 | `03` | `37` | Amp→App | Parameter changed (knob turned) |
 | `03` | `38` | Amp→App | Preset changed |
 | `03` | `63` | Amp→App | BPM changed |
-| `04` | `01` | Amp→App | ACK: preset chunk |
+| `04` | `01` | Amp→App | ACK: preset chunk (Spark 40) |
 | `04` | `05` | Amp→App | ACK: preset final chunk |
 | `04` | `06` | Amp→App | ACK: effect/amp swap |
 | `04` | `15` | Amp→App | ACK: effect on/off |
 | `04` | `38` | Amp→App | ACK: preset switch |
 | `04` | `70` | Amp→App | ACK: license key |
+| `05` | `01` | Amp→App | ACK: preset chunk (Spark 2) |
+| `02` | `1a` | App→Amp | Spark 2: live sync request |
+| `03` | `1a` | Amp→App | Spark 2: live sync response |
+| `03` | `62` | Amp→App | Spark 2: post-upload write ACK |
