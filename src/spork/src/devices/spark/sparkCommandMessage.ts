@@ -417,7 +417,7 @@ export class SparkCommandMessage {
 
     // utils
 
-    mergeTypedArrays(type, arrays) {
+    mergeTypedArrays(type: typeof Uint8Array, arrays: ArrayLike<number>[]): Uint8Array<ArrayBuffer> {
         // https://2ality.com/2015/10/concatenating-typed-arrays.html
         let totalLength = 0;
         for (let al of arrays) {
@@ -431,10 +431,10 @@ export class SparkCommandMessage {
             result.set(ar, offset);
             offset += ar.length;
         }
-        return result;
+        return result as Uint8Array<ArrayBuffer>;
     }
 
-    mergeBytes(...arrays): Uint8Array {
+    mergeBytes(...arrays): Uint8Array<ArrayBuffer> {
         return this.mergeTypedArrays(Uint8Array, arrays);
     }
 }

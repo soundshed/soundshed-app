@@ -8,7 +8,6 @@ import React, { useEffect } from "react";
 import Draggable from "react-draggable";
 import Container from "react-bootstrap/Container";
 import Button from "react-bootstrap/Button";
-import ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import ReactPlayer from "react-player/youtube";
 import {
@@ -16,10 +15,7 @@ import {
   NavLink,
   Route,
   Routes,
-  unstable_HistoryRouter,
 } from "react-router-dom";
-
-import { createBrowserHistory } from "history";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/styles.css";
@@ -52,15 +48,6 @@ export const AppViewModelContext = React.createContext(appViewModel);
 export const DeviceViewModelContext = React.createContext(deviceViewModel);
 
 const App = () => {
-  const history = createBrowserHistory({ window });
-
-  useEffect(() => {
-    return history?.listen((evt) => {
-      console.debug(`Navigated the page to: ${evt.location.pathname}`);
-      appViewModel.logPageView(evt.location.pathname);
-    });
-  }, [history]);
-
   const isNativeMode = AppStateStore.useState((s) => s.isNativeMode);
   const isUserSignedIn = AppStateStore.useState((s) => s.isUserSignedIn);
 
