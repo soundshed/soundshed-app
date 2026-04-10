@@ -261,12 +261,8 @@ export class DeviceViewModel {
 
         DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
 
-        Utils.sleepAsync(50);
-
         try {
             var connected = await this.deviceContext.deviceManager.connect(device);
-
-            Utils.sleepAsync(50);
 
             DeviceStateStore.update(s => { s.isConnectionInProgress = false });
 
@@ -281,19 +277,19 @@ export class DeviceViewModel {
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 
-                await Utils.sleepAsync(50);
-
                 await this.requestCurrentChannelSelection();
 
-                let maxWait =50;
-                while(maxWait>0 && DeviceStateStore.getRawState().selectedChannel<0)
+                let maxWait = 50;
+                while(maxWait > 0 && DeviceStateStore.getRawState().selectedChannel < 0)
                 {
                     console.log("waiting for channel selection info");
                     await Utils.sleepAsync(100);
                     maxWait--;
                 }
 
-                //await this.requestPresetConfig(DeviceStateStore.getRawState().selectedChannel);
+                // request the current preset config so the UI can display the signal chain
+                const currentChannel = DeviceStateStore.getRawState().selectedChannel;
+                await this.requestPresetConfig(currentChannel >= 0 ? currentChannel : 0);
 
                 return true;
             } else {

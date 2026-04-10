@@ -18,6 +18,7 @@ export class BleProvider implements SerialCommsProvider {
     private changeCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     private isConnected: boolean;
+    private isReceiving: boolean;
 
     private receiveQueue: Array<Uint8Array>;
     private sendQueue: Array<Uint8Array>;
@@ -33,6 +34,7 @@ export class BleProvider implements SerialCommsProvider {
     constructor() {
         this.receiveQueue = [];
         this.sendQueue = [];
+        this.isReceiving = false;
     }
 
     /**
@@ -112,21 +114,23 @@ export class BleProvider implements SerialCommsProvider {
         }
     }
 
-    getTimeDeltaSinceLastMsg() {
+    getTimeDeltaSinceLastMsg(): number {
         if (this.lastMsgReceivedTime != null) {
             let current = new Date();
             return Math.abs(current.getTime() - this.lastMsgReceivedTime.getTime())
         } else {
             this.lastMsgReceivedTime = new Date();
+            return 0;
         }
     }
 
-    getTimeDeltaSinceLastCmd() {
+    getTimeDeltaSinceLastCmd(): number {
         if (this.lastMsgSentTime != null) {
             let current = new Date();
             return Math.abs(current.getTime() - this.lastMsgSentTime.getTime())
         } else {
             this.lastMsgSentTime = new Date();
+            return 0;
         }
     }
 
@@ -199,11 +203,12 @@ export class BleProvider implements SerialCommsProvider {
     /*
      start receiving data for our target characteristic, storing in the receive queue
     */
-    public async beginQueuedReceive() {
+    public async beginQueuedReceive(): Promise<boolean> {
         try {
             await this.changeCharacteristic.startNotifications();
 
             this.log('> Notifications started');
+            this.isReceiving = true;
 
             this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
                 const dataView: DataView = (<any>event.target).value;
@@ -218,10 +223,18 @@ export class BleProvider implements SerialCommsProvider {
                 this.handleAndQueueMessageData(dataChunk);
 
             });
+
+            return true;
         } catch (err) {
             this.log('> Failed to begin listening for hardware data changes');
+            this.isReceiving = false;
+            return false;
         }
 
+    }
+
+    public isNotificationActive(): boolean {
+        return this.isReceiving;
     }
 
     private isSingleChunkMessage(chunk: Uint8Array): boolean {

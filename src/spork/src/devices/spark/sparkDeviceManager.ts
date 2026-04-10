@@ -30,7 +30,7 @@ export class SparkDeviceManager implements DeviceController {
         if (connected) {
 
             // setup device read listener, running as background message receiver
-            this.startReceiver();
+            await this.startReceiver();
 
         } else {
             this.log('Device not yet connected! Cannot listen for data');
@@ -45,7 +45,7 @@ export class SparkDeviceManager implements DeviceController {
 
         this.log("Starting background receiver");
 
-        this.connection.beginQueuedReceive();
+        await this.connection.beginQueuedReceive();
 
         let msgLoop = async () => {
 

@@ -7,7 +7,7 @@ export interface SerialCommsProvider {
 
     scanForDevices(): Promise<any>;
 
-    beginQueuedReceive();
+    beginQueuedReceive(): Promise<boolean>;
 
     readReceiveQueue() : Array<Uint8Array>;
 
