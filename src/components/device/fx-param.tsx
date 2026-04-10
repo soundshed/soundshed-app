@@ -65,6 +65,11 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
             step="0.01"
             diameter="64"
             tooltip={p.name + " %s"}
+            aria-label={p.name}
+            role="slider"
+            aria-valuemin="0"
+            aria-valuemax="1"
+            aria-valuenow={p.value}
           ></webaudio-knob>
           <label>{p.name}</label>
         </div>
@@ -77,6 +82,9 @@ const FxParam = ({ type = "knob", p, fx, onFxParamChange }) => {
             }}
             src="./lib/webaudio-controls/knobs/switch_toggle.png"
             value={fx.enabled == true ? "1" : "0"}
+            aria-label={`${fx.name} enabled`}
+            role="switch"
+            aria-checked={fx.enabled == true}
           ></webaudio-switch>
         </div>
       )}

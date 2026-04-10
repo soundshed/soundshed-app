@@ -76,11 +76,15 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   };
 
   return (
-    <div className={`fx ${fx.enabled ? "fx-enabled" : "fx-disabled"}`}>
-      <label className="fx-type">{mapFxTypeIdToName(fxTypeId)}</label>
+    <div
+      className={`fx ${fx.enabled ? "fx-enabled" : "fx-disabled"}`}
+      role="group"
+      aria-label={`${mapFxTypeIdToName(fxTypeId)} effect`}
+    >
+      <label className="fx-type" htmlFor={`fx-select-${fx.type}`}>{mapFxTypeIdToName(fxTypeId)}</label>
       <span className="preset-name">{fx.name}</span>
 
-      <select value={fxTypeId} onChange={handleFxChange}>
+      <select id={`fx-select-${fx.type}`} value={fxTypeId} onChange={handleFxChange} aria-label={`Select ${mapFxTypeIdToName(fxTypeId)} type`}>
         {fxList.map((e, key) => (
           <option key={key} value={e.dspId}>
             {e.name}
@@ -101,12 +105,15 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
           fx={fx}
           onFxParamChange={onFxToggle}
         />
-        <span
+        <button
+          type="button"
           className={`fx-toggle-badge ${fx.enabled ? "on" : "off"}`}
           onClick={fxToggle}
+          aria-pressed={fx.enabled}
+          aria-label={`${mapFxTypeIdToName(fxTypeId)} ${fx.enabled ? "enabled" : "disabled"}, click to toggle`}
         >
           {fx.enabled ? "On" : "Off"}
-        </span>
+        </button>
         <div style={{ marginTop: "0.5rem" }}>{paramControls}</div>
       </div>
     </div>

@@ -134,8 +134,9 @@ const App = () => {
 
   return (
     <main>
-      <nav className="magic-nav">
-          <li className="nav-item" style={{listStyle:"none"}}>
+      <nav className="magic-nav" aria-label="Main navigation">
+        <ul style={{listStyle:"none", padding:0, margin:0, display:"contents"}}>
+          <li className="nav-item">
             <NavLink
               to="/"
               className={({ isActive }) =>
@@ -146,18 +147,20 @@ const App = () => {
             </NavLink>
           </li>
 
-          <li className="nav-item" style={{listStyle:"none"}}>
+          <li className="nav-item">
             <NavLink
               to="/device"
               className={({ isActive }) =>
                 isActive ? "nav-link active" : "nav-link"
               }
             >
-              {isConnected ? <span className="status-dot connected" /> : <span className="status-dot disconnected" />}
+              {isConnected
+                ? <span className="status-dot connected" aria-label="Connected" role="img" />
+                : <span className="status-dot disconnected" aria-label="Disconnected" role="img" />}
               Amp
             </NavLink>
           </li>
-          <li className="nav-item" style={{listStyle:"none"}}>
+          <li className="nav-item">
             <NavLink
               to="/lessons"
               className={({ isActive }) =>
@@ -167,7 +170,7 @@ const App = () => {
               Jam
             </NavLink>
           </li>
-          <li className="nav-item" style={{listStyle:"none"}}>
+          <li className="nav-item">
             <NavLink
               to="/scalex"
               className={({ isActive }) =>
@@ -177,7 +180,7 @@ const App = () => {
               Toolkit
             </NavLink>
           </li>
-          <li className="nav-item" style={{listStyle:"none"}}>
+          <li className="nav-item">
             <NavLink
               to="/settings"
               className={({ isActive }) =>
@@ -187,7 +190,7 @@ const App = () => {
               Settings
             </NavLink>
           </li>
-          <li className="nav-item" style={{listStyle:"none"}}>
+          <li className="nav-item">
             <NavLink
               to="/about"
               className={({ isActive }) =>
@@ -199,30 +202,33 @@ const App = () => {
           </li>
 
           {enableSoundshedLogin ? (
-            <li style={{listStyle:"none", marginLeft:"auto"}}>
+            <li style={{listStyle:"none"}}>
               {isUserSignedIn ? (
-                <span
+                <button
+                  type="button"
                   className="badge rounded-pill bg-primary"
-                  style={{cursor:"pointer"}}
+                  style={{cursor:"pointer", border:"none"}}
                   onClick={performSignOut}
+                  aria-label={`Signed in as ${userInfo?.name}. Click to sign out.`}
                 >
-                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} />
+                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} aria-hidden="true" />
                   {userInfo?.name}
-                </span>
+                </button>
               ) : (
                 <button type="button"
                   className="btn btn-sm"
                   onClick={() => requireSignIn()}
                 >
-                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} />
+                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} aria-hidden="true" />
                   Sign In
                 </button>
               )}
             </li>
           ) : null}
+        </ul>
         </nav>
 
-      <div style={{padding: "0 1rem"}}>
+      <div className="app-content-wrap">
       {enableSoundshedLogin ? (
           <LoginControl
             signInRequired={signInRequired}
@@ -238,6 +244,7 @@ const App = () => {
                 <div className="col">
                   <button
                     title="Close"
+                    aria-label="Close video player"
                     className="btn btn-sm btn-dark"
                     onClick={() => {
                       LessonStateStore.update((s) => {
@@ -245,24 +252,26 @@ const App = () => {
                       });
                     }}
                   >
-                    <FontAwesomeIcon icon={faWindowMinimize}></FontAwesomeIcon>
+                    <FontAwesomeIcon icon={faWindowMinimize} aria-hidden="true"></FontAwesomeIcon>
                   </button>
                 </div>
                 <div className="col offset-md-8">
                   {isVideoExpanded == true ? (
                     <button
                       title="Small Video"
+                      aria-label="Reduce video size"
                       className="btn btn-sm btn-dark"
                       onClick={() => {
                         setIsVideoExpanded(false);
                       }}
                     >
                       {" "}
-                      <FontAwesomeIcon icon={faWindowRestore}></FontAwesomeIcon>
+                      <FontAwesomeIcon icon={faWindowRestore} aria-hidden="true"></FontAwesomeIcon>
                     </button>
                   ) : (
                     <button
                       title="Large Video"
+                      aria-label="Expand video size"
                       className="btn btn-sm btn-dark"
                       onClick={() => {
                         setIsVideoExpanded(true);
@@ -270,6 +279,7 @@ const App = () => {
                     >
                       <FontAwesomeIcon
                         icon={faWindowMaximize}
+                        aria-hidden="true"
                       ></FontAwesomeIcon>
                     </button>
                   )}

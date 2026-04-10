@@ -108,9 +108,43 @@ h6 { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; le
 td { vertical-align: top; }
 td, th { color: var(--text); }
 
+/* ── Accessibility Utilities ────────────────────────────────── */
+/* Visually hidden but available to screen readers */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Keyboard focus indicator – visible only on keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Suppress focus ring for mouse users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ── Main content wrapper ───────────────────────────────────── */
+.app-content-wrap {
+    
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
 /* ── Magic Navigation Bar ───────────────────────────────────── */
 .magic-nav {
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 0;
     padding: 0 0.5rem;

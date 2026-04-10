@@ -127,6 +127,8 @@ const SettingsControl = () => {
       <button
         key={i.name}
         className="ss-dropdown-item"
+        role="option"
+        aria-selected={selectedMidiInput === i.name}
         onClick={() => { selectMidiInput(i); setDropdownOpen(false); }}
       >
         {i.name}
@@ -156,17 +158,20 @@ const SettingsControl = () => {
           <button
             className="ss-dropdown-toggle"
             onClick={() => setDropdownOpen((o) => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={dropdownOpen}
+            aria-label={`MIDI Input: ${selectedMidiInput || "None selected"}`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
             </svg>
             {selectedMidiInput || "Select MIDI Input"}
-            <svg className={`ss-dropdown-chevron${dropdownOpen ? " open" : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg className={`ss-dropdown-chevron${dropdownOpen ? " open" : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           {dropdownOpen && (
-            <div className="ss-dropdown-menu">
+            <div className="ss-dropdown-menu" role="listbox" aria-label="MIDI inputs">
               {midiInputs.length === 0
-                ? <span className="ss-dropdown-empty">No MIDI inputs detected</span>
+                ? <span className="ss-dropdown-empty" role="option" aria-disabled="true">No MIDI inputs detected</span>
                 : renderMidiInputs()
               }
             </div>

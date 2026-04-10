@@ -50,14 +50,16 @@ const MiscControls = ({
 
       <span className="control-strip-divider" style={{ width: 1, height: 18, background: "var(--border)", display: "inline-block", margin: "0 4px" }} />
 
-      <label>Channel</label>
-      <div className="channel-btn-group">
+      <span id="channel-label" className="control-strip-label">Channel</span>
+      <div className="channel-btn-group" role="group" aria-labelledby="channel-label">
         {Array.from({ length: numPresetSlots }, (_, i) => (
           <button
             key={i}
             type="button"
             className={selectedChannel === i ? "btn active" : "btn"}
             id={`ch${i + 1}`}
+            aria-label={`Channel ${i + 1}`}
+            aria-pressed={selectedChannel === i}
             onClick={() => setChannel(i)}
           >
             {i + 1}

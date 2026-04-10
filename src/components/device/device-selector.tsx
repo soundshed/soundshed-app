@@ -121,6 +121,7 @@ const DeviceSelectorControl = () => {
           <div className="col-md-2">
             <Button
               className="btn btn-sm"
+              aria-label={`Connect to ${d.name}`}
               onClick={() => {
                 requestConnectDevice(d.address);
               }}

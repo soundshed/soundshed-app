@@ -41,10 +41,10 @@ const AboutControl = () => {
           tones, backing tracks, scales and MIDI control, all in one place.
         </p>
         <div className="about-links">
-          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://soundshed.com")}>
+          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://soundshed.com")} aria-label="soundshed.com (opens externally)">
             soundshed.com ↗
           </a>
-          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://github.com/soundshed/soundshed-app/discussions")}>
+          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://github.com/soundshed/soundshed-app/discussions")} aria-label="Community discussions (opens externally)">
             Community discussions ↗
           </a>
         </div>
@@ -84,13 +84,13 @@ const AboutControl = () => {
         <ul className="about-credits-list">
           <li>
             Spark comms based on{" "}
-            <a href="#" onClick={(e) => openLink(e, "https://github.com/paulhamsh/Spark-Parser")}>
+            <a href="#" onClick={(e) => openLink(e, "https://github.com/paulhamsh/Spark-Parser")} aria-label="paulhamsh/Spark-Parser on GitHub (opens externally)">
               paulhamsh/Spark-Parser
             </a>
           </li>
           <li>
             Preset info adapted from{" "}
-            <a href="#" onClick={(e) => openLink(e, "https://github.com/richtamblyn/PGSparkLite")}>
+            <a href="#" onClick={(e) => openLink(e, "https://github.com/richtamblyn/PGSparkLite")} aria-label="richtamblyn/PGSparkLite on GitHub (opens externally)">
               richtamblyn/PGSparkLite
             </a>
           </li>
