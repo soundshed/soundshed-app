@@ -1,5 +1,4 @@
 import React from "react";
-import { Tone } from "../../core/soundshedApi";
 import ToneChooserModal from "../soundshed/tone-chooser-modal";
 import FxControl from "./fx-control";
 
@@ -20,54 +19,34 @@ const SignalPathControl = ({
   onStoreFavourite,
 }) => {
   const [showToneChooser, setShowToneChooser] = React.useState(false);
-  const listItems = (t: Tone) => {
-    if (!t) {
-      return <div>Not Connected</div>;
-    } else {
-      return t.fx.map((fx) => fx.type!="pg.spark40."? (
-        <td key={fx.type.toString()}>
-          <FxControl
-            fx={fx}
-            onFxParamChange={onFxParamChange}
-            onFxToggle={onFxToggle}
-          ></FxControl>
-        </td>
-      ):"");
-    }
-  };
 
   return (
     <div>
-      {!signalPathState ||
-      !signalPathState.fx ||
-      signalPathState.fx.length == 0 ? (
-        <div className="container">
-          <label>
-            No preset selected (or amp not connected). Connect and refresh to
-            get current amp settings. You may need to select a preset button on
-            the amp to start.
-            {JSON.stringify(signalPathState)}
-          </label>
+      {!signalPathState || !signalPathState.fx || signalPathState.fx.length === 0 ? (
+        <div className="info" style={{ maxWidth: 520 }}>
+          <p style={{ margin: 0 }}>
+            No preset selected — amp may not be connected. Connect and refresh to
+            load current amp settings. You may need to select a preset on the amp
+            first.
+          </p>
         </div>
       ) : (
-        <div className="container">
-          <h6>Tone Signal Chain</h6>
-
-          <div className="row">
-            <div className="col-md-8">
-              <h4 className="preset-name">{signalPathState.name}</h4>
-            </div>
-            <div className="col-md-2">
+        <div>
+          <div className="signal-path-header">
+            <h6 style={{ margin: 0, color: "var(--text-muted)" }}>
+              Tone Signal Chain
+            </h6>
+            <span className="preset-name" style={{ fontSize: "1rem" }}>
+              {signalPathState.name}
+            </span>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
-                className="btn btn-sm btn-primary"
-                onClick={() => {
-                  onStoreFavourite(false);
-                }}
+                className="btn btn-sm btn-secondary"
+                title="Save as Favourite"
+                onClick={() => onStoreFavourite(false)}
               >
-                ⭐
+                ⭐ Favourite
               </button>
-            </div>
-            <div className="col-md-2">
               <button
                 className="btn btn-sm btn-secondary"
                 onClick={() => setShowToneChooser(true)}
@@ -75,13 +54,22 @@ const SignalPathControl = ({
                 Browse Tones
               </button>
             </div>
-          
           </div>
-          <table>
-            <tbody>
-            <tr>{listItems(signalPathState)}</tr>
-            </tbody>
-          </table>
+
+          <div className="signal-path-container">
+            <div className="signal-path-chain">
+              {signalPathState.fx.map((fx) =>
+                fx.type !== "pg.spark40." ? (
+                  <FxControl
+                    key={fx.type.toString()}
+                    fx={fx}
+                    onFxParamChange={onFxParamChange}
+                    onFxToggle={onFxToggle}
+                  />
+                ) : null
+              )}
+            </div>
+          </div>
         </div>
       )}
       <ToneChooserModal show={showToneChooser} onClose={() => setShowToneChooser(false)} />

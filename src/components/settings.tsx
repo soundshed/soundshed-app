@@ -1,6 +1,4 @@
 import React from "react";
-import { Dropdown } from "react-bootstrap";
-import Button from "react-bootstrap/Button";
 import { MessageParsingTest } from "../core/tests/messageParsingTest";
 import { WebConnectionTest } from "../core/tests/webConnectionTest";
 import { Utils } from "../core/utils";
@@ -95,100 +93,130 @@ const SettingsControl = () => {
     }, 500);
   };
 
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+
   const renderInputEventMappings = () => {
     return inputEventMappings.map((mapping: InputEventMapping) => (
-      <tr key={mapping.id}>
-        <th>{mapping.name}</th>
-        <td>{mapping.source.type}</td>
-        <td>{mapping.source.code}</td>
-        <td>{mapping.target.type}</td>
-        <td>{mapping.target.value}</td>
-        <td>
-          {" "}
-          <Button
+      <div key={mapping.id} className="mapping-row">
+        <span className="mapping-name">{mapping.name}</span>
+        <span className="mapping-cell mapping-cell--muted">{mapping.source.type}</span>
+        <span className="mapping-cell mapping-code">{mapping.source.code || <em>—</em>}</span>
+        <span className="mapping-cell mapping-cell--muted">{mapping.target.type}</span>
+        <span className="mapping-cell mapping-code">{mapping.target.value}</span>
+        <div className="mapping-actions">
+          <button
+            className="settings-btn settings-btn--muted"
             disabled
-            className="btn btn-sm"
-            onClick={() => {
-              deleteInputMapping(mapping);
-            }}
+            onClick={() => deleteInputMapping(mapping)}
           >
             Delete
-          </Button>
-        </td>
-        <td>
-          {" "}
-          <Button
-            className="btn btn-sm"
-            onClick={() => {
-              learnInputMapping(mapping);
-            }}
+          </button>
+          <button
+            className="settings-btn settings-btn--accent"
+            onClick={() => learnInputMapping(mapping)}
           >
             Learn
-          </Button>
-        </td>
-      </tr>
+          </button>
+        </div>
+      </div>
     ));
   };
 
   const renderMidiInputs = () => {
     return midiInputs.map((i) => (
-      <Dropdown.Item
+      <button
         key={i.name}
-        onClick={() => {
-          selectMidiInput(i);
-        }}
+        className="ss-dropdown-item"
+        onClick={() => { selectMidiInput(i); setDropdownOpen(false); }}
       >
         {i.name}
-      </Dropdown.Item>
+      </button>
     ));
   };
 
   return (
     <div className="settings-intro">
-      <h1>Settings</h1>
 
-      
-      <h2>Input Event Mappings</h2>
-      <p>You can optionally map keyboard or midi inputs to amp channels.</p>
+      <div className="settings-header">
+        <h1 className="settings-heading">Settings</h1>
+        <p className="settings-sub">Configure MIDI mappings and amp input bindings.</p>
+      </div>
 
-      <Dropdown>
-        <Dropdown.Toggle variant="success" id="dropdown-basic">
-          Select Midi Input
-        </Dropdown.Toggle>
-
-        <Dropdown.Menu>{renderMidiInputs()}</Dropdown.Menu>
-      </Dropdown>
-
-      <span className="badge rounded-pill bg-secondary">
-        {selectedMidiInput}
-      </span>
-
-
-      <table className="table table-dark table-striped">
-        <tbody>{renderInputEventMappings()}</tbody>
-      </table>
-
-      {enableTestMode ? (
-        <div>
-          <button
-            onClick={() => {
-              runConnectionTests();
-            }}
-          >
-            Connection Test
-          </button>
-
-          <button
-            onClick={() => {
-              runMessageTest();
-            }}
-          >
-            Message Reading Test
-          </button>
+      {/* ── MIDI Input section ── */}
+      <div className="settings-section glass-panel">
+        <div className="settings-section-header">
+          <div>
+            <h2 className="settings-section-title">MIDI Input</h2>
+            <p className="settings-section-desc">Select the MIDI device to use for input event mappings.</p>
+          </div>
         </div>
-      ) : (
-        ""
+
+        {/* Custom dropdown */}
+        <div className="ss-dropdown-wrap">
+          <button
+            className="ss-dropdown-toggle"
+            onClick={() => setDropdownOpen((o) => !o)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            {selectedMidiInput || "Select MIDI Input"}
+            <svg className={`ss-dropdown-chevron${dropdownOpen ? " open" : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          {dropdownOpen && (
+            <div className="ss-dropdown-menu">
+              {midiInputs.length === 0
+                ? <span className="ss-dropdown-empty">No MIDI inputs detected</span>
+                : renderMidiInputs()
+              }
+            </div>
+          )}
+        </div>
+
+        {selectedMidiInput && (
+          <div className="settings-active-chip">
+            <span className="settings-chip-dot" />
+            {selectedMidiInput}
+          </div>
+        )}
+      </div>
+
+      {/* ── Input Event Mappings ── */}
+      <div className="settings-section glass-panel">
+        <div className="settings-section-header">
+          <div>
+            <h2 className="settings-section-title">Input Event Mappings</h2>
+            <p className="settings-section-desc">Map keyboard or MIDI inputs to amp channels and actions.</p>
+          </div>
+        </div>
+
+        {inputEventMappings && inputEventMappings.length > 0 ? (
+          <div className="mapping-table">
+            <div className="mapping-header-row">
+              <span className="mapping-name">Action</span>
+              <span className="mapping-cell">Source Type</span>
+              <span className="mapping-cell mapping-code">Code</span>
+              <span className="mapping-cell">Target Type</span>
+              <span className="mapping-cell mapping-code">Value</span>
+              <span className="mapping-actions" />
+            </div>
+            {renderInputEventMappings()}
+          </div>
+        ) : (
+          <p className="settings-empty">No input mappings configured.</p>
+        )}
+      </div>
+
+      {enableTestMode && (
+        <div className="settings-section glass-panel">
+          <h2 className="settings-section-title">Developer Tests</h2>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <button className="settings-btn settings-btn--accent" onClick={runConnectionTests}>Connection Test</button>
+            <button className="settings-btn settings-btn--accent" onClick={runMessageTest}>Message Reading Test</button>
+          </div>
+        </div>
       )}
+
     </div>
   );
 };

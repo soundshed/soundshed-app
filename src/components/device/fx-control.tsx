@@ -76,51 +76,38 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
   };
 
   return (
-    <div className="fx">
+    <div className={`fx ${fx.enabled ? "fx-enabled" : "fx-disabled"}`}>
       <label className="fx-type">{mapFxTypeIdToName(fxTypeId)}</label>
-      <div>
-        <h4 className="preset-name">{fx.name}</h4>
+      <span className="preset-name">{fx.name}</span>
 
-        <select value={fxTypeId} onChange={handleFxChange}>
-          {fxList.map((e, key) => {
-            return (
-              <option key={key} value={e.dspId}>
-                {e.name}
-              </option>
-            );
-          })}
-        </select>
+      <select value={fxTypeId} onChange={handleFxChange}>
+        {fxList.map((e, key) => (
+          <option key={key} value={e.dspId}>
+            {e.name}
+          </option>
+        ))}
+      </select>
 
-        {isExperimentalFxSelected ? (
-          <span
-            className="badge rounded-pill bg-danger m-1"
-            title="Experimental FX - may not work at all."
-          >
-            Experimental FX
-          </span>
-        ) : (
-          ""
-        )}
+      {isExperimentalFxSelected && (
+        <span className="experimental-badge" title="Experimental FX – may not work.">
+          ⚠ Experimental
+        </span>
+      )}
 
-        <div className="fx-controls">
-          <FxParam
-            type="switch"
-            p="toggle"
-            fx={fx}
-            onFxParamChange={onFxToggle}
-          ></FxParam>
-
-          {fx.enabled ? (
-            <span className="badge rounded-pill bg-success" onClick={fxToggle}>
-              On
-            </span>
-          ) : (
-            <span className="badge rounded-pill bg-danger" onClick={fxToggle}>
-              Off
-            </span>
-          )}
-          <div className="mt-2">{paramControls}</div>
-        </div>
+      <div className="fx-controls">
+        <FxParam
+          type="switch"
+          p="toggle"
+          fx={fx}
+          onFxParamChange={onFxToggle}
+        />
+        <span
+          className={`fx-toggle-badge ${fx.enabled ? "on" : "off"}`}
+          onClick={fxToggle}
+        >
+          {fx.enabled ? "On" : "Off"}
+        </span>
+        <div style={{ marginTop: "0.5rem" }}>{paramControls}</div>
       </div>
     </div>
   );

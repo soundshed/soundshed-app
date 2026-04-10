@@ -129,37 +129,27 @@ const DeviceMainControl = () => {
 
   return (
     <div className="amp-intro">
-      <div className="row">
-        <div className="col">
-          <DeviceControls></DeviceControls>
-        </div>
-      </div>
-      <div className="row">
-        <div className="col">
-          <MiscControls
-            deviceScanInProgress={deviceScanInProgress}
-            onScanForDevices={requestScanForDevices}
-            connected={connected}
-            onConnect={requestConnectDevice}
-            connectionInProgress={connectionInProgress}
-            requestCurrentPreset={requestCurrentPreset}
-            setChannel={requestSetChannel}
-            devices={devices}
-            selectedChannel={selectedChannel}
-            onSetPreset={requestStoreHardwarePreset}
-          ></MiscControls>
-        </div>
-      </div>
-      <div className="row">
-        <div className="col">
-          <SignalPathControl
-            signalPathState={currentPreset}
-            onFxParamChange={fxParamChange}
-            onFxToggle={fxToggle}
-            selectedChannel={selectedChannel}
-            onStoreFavourite={requestStoreFavourite}
-          ></SignalPathControl>
-        </div>
+      <div className="amp-content">
+        <DeviceControls />
+        <MiscControls
+          deviceScanInProgress={deviceScanInProgress}
+          onScanForDevices={requestScanForDevices}
+          connected={connected}
+          onConnect={requestConnectDevice}
+          connectionInProgress={connectionInProgress}
+          requestCurrentPreset={requestCurrentPreset}
+          setChannel={requestSetChannel}
+          devices={devices}
+          selectedChannel={selectedChannel}
+          onSetPreset={requestStoreHardwarePreset}
+        />
+        <SignalPathControl
+          signalPathState={currentPreset}
+          onFxParamChange={fxParamChange}
+          onFxToggle={fxToggle}
+          selectedChannel={selectedChannel}
+          onStoreFavourite={requestStoreFavourite}
+        />
       </div>
     </div>
   );

@@ -6,8 +6,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import React, { useEffect } from "react";
 import Draggable from "react-draggable";
-import Container from "react-bootstrap/Container";
-import Button from "react-bootstrap/Button";
 import { createRoot } from "react-dom/client";
 import ReactPlayer from "react-player/youtube";
 import {
@@ -134,69 +132,66 @@ const App = () => {
 
   }, []);
 
-  let activeClassName = "nav-link active";
-  let inactiveClassName = "nav-link";
-
   return (
     <main>
-      <Container fluid>
-        <ul className="nav nav-tabs">
-          <li className="nav-item">
+      <nav className="magic-nav">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
-              Home
+              Soundshed Control
             </NavLink>
           </li>
 
-          <li className="nav-item">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/device"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
+              {isConnected ? <span className="status-dot connected" /> : <span className="status-dot disconnected" />}
               Amp
             </NavLink>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/lessons"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
               Jam
             </NavLink>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/scalex"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
               Toolkit
             </NavLink>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/settings"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
               Settings
             </NavLink>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" style={{listStyle:"none"}}>
             <NavLink
               to="/about"
               className={({ isActive }) =>
-                isActive ? activeClassName : inactiveClassName
+                isActive ? "nav-link active" : "nav-link"
               }
             >
               About
@@ -204,42 +199,37 @@ const App = () => {
           </li>
 
           {enableSoundshedLogin ? (
-            <li className="my-2">
+            <li style={{listStyle:"none", marginLeft:"auto"}}>
               {isUserSignedIn ? (
                 <span
                   className="badge rounded-pill bg-primary"
+                  style={{cursor:"pointer"}}
                   onClick={performSignOut}
                 >
-                  {" "}
-                  <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>{" "}
+                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} />
                   {userInfo?.name}
                 </span>
               ) : (
                 <button type="button"
                   className="btn btn-sm"
-                  onClick={() => {
-                    requireSignIn();
-                  }}
+                  onClick={() => requireSignIn()}
                 >
-                  <FontAwesomeIcon icon={faUser}></FontAwesomeIcon>
+                  <FontAwesomeIcon icon={faUser} style={{marginRight:"0.3em"}} />
                   Sign In
                 </button>
               )}
             </li>
-          ) : (
-            ""
-          )}
-        </ul>
+          ) : null}
+        </nav>
 
-        {enableSoundshedLogin ? (
+      <div style={{padding: "0 1rem"}}>
+      {enableSoundshedLogin ? (
           <LoginControl
             signInRequired={signInRequired}
             onSignIn={performSignIn}
             onRegistration={performRegistration}
           ></LoginControl>
-        ) : (
-          ""
-        )}
+        ) : null}
 
         {playingVideoUrl != null ? (
           <Draggable>
@@ -330,7 +320,7 @@ const App = () => {
         </AppViewModelContext.Provider>
 
         <InputEventsControl></InputEventsControl>
-      </Container>
+      </div>
     </main>
   );
 };

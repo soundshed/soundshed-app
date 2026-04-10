@@ -135,6 +135,7 @@ const DeviceSelectorControl = () => {
 
   return (
     <div className="amp-intro">
+      <div className="amp-content">
       <h4>Connect Your Amp</h4>
       <p>
         To get started, switch on your amp and then select Scan to find and select your device (Spark 40 BLE, Spark 2 BLE, Spark GO BLE, Spark Mini BLE).
@@ -175,9 +176,10 @@ const DeviceSelectorControl = () => {
       </div>
 
     
-      <div className="m-2">
+      <div style={{ marginTop: "0.75rem" }}>
         <h4>Devices</h4>
         <div>{listItems(devices)}</div>
+      </div>
       </div>
     </div>
   );

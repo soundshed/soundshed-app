@@ -1,6 +1,4 @@
 import React, { useEffect } from "react";
-import Modal from "react-bootstrap/Modal";
-import Nav from "react-bootstrap/Nav";
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../../core/fxMapping";
 import { Utils } from "../../core/utils";
 import { DeviceStateStore } from "../../stores/devicestate";
@@ -113,42 +111,42 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
     }
   };
 
+  if (!show) return null;
+
   return (
-    <Modal show={show} onHide={onClose} size="lg" dialogClassName="tone-chooser-modal">
-      <Modal.Header closeButton>
-        <Modal.Title>Choose a Tone</Modal.Title>
-      </Modal.Header>
-      <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-        <Nav
-          variant="tabs"
-          activeKey={viewSelection}
-          onSelect={(selectedKey) => setViewSelection(selectedKey)}
-        >
-          {enableMyTones ? (
-            <Nav.Item>
-              <Nav.Link eventKey="my">My Tones</Nav.Link>
-            </Nav.Item>
-          ) : (
-            ""
+    <div className="ss-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="ss-modal">
+
+        {/* Header */}
+        <div className="ss-modal-header">
+          <h2 className="ss-modal-title">Choose a Tone</h2>
+          <button className="ss-modal-close" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="ss-tabs">
+          {enableMyTones && (
+            <button className={`ss-tab${viewSelection === "my" ? " active" : ""}`} onClick={() => setViewSelection("my")}>My Tones</button>
           )}
-          {enableCommunityTones ? (
-            <Nav.Item>
-              <Nav.Link eventKey="community">Community</Nav.Link>
-            </Nav.Item>
-          ) : (
-            ""
+          {enableCommunityTones && (
+            <button className={`ss-tab${viewSelection === "community" ? " active" : ""}`} onClick={() => setViewSelection("community")}>Community</button>
           )}
-          {enableToneCloud ? (
-            <Nav.Item>
-              <Nav.Link eventKey="tonecloud">ToneCloud</Nav.Link>
-            </Nav.Item>
-          ) : (
-            ""
+          {enableToneCloud && (
+            <button className={`ss-tab${viewSelection === "tonecloud" ? " active" : ""}`} onClick={() => setViewSelection("tonecloud")}>ToneCloud</button>
           )}
-        </Nav>
-        <div className="mt-2">{renderTonesView()}</div>
-      </Modal.Body>
-    </Modal>
+        </div>
+
+        {/* Body */}
+        <div className="ss-modal-body">
+          {renderTonesView()}
+        </div>
+
+      </div>
+    </div>
   );
 };
 

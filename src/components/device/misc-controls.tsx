@@ -26,61 +26,47 @@ const MiscControls = ({
   ]);
 
   return (
-    <div className="container ">
-      <div className="row control-strip">
-        <div className="col-md-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-secondary"
-            onClick={() => requestCurrentPreset()}
-          >
-            Refresh
-          </button>
-        </div>
-        {enableStorePreset ? (
-          <div className="col-md-2">
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              id="storePreset" title="Store settings to the current channel"
-              onClick={()=>{ onSetPreset()}}
-            >
-              Save To Amp
-            </button>
-          </div>
-        ) : (
-          ""
-        )}
+    <div className="control-strip">
+      <button
+        type="button"
+        className="btn btn-sm btn-secondary"
+        onClick={() => requestCurrentPreset()}
+        title="Refresh current preset from amp"
+      >
+        ↺ Refresh
+      </button>
 
-        <div className="col-md-4">
-          <label>Channel </label>
-          <div
-            className="btn-group ms-2"
-            role="group"
-            aria-label="Channel Selection"
+      {enableStorePreset && (
+        <button
+          type="button"
+          className="btn btn-sm btn-secondary"
+          id="storePreset"
+          title="Store settings to the current channel"
+          onClick={() => onSetPreset()}
+        >
+          ↓ Save to Amp
+        </button>
+      )}
+
+      <span className="control-strip-divider" style={{ width: 1, height: 18, background: "var(--border)", display: "inline-block", margin: "0 4px" }} />
+
+      <label>Channel</label>
+      <div className="channel-btn-group">
+        {Array.from({ length: numPresetSlots }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={selectedChannel === i ? "btn active" : "btn"}
+            id={`ch${i + 1}`}
+            onClick={() => setChannel(i)}
           >
-            {Array.from({ length: numPresetSlots }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                className={
-                  selectedChannel == i
-                    ? "btn btn-sm btn-secondary active"
-                    : "btn btn-sm btn-secondary"
-                }
-                id={`ch${i + 1}`}
-                onClick={() => {
-                  setChannel(i);
-                }}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-        </div>
+            {i + 1}
+          </button>
+        ))}
       </div>
     </div>
   );
 };
 
 export default MiscControls;
+

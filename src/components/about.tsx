@@ -12,9 +12,7 @@ const AboutControl = () => {
   }, []);
 
   const appInfo = AppStateStore.useState((s) => s.appInfo);
-
   const appUpdateAvailable = AppStateStore.useState((s) => s.isUpdateAvailable);
-
   const isWebMode = env.IsWebMode;
   React.useEffect(() => {}, [appUpdateAvailable, appInfo]);
 
@@ -22,9 +20,7 @@ const AboutControl = () => {
     let result = await appViewModel.checkForUpdates();
     if (showInfo) {
       if (result == null || result.isUpdateAvailable == false) {
-        alert(
-          "You are using the latest available app version. You should also regularly check soundshed.com for updates and news."
-        );
+        alert("You are using the latest available app version. You should also regularly check soundshed.com for updates and news.");
       } else {
         alert("There is a new app version available.");
       }
@@ -33,79 +29,78 @@ const AboutControl = () => {
 
   return (
     <div className="about-intro">
-      <h1>About</h1>
 
-      <p>
-        <a
-          href="#"
-          onClick={(e) => {
-            openLink(e, "https://soundshed.com");
-          }}
-        >
-          soundshed.com
-        </a>
-      </p>
-      <p>Browse and manage favourite tones, preview or store on your amp.</p>
-      <p>
-        Join the{" "}
-        <a
-          href="#"
-          onClick={(e) => {
-            openLink(
-              e,
-              "https://github.com/soundshed/soundshed-app/discussions"
-            );
-          }}
-        >
-          community discussions
-        </a>
-      </p>
-      {isWebMode == false ? (
-        <div>
-          {appUpdateAvailable == true ? (
-            <p className="alert alert-info m-2 p-2">
-              There is a new app version available. Updating is recommended.
-              <button
-                className="btn btn-sm ms-2"
-                onClick={(e) => {
-                  openLink(e, "https://soundshed.com");
-                }}
-              >
+      {/* ── Hero ── */}
+      <div className="about-hero">
+        <div className="about-shimmer-badge">Soundshed Control</div>
+        <h1 className="about-heading">
+          Your Amp. Your way.
+        </h1>
+        <p className="about-sub">
+          A desktop &amp; web UI for managing your Positive Grid Spark amp —
+          tones, backing tracks, scales and MIDI control, all in one place.
+        </p>
+        <div className="about-links">
+          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://soundshed.com")}>
+            soundshed.com ↗
+          </a>
+          <a href="#" className="about-link-pill" onClick={(e) => openLink(e, "https://github.com/soundshed/soundshed-app/discussions")}>
+            Community discussions ↗
+          </a>
+        </div>
+      </div>
+
+      {/* ── Version card ── */}
+      <div className="about-version-card glass-panel">
+        {isWebMode === false ? (
+          appUpdateAvailable ? (
+            <div className="about-update-banner">
+              <span className="about-update-icon">⬆</span>
+              <span>A new version is available — updating is recommended.</span>
+              <button className="btn btn-primary btn-sm" onClick={(e) => openLink(e, "https://soundshed.com")}>
                 Download Update
               </button>
-            </p>
+            </div>
           ) : (
-            <p>
-              <span className="badge rounded-pill bg-secondary">
+            <div className="about-version-row">
+              <span className="version-chip">
                 {appInfo?.name} {appInfo?.version}
               </span>
-              <button
-                className="btn btn-sm ms-2"
-                onClick={() => {
-                  checkForUpdates(true);
-                }}
-              >
-                Check For Updates
+              <button className="btn btn-sm btn-secondary" onClick={() => checkForUpdates(true)}>
+                Check for Updates
               </button>
-            </p>
-          )}
-        </div>
-      ) : (
-        <span className="badge rounded-pill bg-secondary">{env.Version} [Web]</span>
-      )}
-      <h3 className="mt-2">Credits</h3>
-      <p>
-        Spark communications code based on
-        https://github.com/paulhamsh/Spark-Parser
-      </p>
-      <p>
-        Some preset information adapted from
-        https://github.com/richtamblyn/PGSparkLite
-      </p>
-      <p>Burning Guitar Photo by Dark Rider on Unsplash</p>
-      <p>Pedal Board + Red Shoe Photo by Jarrod Reed on Unsplash</p>
-      <p>Wooden Pedal Board Photo by Luana Azevedo on Unsplash</p>
-      <p>Soundshed app by Christopher Cook</p>
+            </div>
+          )
+        ) : (
+          <div className="about-version-row">
+            <span className="version-chip">{env.Version} · Web</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Credits ── */}
+      <div className="about-credits glass-panel">
+        <h3 className="about-credits-heading">Credits</h3>
+        <ul className="about-credits-list">
+          <li>
+            Spark comms based on{" "}
+            <a href="#" onClick={(e) => openLink(e, "https://github.com/paulhamsh/Spark-Parser")}>
+              paulhamsh/Spark-Parser
+            </a>
+          </li>
+          <li>
+            Preset info adapted from{" "}
+            <a href="#" onClick={(e) => openLink(e, "https://github.com/richtamblyn/PGSparkLite")}>
+              richtamblyn/PGSparkLite
+            </a>
+          </li>
+          <li>Burning Guitar photo — Dark Rider on Unsplash</li>
+          <li>Pedal Board photo — Jarrod Reed on Unsplash</li>
+          <li>Wooden Pedal Board photo — Luana Azevedo on Unsplash</li>
+          <li>Soundshed Control by Christopher Cook</li>
+        </ul>
+      </div>
+
     </div>
   );
 };
