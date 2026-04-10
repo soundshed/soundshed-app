@@ -164,7 +164,7 @@ const SettingsControl = () => {
       </span>
 
 
-      <table className="table table-striped">
+      <table className="table table-dark table-striped">
         <tbody>{renderInputEventMappings()}</tbody>
       </table>
 

@@ -93,7 +93,7 @@ const AboutControl = () => {
       ) : (
         <span className="badge rounded-pill bg-secondary">{env.Version} [Web]</span>
       )}
-      <h3>Credits</h3>
+      <h3 className="mt-2">Credits</h3>
       <p>
         Spark communications code based on
         https://github.com/paulhamsh/Spark-Parser

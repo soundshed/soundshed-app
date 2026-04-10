@@ -11,20 +11,12 @@ const HomeControl = () => {
         Browse and manage favourite tones, preview or store on your amp. Jam to backing tracks and browse video lessons.
       </p>
 
-      <NavLink to="/tones">
-        <section className="nav-section tones">
-        <div className="section-container">
-          <h2>Tones ▶</h2>
-          <p>Browse community tones, manage your favourites.</p>
-          </div>
-        </section>
-      </NavLink>
-
       <NavLink to="/device" >
         <section className="nav-section amp">
         <div className="section-container">
           <h2>Control Your Amp ▶</h2>
           <p>Control and modify amp settings</p>
+          <p>Browse community tones, manage your favourites.</p>
           </div>
         </section>
       </NavLink>

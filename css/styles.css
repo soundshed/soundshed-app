@@ -300,6 +300,6 @@ td,
 th {
     color: whitesmoke;
 }
-.table-striped>tbody>tr:nth-of-type(odd)>* {
-    color:#9c9c9c;
+.table-striped {
+    --bs-table-striped-color: #9c9c9c;
 }
