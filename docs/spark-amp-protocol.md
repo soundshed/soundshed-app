@@ -304,8 +304,11 @@ App → Amp   cmd=01 sub=01 chunk[0]
 Amp → App   cmd=05 sub=01              ← chunk ACK; send next chunk
 App → Amp   cmd=01 sub=01 chunk[1]
 Amp → App   cmd=05 sub=01
-  … repeat for remaining chunks …
+  … repeat for all but the last chunk …
+App → Amp   cmd=01 sub=01 chunk[N]     ← final chunk
+Amp → App   cmd=04 sub=01              ← final chunk ACK (cmd=04, not 05)
 App → Amp   cmd=01 sub=38 00 7f        ← preset switch (~500 ms after final chunk)
+Amp → App   cmd=04 sub=38              ← preset switch ACK
 App → Amp   cmd=02 sub=1a [01 12 00 01]← live sync request (raw bytes, not 7-bit encoded)
 Amp → App   cmd=03 sub=1a [...]        ← live sync response; upload complete
 ```
@@ -376,6 +379,9 @@ BPM                         ← float (e.g. 120.0)
         Parameter index     ← byte (0, 1, 2, …)
         91                  ← separator (always 0x91)
         Value               ← float (0.0 to 1.0)
+
+Loudness                    ← float (optional, ca + 4 bytes) — present on some presets
+Extra Gain                  ← float (optional, ca + 4 bytes) — present on some presets
 
 Checksum                    ← 1 byte (see below)
 ```
