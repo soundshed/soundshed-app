@@ -228,7 +228,7 @@ Every message has a **command** byte and a **sub-command** byte that identify wh
 | **SET** | `01` | App tells the amp to change effects, parameters, or presets |
 | **GET** | `02` | App asks the amp for information |
 | **RESPONSE / SET** | `03` | Amp sends updates to app; also used by the app for amp model and store commands (see below) |
-| **NOTIFY** | `04` | Amp-initiated notification (hardware knob turns, preset switches, effect toggles) |
+| **ACK** | `04` | Amp acknowledges a command |
 | **ACK** | `05` | Amp acknowledges a tone chunk during a Spark 2 upload |
 
 > **Note on `04` vs `05`:** On the Spark 40, preset chunk acknowledgements arrive as cmd `04`. On the Spark 2, they arrive as cmd `05`. Both use sub-command `01`.
