@@ -5,6 +5,7 @@ import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
 import { Utils } from './utils';
 import { DeviceStateStore } from '../stores/devicestate';
+import { AppStateStore } from '../stores/appstate';
 import { platformEvents, nativeEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
@@ -22,6 +23,14 @@ const debounce = (func, delay) => {
 export class DeviceViewModel {
 
     public statusMessage = "";
+
+    static getPresetSlotsForDevice(deviceName: string): number {
+        if (!deviceName) return 4;
+        const name = deviceName.toLowerCase();
+        if (name.includes("spark 2")) return 8;
+        // Spark 40, Spark Mini, Spark GO, Spark Neo all use 4
+        return 4;
+    }
 
     // attached handler to be called by app model state changes and UI may have to react
     private onStateChangeHandler;
@@ -265,6 +274,10 @@ export class DeviceViewModel {
                 // store last connected devices
 
                 DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null });
+
+                // auto-select preset slots based on connected device name
+                const slots = DeviceViewModel.getPresetSlotsForDevice(device.name);
+                AppStateStore.update(s => { s.numPresetSlots = slots; });
 
                 localStorage.setItem("lastConnectedDevice", JSON.stringify(device));
 

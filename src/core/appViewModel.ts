@@ -84,6 +84,7 @@ export class AppViewModel {
             { id: "8", name: "Key 4 to CH1", source: { type: "keyboard", code: "4" }, target: { type: "amp-channel", value: "3" } }
         ];
         let selectedMidiInput = null;
+        let numPresetSlots = 4;
         let settings = localStorage.getItem("settings");
         if (settings != null) {
             // settings to load
@@ -96,11 +97,16 @@ export class AppViewModel {
                 selectedMidiInput = settingsParsed.selectedMidiInput;
             }
 
+            if (settingsParsed.numPresetSlots != null) {
+                numPresetSlots = settingsParsed.numPresetSlots;
+            }
+
         }
 
         AppStateStore.update(s => {
             s.inputEventMappings = mappings;
             s.selectedMidiInput = selectedMidiInput;
+            s.numPresetSlots = numPresetSlots;
         });
 
     }
@@ -111,12 +117,12 @@ export class AppViewModel {
 
         let settings = {
             selectedMidiInput: allSettings.selectedMidiInput,
-            inputEventMappings: allSettings.inputEventMappings
+            inputEventMappings: allSettings.inputEventMappings,
+            numPresetSlots: allSettings.numPresetSlots
         };
 
         localStorage.setItem("settings", JSON.stringify(settings));
     }
-
 
 
     loadFavourites(): Tone[] {

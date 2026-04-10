@@ -1,4 +1,5 @@
 import React from "react";
+import { AppStateStore } from "../../stores/appstate";
 
 const MiscControls = ({
   deviceScanInProgress,
@@ -13,6 +14,7 @@ const MiscControls = ({
   onSetPreset,
 }) => {
   const enableStorePreset = true;
+  const numPresetSlots = AppStateStore.useState((s) => s.numPresetSlots);
   React.useEffect(() => {
     // watch for changes
   }, [
@@ -57,62 +59,23 @@ const MiscControls = ({
             role="group"
             aria-label="Channel Selection"
           >
-            <button
-              type="button"
-              className={
-                selectedChannel == 0
-                  ? "btn btn-sm btn-secondary active"
-                  : "btn btn-sm btn-secondary"
-              }
-              id="ch1"
-              onClick={() => {
-                setChannel(0);
-              }}
-            >
-              1
-            </button>
-            <button
-              type="button"
-              className={
-                selectedChannel == 1
-                  ? "btn btn-sm btn-secondary active"
-                  : "btn btn-sm btn-secondary"
-              }
-              id="ch2"
-              onClick={() => {
-                setChannel(1);
-              }}
-            >
-              2
-            </button>
-            <button
-              type="button"
-              className={
-                selectedChannel == 2
-                  ? "btn btn-sm btn-secondary active"
-                  : "btn btn-sm btn-secondary"
-              }
-              id="ch3"
-              onClick={() => {
-                setChannel(2);
-              }}
-            >
-              3
-            </button>
-            <button
-              type="button"
-              className={
-                selectedChannel == 3
-                  ? "btn btn-sm btn-secondary active"
-                  : "btn btn-sm btn-secondary"
-              }
-              id="ch4"
-              onClick={() => {
-                setChannel(3);
-              }}
-            >
-              4
-            </button>
+            {Array.from({ length: numPresetSlots }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={
+                  selectedChannel == i
+                    ? "btn btn-sm btn-secondary active"
+                    : "btn btn-sm btn-secondary"
+                }
+                id={`ch${i + 1}`}
+                onClick={() => {
+                  setChannel(i);
+                }}
+              >
+                {i + 1}
+              </button>
+            ))}
           </div>
         </div>
       </div>

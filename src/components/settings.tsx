@@ -147,6 +147,10 @@ const SettingsControl = () => {
     <div className="settings-intro">
       <h1>Settings</h1>
 
+      
+      <h2>Input Event Mappings</h2>
+      <p>You can optionally map keyboard or midi inputs to amp channels.</p>
+
       <Dropdown>
         <Dropdown.Toggle variant="success" id="dropdown-basic">
           Select Midi Input
@@ -159,8 +163,6 @@ const SettingsControl = () => {
         {selectedMidiInput}
       </span>
 
-      <h2>Input Event Mappings</h2>
-      <p>You can optionally map keyboard or midi inputs to amp channels.</p>
 
       <table className="table table-striped">
         <tbody>{renderInputEventMappings()}</tbody>

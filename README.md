@@ -10,7 +10,7 @@ Download from https://soundshed.com or check out the web app version.
 Windows, macOS and Linux. 64-bit OS and Bluetooth (BLE) connectivity required.
 
 *Supported amps:*
-- Positive Grid Spark 40 and Spark Mini: https://www.positivegrid.com/spark/
+- Positive Grid Spark 40, Spark Mini (Spark 2, Spark GO are experimentally supported): https://www.positivegrid.com/spark/
 
 ![](https://github.com/soundshed/soundshed-app/raw/main/docs/screens/ui.png)
 

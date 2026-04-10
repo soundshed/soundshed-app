@@ -22,7 +22,10 @@ const DeviceSelectorControl = () => {
   const deviceConnectionFailed = DeviceStateStore.useState(
     (s) => s.deviceConnectionFailed
   );
+  const [autoConnect, setAutoConnect] = React.useState(true);
+  const autoConnectTriggered = React.useRef(false);
   const requestScanForDevices = () => {
+    autoConnectTriggered.current = false;
     deviceViewModel.scanForDevices();
   };
 
@@ -74,6 +77,13 @@ const DeviceSelectorControl = () => {
   useEffect(() => {
    // listen for specific state changes
     }, [deviceConnectionFailed,deviceScanFailed,deviceScanInProgress]);
+
+  useEffect(() => {
+    if (autoConnect && !autoConnectTriggered.current && devices?.length > 0 && !connected && !connectionInProgress) {
+      autoConnectTriggered.current = true;
+      requestConnectDevice(devices[0].address);
+    }
+  }, [devices]);
 
   const listItems = (l: BluetoothDeviceInfo[]) => {
     let list = l.map((i) =>
@@ -151,7 +161,20 @@ const DeviceSelectorControl = () => {
         </button>
       )}
 
-      <p>When found, click connect to complete:</p>
+      <div className="form-check mt-2">
+        <input
+          className="form-check-input"
+          type="checkbox"
+          id="autoConnectCheck"
+          checked={autoConnect}
+          onChange={(e) => setAutoConnect(e.target.checked)}
+        />
+        <label className="form-check-label" htmlFor="autoConnectCheck">
+          Connect automatically after scan
+        </label>
+      </div>
+
+    
       <div className="m-2">
         <h4>Devices</h4>
         <div>{listItems(devices)}</div>
