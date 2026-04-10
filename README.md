@@ -1,11 +1,11 @@
-# Soundshed
+# Soundshed Control
 
 Desktop and Web UI which can be used to:
 - manage tone library and browse tone communities
 - connect to supported amp via bluetooth, manage basic settings and set presets.
 - browse and favourite video backing tracks
 
-Download from https://soundshed.com or check out the web app version.
+See https://soundshed.com for info.
 
 Windows, macOS and Linux. 64-bit OS and Bluetooth (BLE) connectivity required.
 
@@ -90,6 +90,8 @@ The UI is React (TypeScript variant) with bootstrap for UI css. The Pullstate li
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
 
 #### Hardware communication
+
+See our [Spark Amp Protocol document](docs/spark-amp-protocol.md) for current understanding of the spark amp communication.
 
 [BLE Reader Data Received Queue]
 
