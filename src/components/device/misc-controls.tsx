@@ -45,7 +45,7 @@ const MiscControls = ({
               id="storePreset" title="Store settings to the current channel"
               onClick={()=>{ onSetPreset()}}
             >
-              Store Settings
+              Save To Amp
             </button>
           </div>
         ) : (
