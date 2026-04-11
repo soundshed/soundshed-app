@@ -9,6 +9,7 @@ import { AppStateStore } from '../stores/appstate';
 import { platformEvents, nativeEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
+import { TcpProvider } from '../spork/src/devices/spark/tcpProvider';
 import envSettings from '../env';
 
 const debounce = (func, delay) => {
@@ -54,7 +55,18 @@ export class DeviceViewModel {
         DeviceStateStore.update(s => { s.fxCatalog = FxCatalogProvider.getFxCatalog(); });
 
         this.deviceContext = new DeviceContext();
-        this.deviceContext.init(new BleProvider(), (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
+
+        const transport = (envSettings.SparkTransport || "ble").toLowerCase();
+        const provider = transport === "tcp-sim"
+            ? new TcpProvider({
+                host: envSettings.SparkSimulatorHost || "127.0.0.1",
+                port: envSettings.SparkSimulatorPort || 9124,
+                model: envSettings.SparkSimulatorModel || "spark-2",
+                verbose: !!envSettings.SparkSimulatorVerbose
+            })
+            : new BleProvider();
+
+        this.deviceContext.init(provider, (type: string, msg: any) => { this.hardwareEventReceiver(type, msg); });
 
         this.setupEventListeners();
     }
@@ -76,6 +88,16 @@ export class DeviceViewModel {
     setupEventListeners() {
         // setup event listeners for main electron app events (native bluetooth data state, device state responses, device list etc)
 
+        const registerRuntimeEvent = (type: string, handler: (event: any, args: any) => void) => {
+            platformEvents.on(type, handler);
+
+            const nativeEvt = nativeEvents as any;
+            const platformEvt = platformEvents as any;
+            if (nativeEvt && nativeEvt !== platformEvt && typeof nativeEvt.on === "function") {
+                nativeEvt.on(type, handler);
+            }
+        };
+
         if (this.deviceContext != null) {
             platformEvents.on("perform-action", (event, args) => {
                 // ... do hardware actions on behalf of the Renderer
@@ -83,11 +105,11 @@ export class DeviceViewModel {
             });
         }
 
-        nativeEvents.on('devices-discovered', (event, args) => {
+        registerRuntimeEvent('devices-discovered', (event, args) => {
             this.onDevicesDiscovered(args);
         });
 
-        platformEvents.on('device-state-changed', (event, args: DeviceState) => {
+        registerRuntimeEvent('device-state-changed', (event, args: DeviceState) => {
             this.log("got device state update from main.");
 
             // change to preset config update, ignore if is in response to fx change/toggle etc
@@ -178,7 +200,7 @@ export class DeviceViewModel {
             this.onStateChangeHandler();
         });
 
-        platformEvents.on('device-connection-changed', (event, args) => {
+        registerRuntimeEvent('device-connection-changed', (event, args) => {
 
             this.log("got connection event from main:" + args);
 
@@ -293,6 +315,13 @@ export class DeviceViewModel {
 
                 return true;
             } else {
+                if ((envSettings.SparkTransport || "").toLowerCase() === "tcp-sim") {
+                    this.log(`TCP simulator connection failed. target=${envSettings.SparkSimulatorHost}:${envSettings.SparkSimulatorPort}, IsWebMode=${envSettings.IsWebMode}`);
+                    if (envSettings.IsWebMode) {
+                        this.log("tcp-sim requires Electron mode. Set IsWebMode=false and use platformUtils.electron import.");
+                    }
+                }
+
                 const attemptedDevice = Object.assign({}, <BluetoothDeviceInfo>DeviceStateStore.getRawState().lastAttemptedDevice);
                 if (attemptedDevice) {
                     attemptedDevice.connectionFailed = true;
@@ -305,6 +334,9 @@ export class DeviceViewModel {
             DeviceStateStore.update(s => { s.isConnectionInProgress = false; s.isDeviceScanInProgress = false; s.isConnected = false; s.deviceConnectionFailed = true; });
 
             this.log("Failed to connect:" + err.toString());
+            if ((envSettings.SparkTransport || "").toLowerCase() === "tcp-sim") {
+                this.log(`TCP connect exception context: target=${envSettings.SparkSimulatorHost}:${envSettings.SparkSimulatorPort}, IsWebMode=${envSettings.IsWebMode}`);
+            }
             return false;
         }
 

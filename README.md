@@ -72,6 +72,25 @@ The final installable app is packaged using electron-forge:
 - edit env.ts, set IsWebMode true/false
 - edit platformUtils.ts, import required platform
 
+## Use TCP Spark Simulator In App
+1. Ensure Electron mode is selected:
+    - set `IsWebMode` to `false` in `src/env.ts`
+    - select the Electron import in `src/core/platformUtils.ts`
+2. Build simulator tools once: `npm run build-tools`
+3. Start simulator TCP mode from repo root:
+    `npm run sim:spark -- --model spark-2 --transport tcp --host 127.0.0.1 --port 9124 --verbose`
+4. In [src/env.ts](src/env.ts), set:
+    - `SparkTransport: "tcp-sim"`
+    - `SparkSimulatorHost: "127.0.0.1"`
+    - `SparkSimulatorPort: 9124`
+    - `SparkSimulatorModel: "spark-2"`
+5. Start the app and run device scan/connect as normal. The app will show a virtual TCP simulator device instead of opening the BLE chooser.
+6. To switch back to real hardware BLE, set `SparkTransport: "ble"`.
+
+### Headless TCP Comms Test
+- Run `npm run sim:spark:test` to start a temporary TCP simulator and exercise spork comms encode/decode flows without launching the app UI.
+- Use `npm run sim:spark:test:quick -- --port 9124` for faster reruns after app TS is already built.
+
 ## Release Process 
 - Electron
     - ensure electron config selected

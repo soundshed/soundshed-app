@@ -14,4 +14,8 @@ export interface SerialCommsProvider {
     peekReceiveQueueEnd() : Uint8Array;
 
     write(buffer): Promise<void>
+
+    waitForAck?(cmd: number | number[], subCmd: number, timeoutMs?: number): Promise<boolean>;
+
+    isSpark2Connection?(): boolean;
 }

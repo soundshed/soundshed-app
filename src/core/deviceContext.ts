@@ -72,12 +72,16 @@ export class DeviceContext {
         if (args.action == 'applyPreset') {
 
             // send preset
-            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(() => {
-                setTimeout(() => {
-                    //apply preset to virtual channel 127 (0x7f)
-                    this.deviceManager.sendCommand("set_channel", 0x7f);
-                }, 100);
+            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(async () => {
+                const channelSwitchDelayMs = this.deviceManager.isSpark2Device() ? 500 : 100;
+                await new Promise(resolve => setTimeout(resolve, channelSwitchDelayMs));
 
+                // apply preset to virtual channel 127 (0x7f)
+                await this.deviceManager.sendCommand("set_channel", 0x7f);
+
+                if (this.deviceManager.isSpark2Device()) {
+                    await this.deviceManager.sendCommand("request_live_sync", {});
+                }
             });
         }
 

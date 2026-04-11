@@ -10,6 +10,10 @@
 
 import { Preset } from "../../interfaces/preset";
 
+interface SparkCommandMessageOptions {
+    spark2?: boolean;
+}
+
 var enc = new TextEncoder();
 
 function bytes(val): Uint8Array {
@@ -46,13 +50,16 @@ export class SparkCommandMessage {
     private split_data8: Array<Uint8Array> = [];
     private split_data7: Array<Uint8Array> = [];
     private final_message: Array<Uint8Array> = [];
+    private spark2Enabled: boolean;
 
-    constructor() {
+    constructor(options: SparkCommandMessageOptions = {}) {
         this.data = Uint8Array.from([]);
         this.split_data8 = [];
         this.split_data7 = []
         this.cmd = 0;
         this.sub_cmd = 0;
+        this.multi = false;
+        this.spark2Enabled = options.spark2 === true;
     }
 
     start_message(cmd, sub_cmd, multi = false) {
@@ -145,6 +152,15 @@ export class SparkCommandMessage {
         return this.final_message
 
     }
+
+    private build_raw_message(cmd: number, sub_cmd: number, payload: Uint8Array): Uint8Array {
+        let block_header = bytes([0x01, 0xfe, 0x00, 0x00, 0x53, 0xfe]);
+        let block_filler = bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        let chunk_header = bytes([0xf0, 0x01, 0x3a, 0x15]);
+        let block_size = payload.byteLength + 16 + 6 + 1;
+        let header = this.mergeBytes(block_header, bytes(block_size), block_filler, chunk_header, bytes(cmd), bytes(sub_cmd));
+        return this.mergeBytes(header, payload, bytes(0xf7));
+    }
     // // // // // // // //  Helper functions for packing data types
 
     add_bytes(b: Uint8Array) {
@@ -222,6 +238,9 @@ export class SparkCommandMessage {
         this.add_prefixed_string(pedal)
         this.add_bytes(bytes(param))
         this.add_float(val)
+        if (this.spark2Enabled) {
+            this.add_bytes(bytes(0x00));
+        }
         return this.end_message()
     }
 
@@ -243,6 +262,9 @@ export class SparkCommandMessage {
         this.start_message(cmd, sub_cmd)
         this.add_prefixed_string(pedal1)
         this.add_prefixed_string(pedal2)
+        if (this.spark2Enabled) {
+            this.add_bytes(bytes(0x00));
+        }
         return this.end_message()
     }
 
@@ -285,7 +307,25 @@ export class SparkCommandMessage {
         this.start_message(cmd, sub_cmd)
         this.add_prefixed_string(pedal)
         this.add_onoff(onoff)
+        if (this.spark2Enabled) {
+            this.add_bytes(bytes(0x00));
+        }
         return this.end_message()
+    }
+
+    request_live_sync() {
+        const cmd = 0x02;
+        const sub_cmd = 0x1a;
+
+        const payload = bytes([0x01, 0x12, 0x00, 0x01]);
+
+        if (this.spark2Enabled) {
+            return [this.build_raw_message(cmd, sub_cmd, payload)];
+        }
+
+        this.start_message(cmd, sub_cmd);
+        this.add_bytes(payload);
+        return this.end_message();
     }
 
     create_preset(preset) {
@@ -354,6 +394,16 @@ export class SparkCommandMessage {
 
     create_preset_from_model(preset: Preset, channelNum:number = 0x7f) {
 
+        const meta = preset.meta ?? {
+            id: "",
+            name: "",
+            version: "1",
+            description: "",
+            icon: "icon.png"
+        };
+
+        const signalPath = preset.sigpath ?? [];
+
         const cmd = 0x01
         const sub_cmd = 0x01
 
@@ -365,11 +415,11 @@ export class SparkCommandMessage {
         //checksum is generated using bytes from here onwards..
         let chkStart = this.data.length;
 
-        this.add_long_string(preset.meta.id)
-        this.add_string(preset.meta.name)
-        this.add_string(preset.meta.version ?? "1")
+        this.add_long_string(meta.id)
+        this.add_string(meta.name)
+        this.add_string(meta.version ?? "1")
 
-        let descr = preset.meta.description;
+        let descr = meta.description;
 
         if (descr.length > 31) {
             this.add_long_string(descr)
@@ -378,16 +428,16 @@ export class SparkCommandMessage {
             this.add_string(descr)
         }
 
-        this.add_string(preset.meta.icon ?? "icon.png")
+        this.add_string(meta.icon ?? "icon.png")
         this.add_float(preset.bpm ?? 120)
-        this.add_bytes(bytes(0x90 + preset.sigpath.length))        //  always 7 pedals
+        this.add_bytes(bytes(0x90 + signalPath.length))        //  always 7 pedals
 
-        if (preset.sigpath.length != 7) {
-            console.error("Signal path of preset is not expected 7 [" + preset.sigpath.length + "].");
+        if (signalPath.length != 7) {
+            console.error("Signal path of preset is not expected 7 [" + signalPath.length + "].");
         }
 
-        for (let i = 0; i < preset.sigpath.length; i++) {
-            let fx = preset.sigpath[i];
+        for (let i = 0; i < signalPath.length; i++) {
+            let fx = signalPath[i];
             this.add_string(fx.dspId)
             this.add_onoff(fx.active)
             let num_p = fx.params.length;

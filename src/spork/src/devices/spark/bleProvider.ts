@@ -9,10 +9,24 @@ export class BleProvider implements SerialCommsProvider {
     private server: BluetoothRemoteGATTServer;
 
     private serviceGenericUUID = '00001800-0000-1000-8000-00805f9b34fb'; // service 'generic_access'
-    private serviceCustomUUID = '0000ffc0-0000-1000-8000-00805f9b34fb'; // service 'FFC0'
+    private serviceSpark40UUID = '0000ffc0-0000-1000-8000-00805f9b34fb'; // service 'FFC0'
+    private serviceSpark2UUID = '0000ffc8-0000-1000-8000-00805f9b34fb'; // service 'FFC8'
 
-    private deviceCommandCharacteristicUUID = '0xffc1'; // device command messages
-    private deviceChangesCharacteristicUUID = '0xffc2'; // device change messages
+    private spark40CommandCharacteristicUUID = '0xffc1'; // device command messages
+    private spark40ChangesCharacteristicUUID = '0xffc2'; // device change messages
+    private spark2CommandCharacteristicUUID = '0xffc9'; // Spark 2 command messages
+    private spark2ChangesCharacteristicUUID = '0xffca'; // Spark 2 change messages
+
+    private isSpark2ConnectionActive = false;
+
+    private pendingAckWaiters: {
+        cmd: number[];
+        subCmd: number;
+        resolve: (value: boolean) => void;
+        timeoutHandle: ReturnType<typeof setTimeout>;
+    }[] = [];
+
+    private recentAcks: { cmd: number; subCmd: number; at: number }[] = [];
 
     private commandCharacteristic: BluetoothRemoteGATTCharacteristic;
     private changeCharacteristic: BluetoothRemoteGATTCharacteristic;
@@ -44,7 +58,7 @@ export class BleProvider implements SerialCommsProvider {
 
         let devices: BluetoothDeviceInfo[] = [];
 
-        const options = { acceptAllDevices: true, optionalServices: [this.serviceGenericUUID, this.serviceCustomUUID] };
+        const options = { acceptAllDevices: true, optionalServices: [this.serviceGenericUUID, this.serviceSpark40UUID, this.serviceSpark2UUID] };
 
         try {
             this.log("Requesting device..");
@@ -77,16 +91,48 @@ export class BleProvider implements SerialCommsProvider {
 
             this.log("Getting Device Service..");
 
-            const service = await this.server.getPrimaryService(this.serviceCustomUUID);
+            const expectsSpark2 = (device?.name || "").toLowerCase().includes("spark 2");
 
-            this.log("Getting Device Characteristics..");
+            let connected = false;
+            if (expectsSpark2) {
+                connected = await this.tryConnectService(this.serviceSpark2UUID, this.spark2CommandCharacteristicUUID, this.spark2ChangesCharacteristicUUID, true);
+                if (!connected) {
+                    connected = await this.tryConnectService(this.serviceSpark40UUID, this.spark40CommandCharacteristicUUID, this.spark40ChangesCharacteristicUUID, false);
+                }
+            } else {
+                connected = await this.tryConnectService(this.serviceSpark40UUID, this.spark40CommandCharacteristicUUID, this.spark40ChangesCharacteristicUUID, false);
+                if (!connected) {
+                    connected = await this.tryConnectService(this.serviceSpark2UUID, this.spark2CommandCharacteristicUUID, this.spark2ChangesCharacteristicUUID, true);
+                }
+            }
 
-            this.commandCharacteristic = await service.getCharacteristic(parseInt(this.deviceCommandCharacteristicUUID));
-            this.changeCharacteristic = await service.getCharacteristic(parseInt(this.deviceChangesCharacteristicUUID));
+            if (!connected) {
+                this.log("Failed to initialize Spark BLE services and characteristics");
+                return false;
+            }
 
             return true;
         } else {
             this.log("Failed to connect to device..");
+            return false;
+        }
+    }
+
+    private async tryConnectService(serviceUUID: string, commandCharUUID: string, changeCharUUID: string, isSpark2: boolean): Promise<boolean> {
+        try {
+            const service = await this.server.getPrimaryService(serviceUUID);
+
+            this.log("Getting Device Characteristics..");
+
+            this.commandCharacteristic = await service.getCharacteristic(parseInt(commandCharUUID));
+            this.changeCharacteristic = await service.getCharacteristic(parseInt(changeCharUUID));
+            this.isSpark2ConnectionActive = isSpark2;
+
+            this.log(`Using ${isSpark2 ? "Spark 2" : "Spark 40"} BLE profile`);
+
+            return true;
+        } catch (err) {
+            this.log(`Service discovery failed for ${serviceUUID}: ${JSON.stringify(err)}`);
             return false;
         }
     }
@@ -141,6 +187,14 @@ export class BleProvider implements SerialCommsProvider {
         }
 
         this.isConnected = false;
+        this.isSpark2ConnectionActive = false;
+
+        for (const waiter of this.pendingAckWaiters) {
+            clearTimeout(waiter.timeoutHandle);
+            waiter.resolve(false);
+        }
+        this.pendingAckWaiters = [];
+        this.recentAcks = [];
     }
 
     public handleAndQueueMessageData(dataChunk: Uint8Array) {
@@ -176,6 +230,7 @@ export class BleProvider implements SerialCommsProvider {
                 let merged = SparkMessageReader.mergeBytes(this.lastDataChunkRemainder, partial);
 
                 this.receiveQueue.push(merged);
+                this.notifyAckWaiters(merged);
 
                 currentTerminatorItemIdx++;
 
@@ -190,6 +245,63 @@ export class BleProvider implements SerialCommsProvider {
                 currentSliceStartIndex = i + 1;
             }
         }
+    }
+
+    private notifyAckWaiters(message: Uint8Array) {
+        if (message.length < 6) {
+            return;
+        }
+
+        const cmd = message[4];
+        const subCmd = message[5];
+
+        if (cmd !== 0x04 && cmd !== 0x05) {
+            return;
+        }
+
+        const now = Date.now();
+        this.recentAcks.push({ cmd, subCmd, at: now });
+        this.recentAcks = this.recentAcks.filter(item => now - item.at < 5000);
+
+        for (let i = this.pendingAckWaiters.length - 1; i >= 0; i--) {
+            const waiter = this.pendingAckWaiters[i];
+            if (waiter.subCmd === subCmd && waiter.cmd.includes(cmd)) {
+                clearTimeout(waiter.timeoutHandle);
+                waiter.resolve(true);
+                this.pendingAckWaiters.splice(i, 1);
+            }
+        }
+    }
+
+    public waitForAck(cmd: number | number[], subCmd: number, timeoutMs: number = 3000): Promise<boolean> {
+        const cmdList = Array.isArray(cmd) ? cmd : [cmd];
+
+        const existingAckIndex = this.recentAcks.findIndex(ack => ack.subCmd === subCmd && cmdList.includes(ack.cmd));
+        if (existingAckIndex >= 0) {
+            this.recentAcks.splice(existingAckIndex, 1);
+            return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+            const timeoutHandle = setTimeout(() => {
+                const idx = this.pendingAckWaiters.findIndex(waiter => waiter.timeoutHandle === timeoutHandle);
+                if (idx >= 0) {
+                    this.pendingAckWaiters.splice(idx, 1);
+                }
+                resolve(false);
+            }, timeoutMs);
+
+            this.pendingAckWaiters.push({
+                cmd: cmdList,
+                subCmd,
+                resolve,
+                timeoutHandle
+            });
+        });
+    }
+
+    public isSpark2Connection(): boolean {
+        return this.isSpark2ConnectionActive;
     }
 
     trimHeader(data: Uint8Array) {
@@ -280,6 +392,38 @@ export class BleProvider implements SerialCommsProvider {
 
     isSendQueueProcessing = false;
 
+    private splitAttWrites(buffer: Uint8Array, maxLen: number): Uint8Array[] {
+        if (buffer.length <= maxLen) {
+            return [buffer];
+        }
+
+        let parts: Uint8Array[] = [];
+        for (let i = 0; i < buffer.length; i += maxLen) {
+            parts.push(buffer.slice(i, i + maxLen));
+        }
+
+        return parts;
+    }
+
+    private async writeChunkWithRetry(chunk: Uint8Array): Promise<void> {
+        let attempts = 5;
+        while (attempts > 0) {
+            try {
+                attempts--;
+                await this.commandCharacteristic.writeValueWithoutResponse(chunk as unknown as BufferSource);
+                return;
+            } catch (err) {
+                if (attempts > 0) {
+                    this.log("Error writing command changes, retrying..");
+                    await Utils.sleepAsync(25);
+                } else {
+                    this.log("Error writing command changes, giving up..");
+                    throw err;
+                }
+            }
+        }
+    }
+
     public async write(msg: any) {
 
         // add this message to start of queue, queue will be processed end-first
@@ -309,21 +453,11 @@ export class BleProvider implements SerialCommsProvider {
 
                 this.log(`Writing command changes.. ${uint8Array.length} bytes`);
 
-                let attempts = 5;
-                let completed = false;
-
-                while (!completed && attempts > 0) {
-                    try {
-                        attempts--;
-                        await this.commandCharacteristic.writeValueWithoutResponse(uint8Array);
-                        completed = true;
-                    } catch (err) {
-                        if (attempts > 0) {
-                            this.log("Error writing command changes, retrying..");
-                            await Utils.sleepAsync(25);
-                        } else {
-                            this.log("Error writing command changes, giving up..");
-                        }
+                const chunks = this.isSpark2ConnectionActive ? this.splitAttWrites(uint8Array, 100) : [uint8Array];
+                for (let i = 0; i < chunks.length; i++) {
+                    await this.writeChunkWithRetry(chunks[i]);
+                    if (chunks.length > 1 && i < chunks.length - 1) {
+                        await Utils.sleepAsync(5);
                     }
                 }
             }

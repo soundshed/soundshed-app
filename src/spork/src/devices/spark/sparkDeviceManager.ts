@@ -12,6 +12,7 @@ export class SparkDeviceManager implements DeviceController {
     public onStateChanged;
 
     public deviceAddress = "";
+    private isSpark2 = false;
 
     private reader = new SparkMessageReader();
 
@@ -25,7 +26,13 @@ export class SparkDeviceManager implements DeviceController {
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
+        this.isSpark2 = (device?.name || "").toLowerCase().includes("spark 2");
+
         var connected = await this.connection.connect(device);
+
+        if (connected && this.connection.isSpark2Connection) {
+            this.isSpark2 = this.connection.isSpark2Connection();
+        }
 
         if (connected) {
 
@@ -37,6 +44,10 @@ export class SparkDeviceManager implements DeviceController {
         }
 
         return connected;
+    }
+
+    public isSpark2Device(): boolean {
+        return this.isSpark2;
     }
 
     public async startReceiver() {
@@ -115,7 +126,7 @@ export class SparkDeviceManager implements DeviceController {
         // populate metadata about fx etc
         if (deviceState.presetConfig) {
 
-            for (let fx of deviceState.presetConfig.sigpath) {
+            for (let fx of (deviceState.presetConfig.sigpath ?? [])) {
 
                 let dspId = fx.dspId;
 
@@ -158,9 +169,9 @@ export class SparkDeviceManager implements DeviceController {
 
     public async sendCommand(type, data) {
 
-        let msg = new SparkCommandMessage();
+        let msg = new SparkCommandMessage({ spark2: this.isSpark2 });
 
-        let msgArray = [];
+        let msgArray: Uint8Array[] = [];
 
         if (type == "set_preset") {
             this.log("Setting preset " + JSON.stringify(data));
@@ -236,6 +247,16 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_info(0x23);
         }
 
+        if (type == "request_live_sync") {
+            this.log("Requesting Spark 2 live sync");
+            msgArray = msg.request_live_sync();
+        }
+
+        if (this.isSpark2 && (type == "set_preset" || type == "set_preset_from_model") && msgArray.length > 0) {
+            await this.sendSpark2PresetChunks(msgArray);
+            return;
+        }
+
         // todo: convert to a send queue
         for (let dat of msgArray) {
             try {
@@ -256,8 +277,32 @@ export class SparkDeviceManager implements DeviceController {
 
     }
 
+    private async sendSpark2PresetChunks(msgArray: Uint8Array[]) {
+        this.log(`Spark 2 upload mode enabled for ${msgArray.length} chunks`);
+
+        for (let idx = 0; idx < msgArray.length; idx++) {
+            const dat = msgArray[idx];
+
+            this.log("[SEND RAW]: " + this.buf2hex(dat));
+            if (typeof (Buffer) != "undefined") {
+                await this.connection.write(Buffer.from(dat));
+            } else {
+                await this.connection.write(dat);
+            }
+
+            if (this.connection.waitForAck) {
+                const expectedCmd = idx === msgArray.length - 1 ? 0x04 : 0x05;
+                const ackOk = await this.connection.waitForAck([expectedCmd], 0x01, 3000);
+                if (!ackOk) {
+                    this.log(`Timed out waiting for Spark 2 upload ack cmd=${expectedCmd.toString(16)} sub=01`);
+                }
+            }
+        }
+    }
+
     hexToUint8Array(hex: string): Uint8Array {
-        for (var bytes = [], c = 0; c < hex.length; c += 2) {
+        let bytes: number[] = [];
+        for (let c = 0; c < hex.length; c += 2) {
             bytes.push(parseInt(hex.substr(c, 2), 16));
         }
 

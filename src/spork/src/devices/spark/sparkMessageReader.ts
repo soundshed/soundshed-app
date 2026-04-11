@@ -66,7 +66,7 @@ function chr(val): string {
 export class SparkMessageReader {
     private data: Array<Uint8Array>;
     private message: Array<Uint8Array>;
-    private msg: Uint8Array;
+    private msg: Uint8Array = new Uint8Array();
     private msg_pos;
     private cmd;
     private sub_cmd;
@@ -151,7 +151,7 @@ export class SparkMessageReader {
         //remove the chunk headers, saving the command and sub_command
         //and convert the 7 bit data to 8 bits
 
-        let chunk_8bit = []
+        let chunk_8bit: [number, number, Uint8Array][] = []
 
         for (let chunk of this.data) {
             let this_cmd = chunk[4]
@@ -214,6 +214,18 @@ export class SparkMessageReader {
         return a_byte;
     }
 
+    peek_byte(offset = 0) {
+        return this.msg[this.msg_pos + offset]
+    }
+
+    has_remaining_bytes(count = 1) {
+        return (this.msg_pos + count) <= this.msg.length;
+    }
+
+    is_string_prefix(prefix: number) {
+        return prefix == 0xd9 || (prefix >= 0xa0 && prefix <= 0xbf);
+    }
+
     read_prefixed_string() {
         let str_len = this.read_byte()
         let str_len2 = this.read_byte() - 0xa0
@@ -228,7 +240,7 @@ export class SparkMessageReader {
 
 
         let a_byte = this.read_byte()
-        let str_len = null;
+        let str_len = 0;
         if (a_byte == 0xd9) {
             a_byte = this.read_byte()
             str_len = a_byte
@@ -434,21 +446,44 @@ export class SparkMessageReader {
         const presetNum = this.read_byte()
         this.deviceState.selectedPresetNumber = presetNum;
 
-        this.add_int("Preset number", preset)
+        this.add_int("Preset number", presetNum)
         const uuid = this.read_string()
 
         this.add_str("UUID", uuid)
         let name = this.read_string()
 
         this.add_str("Name", name)
-        const version = this.read_string()
-        this.add_str("Version", version)
-        const descr = this.read_string()
-        this.add_str("Description", descr)
 
-        const icon = this.read_string()
+        // Spark 2 compact preset responses omit version/BPM. Read available strings
+        // until the non-string section begins and map fields by count.
+        const headerStrings: string[] = [];
+        while (headerStrings.length < 3 && this.has_remaining_bytes() && this.is_string_prefix(this.peek_byte())) {
+            headerStrings.push(this.read_string());
+        }
+
+        let version = "0.7";
+        let descr = "";
+        let icon = "icon.png";
+
+        if (headerStrings.length == 3) {
+            version = headerStrings[0];
+            descr = headerStrings[1];
+            icon = headerStrings[2];
+        } else if (headerStrings.length == 2) {
+            descr = headerStrings[0];
+            icon = headerStrings[1];
+        } else if (headerStrings.length == 1) {
+            descr = headerStrings[0];
+        }
+
+        this.add_str("Version", version)
+        this.add_str("Description", descr)
         this.add_str("Icon", icon)
-        const bpm = this.read_float()
+
+        let bpm = 120.0;
+        if (this.has_remaining_bytes() && this.peek_byte() == 0xca) {
+            bpm = this.read_float();
+        }
         this.add_float("BPM", bpm)
 
         preset.meta = {
@@ -459,19 +494,29 @@ export class SparkMessageReader {
             icon: icon
         };
 
-        // const num_effects = this.read_byte() - 0x90
+        let num_effects = 7;
+        if (this.has_remaining_bytes() && this.peek_byte() >= 0x90 && this.peek_byte() <= 0x9f) {
+            num_effects = this.read_byte() - 0x90;
+        }
+
         this.add_python("\"Effects\": [")
         this.add_indent()
 
         let signalPaths = new Array<SignalPath>();
 
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < num_effects; i++) {
             const e_str = this.read_string()
             const e_onoff = this.read_onoff()
             this.add_python("{")
             this.add_str("EffectName", e_str)
             this.add_str("OnOff", e_onoff)
-            const num_p = this.read_byte() - 0x90
+
+            if (!this.has_remaining_bytes()) {
+                break;
+            }
+
+            const paramPrefix = this.read_byte();
+            const num_p = Math.max(0, paramPrefix - 0x90)
             this.add_python("\"Parameters\":[")
             this.add_indent()
 
@@ -502,8 +547,10 @@ export class SparkMessageReader {
         }
         this.add_python("],")
         this.del_indent()
-        const unk = this.read_byte()
-        this.add_str("Unknown", hex(unk))
+        if (this.has_remaining_bytes()) {
+            const unk = this.read_byte()
+            this.add_str("Unknown", hex(unk))
+        }
         this.end_str()
 
         preset.sigpath = signalPaths;
@@ -562,6 +609,12 @@ export class SparkMessageReader {
             else if (sub_cmd == 0x38) {
                 this.read_hardware_preset()
             }
+            else if (sub_cmd == 0x1a) {
+                this.receivedMessageQueue.push({ type: 'spark2_live_sync', value: true });
+            }
+            else if (sub_cmd == 0x62) {
+                this.receivedMessageQueue.push({ type: 'spark2_post_upload_ack', value: true });
+            }
             else if (sub_cmd == 0x63) {
                 this.read_bpm()
             }
@@ -569,7 +622,7 @@ export class SparkMessageReader {
                 this.log(hex(cmd), hex(sub_cmd), "not handled")
             }
         }
-        else if (cmd == 0x04) {
+        else if (cmd == 0x04 || cmd == 0x05) {
             this.log(SparkMessageReader.getAckMessage(sub_cmd));
         }
         else {
