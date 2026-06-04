@@ -205,11 +205,20 @@ export class DeviceViewModel {
             this.log("got connection event from main:" + args);
 
             if (args == "connected") {
-                DeviceStateStore.update(s => { s.isConnected = true });
+                DeviceStateStore.update(s => { s.isConnected = true; s.isConnectionInProgress = false; });
             }
 
             if (args == "failed") {
-                DeviceStateStore.update(s => { s.isConnected = false, s.connectedDevice = null });
+                DeviceStateStore.update(s => { s.isConnected = false; s.connectedDevice = null; s.isConnectionInProgress = false; });
+            }
+
+            if (args == "disconnected") {
+                // Unexpected BLE drop. 'reconnecting' is sent separately if a retry kicks off.
+                DeviceStateStore.update(s => { s.isConnected = false; });
+            }
+
+            if (args == "reconnecting") {
+                DeviceStateStore.update(s => { s.isConnectionInProgress = true; });
             }
 
             this.onStateChangeHandler();
