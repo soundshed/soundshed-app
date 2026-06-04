@@ -10,11 +10,13 @@ import { Utils } from "../../../../core/utils";
 export class SparkDeviceManager implements DeviceController {
 
     public onStateChanged;
+    public onConnectionLost: (() => void) | null = null;
 
     public deviceAddress = "";
     private isSpark2 = false;
 
     private reader = new SparkMessageReader();
+    private receiverInterval: ReturnType<typeof setInterval> | null = null;
 
     constructor(private connection: SerialCommsProvider) {
 
@@ -28,6 +30,8 @@ export class SparkDeviceManager implements DeviceController {
 
         this.isSpark2 = (device?.name || "").toLowerCase().includes("spark 2");
 
+        this.connection.onDisconnected = () => this.handleConnectionLost();
+
         var connected = await this.connection.connect(device);
 
         if (connected && this.connection.isSpark2Connection) {
@@ -35,10 +39,7 @@ export class SparkDeviceManager implements DeviceController {
         }
 
         if (connected) {
-
-            // setup device read listener, running as background message receiver
             await this.startReceiver();
-
         } else {
             this.log('Device not yet connected! Cannot listen for data');
         }
@@ -51,18 +52,12 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     public async startReceiver() {
-
-        // continuously peek message queue for message terminator, then consume queue
-
         this.log("Starting background receiver");
 
         await this.connection.beginQueuedReceive();
 
-        let msgLoop = async () => {
-
-
-            let queueContent = this.connection.readReceiveQueue();
-
+        const msgLoop = async () => {
+            const queueContent = this.connection.readReceiveQueue();
             if (queueContent != null && queueContent.length > 0) {
                 this.log('Received last message in batch, processing messages ' + queueContent.length);
                 for (var c of queueContent) {
@@ -72,17 +67,36 @@ export class SparkDeviceManager implements DeviceController {
             }
         };
 
-        // initial run
         msgLoop();
+        this.stopReceiverLoop();
+        this.receiverInterval = setInterval(msgLoop, 50);
+    }
 
-        // call msg loop every 50 ms
-        setInterval(msgLoop, 50);
+    private stopReceiverLoop() {
+        if (this.receiverInterval) { clearInterval(this.receiverInterval); this.receiverInterval = null; }
     }
 
     public async disconnect() {
-        try {
-            await this.connection.disconnect();
-        } catch { }
+        this.stopReceiverLoop();
+        try { await this.connection.disconnect(); } catch { }
+    }
+
+    // Reconnect via the transport's reconnect() path (no user re-prompt). Restarts the receive loop.
+    public async reconnect(): Promise<boolean> {
+        if (!this.connection.reconnect) {
+            this.log("Transport does not support reconnect()");
+            return false;
+        }
+        this.stopReceiverLoop();
+        const ok = await this.connection.reconnect();
+        if (ok) await this.startReceiver();
+        return ok;
+    }
+
+    private handleConnectionLost() {
+        this.log("Connection lost");
+        this.stopReceiverLoop();
+        this.onConnectionLost?.();
     }
 
     private buf2hex(buffer: Uint8Array | ArrayBuffer) {

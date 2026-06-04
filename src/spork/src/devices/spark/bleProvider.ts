@@ -45,6 +45,15 @@ export class BleProvider implements SerialCommsProvider {
     private minWaitTimeMSBetweenCommands = 500;
     private minWaitTimeForMessageQueue = 300;
 
+    // Set true by disconnect() so handleUnexpectedDisconnect ignores the resulting event.
+    private intentionalDisconnect = false;
+
+    // Tracks the characteristic we last subscribed to, so we can detach on disconnect/reconnect.
+    private notifyingCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+
+    // Set by SparkDeviceManager to learn about unexpected drops.
+    public onDisconnected: (() => void) | null = null;
+
     constructor() {
         this.receiveQueue = [];
         this.sendQueue = [];
@@ -108,8 +117,16 @@ export class BleProvider implements SerialCommsProvider {
 
             if (!connected) {
                 this.log("Failed to initialize Spark BLE services and characteristics");
+                this.resetTransportState();
+                try { this.selectedDevice?.gatt?.disconnect(); } catch { /* best effort */ }
                 return false;
             }
+
+            // gattserverdisconnected covers Chromium-reported GATT drops; some Windows BLE
+            // stacks can stall silently without an event (heartbeat fallback is a TODO).
+            this.intentionalDisconnect = false;
+            this.selectedDevice.removeEventListener('gattserverdisconnected', this.handleUnexpectedDisconnect);
+            this.selectedDevice.addEventListener('gattserverdisconnected', this.handleUnexpectedDisconnect);
 
             return true;
         } else {
@@ -181,20 +198,59 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     public async disconnect() {
+        // Mark intentional + detach the drop listener BEFORE tearing down GATT
+        // so handleUnexpectedDisconnect doesn't fire for a user-initiated close.
+        this.intentionalDisconnect = true;
+        this.selectedDevice?.removeEventListener('gattserverdisconnected', this.handleUnexpectedDisconnect);
+        this.detachNotificationListener();
 
-        if (this.selectedDevice.gatt.connected) {
+        if (this.selectedDevice?.gatt?.connected) {
             this.selectedDevice.gatt.disconnect();
         }
 
+        this.resetTransportState();
+    }
+
+    private handleUnexpectedDisconnect = () => {
+        if (this.intentionalDisconnect) return;
+        this.log("BLE device disconnected unexpectedly");
+        this.detachNotificationListener();
+        this.resetTransportState();
+        this.onDisconnected?.();
+    }
+
+    private detachNotificationListener() {
+        if (!this.notifyingCharacteristic) return;
+        this.notifyingCharacteristic.removeEventListener('characteristicvaluechanged', this.handleCharacteristicValueChanged);
+        // stopNotifications() may reject if the GATT link is gone; we don't care.
+        this.notifyingCharacteristic.stopNotifications().catch(() => { /* ignore */ });
+        this.notifyingCharacteristic = null;
+    }
+
+    // Reset all transient transport state so a reconnect starts clean. Used by both
+    // intentional disconnect and unexpected drop paths.
+    private resetTransportState() {
         this.isConnected = false;
         this.isSpark2ConnectionActive = false;
-
-        for (const waiter of this.pendingAckWaiters) {
-            clearTimeout(waiter.timeoutHandle);
-            waiter.resolve(false);
-        }
+        this.isReceiving = false;
+        this.isSendQueueProcessing = false;
+        for (const w of this.pendingAckWaiters) { clearTimeout(w.timeoutHandle); w.resolve(false); }
         this.pendingAckWaiters = [];
         this.recentAcks = [];
+        this.receiveQueue = [];
+        this.sendQueue = [];
+        this.lastDataChunkRemainder = new Uint8Array();
+    }
+
+    // Reconnect to the cached BluetoothDevice without re-prompting the user.
+    public async reconnect(): Promise<boolean> {
+        if (!this.selectedDevice) {
+            this.log("Cannot reconnect: no previously selected device");
+            return false;
+        }
+        this.log("Attempting BLE reconnect to " + this.selectedDevice.name);
+        return this.connect({ name: this.selectedDevice.name, address: this.selectedDevice.id, port: null })
+            .catch(err => { this.log("Reconnect failed: " + JSON.stringify(err)); return false; });
     }
 
     public handleAndQueueMessageData(dataChunk: Uint8Array) {
@@ -318,31 +374,25 @@ export class BleProvider implements SerialCommsProvider {
     public async beginQueuedReceive(): Promise<boolean> {
         try {
             await this.changeCharacteristic.startNotifications();
-
             this.log('> Notifications started');
             this.isReceiving = true;
-
-            this.changeCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                const dataView: DataView = (<any>event.target).value;
-                let dataChunk = new Uint8Array(dataView.buffer);
-
-                if (event.timeStamp < this.lastTimeStamp) {
-                    this.log(`[ERROR]: timestamp out of order`);
-                }
-
-                this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
-
-                this.handleAndQueueMessageData(dataChunk);
-
-            });
-
+            this.detachNotificationListener();
+            this.notifyingCharacteristic = this.changeCharacteristic;
+            this.changeCharacteristic.addEventListener('characteristicvaluechanged', this.handleCharacteristicValueChanged);
             return true;
         } catch (err) {
             this.log('> Failed to begin listening for hardware data changes');
             this.isReceiving = false;
             return false;
         }
+    }
 
+    private handleCharacteristicValueChanged = (event: Event) => {
+        const dataView: DataView = (<any>event.target).value;
+        const dataChunk = new Uint8Array(dataView.buffer);
+        if (event.timeStamp < this.lastTimeStamp) this.log(`[ERROR]: timestamp out of order`);
+        this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
+        this.handleAndQueueMessageData(dataChunk);
     }
 
     public isNotificationActive(): boolean {
@@ -430,39 +480,44 @@ export class BleProvider implements SerialCommsProvider {
         this.sendQueue.unshift(msg);
 
         if (!this.isSendQueueProcessing) {
-            while (this.sendQueue.length > 0) {
-                this.isSendQueueProcessing = true;
+            this.isSendQueueProcessing = true;
+            try {
+                while (this.sendQueue.length > 0) {
 
-                this.log(`Time since last command ${this.getTimeDeltaSinceLastCmd()}`);
-                // todo: consider the type of command last sent to determine wait (presets take longer than fx param changes)
-                while (this.getTimeDeltaSinceLastCmd() < this.minWaitTimeMSBetweenCommands) {
-                    this.log("Pausing for messages to be received before sending next command ");
-                    await Utils.sleepAsync(this.minWaitTimeMSBetweenCommands);
-                }
+                    this.log(`Time since last command ${this.getTimeDeltaSinceLastCmd()}`);
+                    // todo: consider the type of command last sent to determine wait (presets take longer than fx param changes)
+                    while (this.getTimeDeltaSinceLastCmd() < this.minWaitTimeMSBetweenCommands) {
+                        this.log("Pausing for messages to be received before sending next command ");
+                        await Utils.sleepAsync(this.minWaitTimeMSBetweenCommands);
+                    }
 
-                while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
-                    this.log("Pausing [again] for messages to be received before sending next command ");
-                    await Utils.sleepAsync(this.minWaitTimeForMessageQueue);
-                }
+                    while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
+                        this.log("Pausing [again] for messages to be received before sending next command ");
+                        await Utils.sleepAsync(this.minWaitTimeForMessageQueue);
+                    }
 
-                this.lastMsgSentTime = new Date();
+                    this.lastMsgSentTime = new Date();
 
-                let currentMsg = this.sendQueue.pop();
+                    let currentMsg = this.sendQueue.pop();
 
-                const uint8Array = new Uint8Array(currentMsg);
+                    const uint8Array = new Uint8Array(currentMsg);
 
-                this.log(`Writing command changes.. ${uint8Array.length} bytes`);
+                    this.log(`Writing command changes.. ${uint8Array.length} bytes`);
 
-                const chunks = this.isSpark2ConnectionActive ? this.splitAttWrites(uint8Array, 100) : [uint8Array];
-                for (let i = 0; i < chunks.length; i++) {
-                    await this.writeChunkWithRetry(chunks[i]);
-                    if (chunks.length > 1 && i < chunks.length - 1) {
-                        await Utils.sleepAsync(5);
+                    const chunks = this.isSpark2ConnectionActive ? this.splitAttWrites(uint8Array, 100) : [uint8Array];
+                    for (let i = 0; i < chunks.length; i++) {
+                        await this.writeChunkWithRetry(chunks[i]);
+                        if (chunks.length > 1 && i < chunks.length - 1) {
+                            await Utils.sleepAsync(5);
+                        }
                     }
                 }
+            } finally {
+                // Ensure the flag is reset even if a write threw (e.g. BLE dropped
+                // mid-send) — otherwise the queue stays "processing forever" and
+                // subsequent commands never get sent after reconnect.
+                this.isSendQueueProcessing = false;
             }
-
-            this.isSendQueueProcessing = false;
         }
     }
 }
