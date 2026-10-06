@@ -7,6 +7,10 @@ export class DeviceContext {
     deviceManager: SparkDeviceManager;
     msgSendDelegate: (type: string, msg: any) => void;
 
+    // Monotonic token; bumped on user-initiated scan/connect so a stale auto-reconnect
+    // attempt can detect it's been superseded and bail without clobbering UI state.
+    private reconnectGeneration = 0;
+
     private log(msg: string) {
         console.debug(msg);
     }
@@ -22,7 +26,35 @@ export class DeviceContext {
             this.sendMessageToApp('device-state-changed', s);
         };
 
+        this.deviceManager.onConnectionLost = () => {
+            this.log("DeviceContext: device connection lost");
+            this.sendMessageToApp('device-connection-changed', 'disconnected');
+            void this.attemptReconnect();
+        };
+
         this.msgSendDelegate = msgDelegate;
+    }
+
+    private async attemptReconnect(): Promise<void> {
+        const myGen = ++this.reconnectGeneration;
+        this.sendMessageToApp('device-connection-changed', 'reconnecting');
+
+        // Brief settle delay before retrying gatt.connect().
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (this.reconnectGeneration !== myGen) return;
+
+        const ok = await this.deviceManager.reconnect().catch(() => false);
+        if (this.reconnectGeneration !== myGen) return;
+
+        if (ok) {
+            this.log("DeviceContext: reconnect succeeded");
+            this.sendMessageToApp('device-connection-changed', 'connected');
+            await this.deviceManager.sendCommand("get_preset", 0)
+                .catch(err => this.log("DeviceContext: post-reconnect get_preset failed: " + err));
+        } else {
+            this.log("DeviceContext: reconnect attempt failed");
+            this.sendMessageToApp('device-connection-changed', 'failed');
+        }
     }
 
     private sendMessageToApp(type: string, args: any) {
@@ -38,6 +70,8 @@ export class DeviceContext {
         this.log("got event from render:" + args.action);
 
         if (args.action == 'scan') {
+            // User scan supersedes any in-flight auto-reconnect.
+            this.reconnectGeneration++;
             this.deviceManager.scanForDevices().then((devices) => {
                 this.log(JSON.stringify(devices));
 
@@ -47,6 +81,9 @@ export class DeviceContext {
 
         if (args.action == 'connect') {
             this.log("attempting to connect:: " + JSON.stringify(args));
+
+            // User connect supersedes any in-flight auto-reconnect.
+            this.reconnectGeneration++;
 
             try {
                 return this.deviceManager.connect(args.data).then(connectedOk => {
