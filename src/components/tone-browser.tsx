@@ -96,6 +96,7 @@ const ToneBrowserControl = () => {
               onEditTone={onEditTone}
               noneMsg="No favourite tones saved yet."
               enableToneEditor={enableToneEditor}
+              enableFiltering={true}
             ></ToneListControl>
           </div>
         );
@@ -110,6 +111,7 @@ const ToneBrowserControl = () => {
               onEditTone={() => {}}
               noneMsg="No community tones available."
               enableToneEditor={false}
+              enableFiltering={true}
             ></ToneListControl>
           </div>
         );

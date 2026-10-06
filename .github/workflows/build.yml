@@ -1,152 +1,178 @@
-# build and make
 name: app build
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    tags:
-        - '*'
+    branches: [main]
+    tags: ['v*']
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build_windows:
-    # if: false # disable build
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        node-version: [20.x]
-
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-    - name: Checkout App
-      uses: actions/checkout@v4
-      with:
-        # Repository name with owner. For example, actions/checkout
-        repository: soundshed/soundshed-app
-        path: app-public
-    
-    - name: Checkout env
-      uses: actions/checkout@v4
-      with:
-        repository: soundshed/soundshed-private
-        path: app-private
-        token: ${{ secrets.PAT_TOKEN }}
-    
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential libbluetooth-dev
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build-web
 
-    - run: |
-        cd app-public
-        cp .\src\core\platformUtils.electron.ts .\src\core\platformUtils.ts
-        npm install -g node-gyp@latest
-        npm install
-        npm run build-electron
-        npm run make
-      env:
-        WIN_CODE_SIGNING_P12: ..\app-private\signing.pfx
-        WIN_CODE_SIGNING_PWD: ${{ secrets.WIN_CODE_SIGN_PWD }}
-        
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with: 
-          name: soundshed-win-x64
-          path: app-public/out/make/squirrel.windows/x64/*
-   
-  build_linux_ubuntu:
-    runs-on: ubuntu-latest
-
+  desktop:
+    name: Desktop (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [20.x]
-
+        include:
+          - os: windows-latest
+            platform: win
+            arch: x64
+            artifact-path: out/make/squirrel.windows/x64/*
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x64
+            artifact-path: out/make/zip/linux/x64/*.zip
+          - os: macos-15-intel
+            platform: macos
+            arch: x64
+            artifact-path: out/make/zip/darwin/x64/*.zip
+    defaults:
+      run:
+        shell: pwsh
     steps:
-    - name: Checkout App
-      uses: actions/checkout@v4
-      with:
-        # Repository name with owner. For example, actions/checkout
-        repository: soundshed/soundshed-app
-        path: app-public
-    
-    - name: Checkout env
-      uses: actions/checkout@v4
-      with:
-        repository: soundshed/soundshed-private
-        path: app-private
-        token: ${{ secrets.PAT_TOKEN }}
-        
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        
-    - run: sudo apt-get install build-essential libbluetooth-dev
-  
-    - run: |   
-        cd app-public
-        cp ./src/core/platformUtils.electron.ts ./src/core/platformUtils.ts
-        npm install
-        npm run build-electron
-        npm run make
-
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with: 
-          name: soundshed-linux-x64
-          path: app-public/out/make/zip/linux/x64/*.zip
-     
-  build_macos:
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        node-version: [20.x]
-
-    steps:
-    - name: Checkout App
-      uses: actions/checkout@v4
-      with:
-        # Repository name with owner. For example, actions/checkout
-        repository: soundshed/soundshed-app
-        path: app-public
-    
-    - name: Checkout env
-      uses: actions/checkout@v4
-      with:
-        repository: soundshed/soundshed-private
-        path: app-private
-        token: ${{ secrets.PAT_TOKEN }}
-        
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        
-        # run make, setup code signing first: https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions
-    - run: | 
-        echo $MACOS_CERTIFICATE | base64 --decode > app-private/certificate.p12
-        security create-keychain -p $MACOS_APP_SIGNING_PWD app-private/build.keychain
-        security default-keychain -s app-private/build.keychain
-        security unlock-keychain -p $MACOS_APP_SIGNING_PWD app-private/build.keychain
-        security import app-private/certificate.p12 -k app-private/build.keychain -P $MACOS_APP_SIGNING_PWD -T /usr/bin/codesign
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MACOS_APP_SIGNING_PWD app-private/build.keychain
-        cd app-public
-        cp ./src/core/platformUtils.electron.ts ./src/core/platformUtils.ts
-        npm install
-        npm run build-electron
-        npm run make
-      env:
-        MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
-        MACOS_APP_SIGNING_PWD: ${{ secrets.MACOS_APP_SIGNING_PWD }}
-        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-      
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with: 
-          name: soundshed-macos-x64
-          path: app-public/out/make/zip/darwin/x64/*.zip
-          
-  
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install Linux native build prerequisites
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential libbluetooth-dev
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify release version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -ne "v$packageVersion") {
+            throw "Release tag must match package.json version v$packageVersion"
+          }
+          $source = Get-Content src/env.ts -Raw
+          if ($source -notmatch 'Version:\s*"([^"]+)"' -or $Matches[1] -ne $packageVersion) {
+            throw 'src/env.ts Version must match package.json for a release'
+          }
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Select Electron platform
+        run: |
+          Copy-Item src/core/platformUtils.electron.ts src/core/platformUtils.ts
+          $envPath = Join-Path $PWD 'src/env.ts'
+          $source = Get-Content $envPath -Raw
+          if ($source -notmatch 'IsWebMode:\s*(true|false)') {
+            throw 'Cannot locate IsWebMode in src/env.ts'
+          }
+          Set-Content $envPath ($source -replace 'IsWebMode:\s*(true|false)', 'IsWebMode: false')
+      - name: Build Electron
+        run: npm run build-electron
+      - name: Checkout Windows signing certificate
+        if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: soundshed/soundshed-private
+          path: app-private
+          token: ${{ secrets.PAT_TOKEN }}
+          persist-credentials: false
+      - name: Prepare Windows signing
+        if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $cert = Join-Path $PWD 'app-private/signing.pfx'
+          if (!(Test-Path $cert) -or !$env:WIN_CODE_SIGNING_PWD) {
+            throw 'Windows release signing certificate/password is missing'
+          }
+          "WIN_CODE_SIGNING_P12=$cert" >> $env:GITHUB_ENV
+          "SOUNDSHED_SIGN_RELEASE=true" >> $env:GITHUB_ENV
+        env:
+          WIN_CODE_SIGNING_PWD: ${{ secrets.WIN_CODE_SIGN_PWD }}
+      - name: Prepare macOS signing keychain
+        if: runner.os == 'macOS' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${MACOS_CERTIFICATE:?Missing MACOS_CERTIFICATE}"
+          : "${MACOS_APP_SIGNING_PWD:?Missing MACOS_APP_SIGNING_PWD}"
+          : "${MACOS_APPLEID:?Missing MACOS_APPLEID}"
+          : "${MACOS_APP_SPECIFIC_PASSWORD:?Missing MACOS_APP_SPECIFIC_PASSWORD}"
+          certificate="$RUNNER_TEMP/soundshed-signing.p12"
+          keychain="$RUNNER_TEMP/soundshed-build.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$MACOS_APP_SIGNING_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          echo "SOUNDSHED_SIGN_RELEASE=true" >> "$GITHUB_ENV"
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_APP_SIGNING_PWD: ${{ secrets.MACOS_APP_SIGNING_PWD }}
+          MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
+          MACOS_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
+      - name: Make unsigned installers
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
+        run: npm run make -- --arch=${{ matrix.arch }}
+      - name: Make release installers
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: npm run make -- --arch=${{ matrix.arch }}
+        env:
+          WIN_CODE_SIGNING_PWD: ${{ secrets.WIN_CODE_SIGN_PWD }}
+          MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
+          MACOS_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
+      - name: Clean signing material
+        if: always()
+        run: |
+          if ($IsMacOS) {
+            $keychain = Join-Path $env:RUNNER_TEMP 'soundshed-build.keychain-db'
+            if (Test-Path $keychain) {
+              security delete-keychain $keychain
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to remove signing keychain' }
+            }
+            $cert = Join-Path $env:RUNNER_TEMP 'soundshed-signing.p12'
+            if (Test-Path $cert) { Remove-Item $cert }
+          }
+          if ($IsWindows) {
+            $cert = Join-Path $PWD 'app-private/signing.pfx'
+            if (Test-Path $cert) { Remove-Item $cert }
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundshed-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ matrix.artifact-path }}
+          if-no-files-found: error
+          retention-days: 14

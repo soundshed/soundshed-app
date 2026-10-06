@@ -78,6 +78,7 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
             onEditTone={() => {}}
             noneMsg="No favourite tones saved yet."
             enableToneEditor={false}
+            enableFiltering={true}
           />
         );
       case "community":
@@ -91,6 +92,7 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
               onEditTone={() => {}}
               noneMsg="No community tones available."
               enableToneEditor={false}
+              enableFiltering={true}
             />
           </div>
         );
@@ -105,6 +107,7 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
               onEditTone={() => {}}
               noneMsg="No ToneCloud tones loaded."
               enableToneEditor={false}
+              enableFiltering={true}
             />
           </div>
         );

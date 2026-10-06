@@ -1,6 +1,18 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Tone } from "../core/soundshedApi";
 import { appViewModel } from "./app";
+
+type ToneSortMode = "default" | "downloads" | "name";
+
+interface ToneListControlProps {
+  toneList: Tone[];
+  favourites: Tone[];
+  onApplyTone: (tone: Tone) => void;
+  onEditTone: (tone: Tone) => void;
+  noneMsg?: string;
+  enableToneEditor: boolean;
+  enableFiltering?: boolean;
+}
 
 const ToneListControl = ({
   toneList,
@@ -9,14 +21,119 @@ const ToneListControl = ({
   onEditTone,
   noneMsg,
   enableToneEditor,
-}) => {
+  enableFiltering = false,
+}: ToneListControlProps) => {
   let noResultsMessage = noneMsg ?? "No results";
+  const [keyword, setKeyword] = React.useState("");
+  const [sortMode, setSortMode] = React.useState<ToneSortMode>("default");
 
-  useEffect(() => {}, [toneList, favourites]);
+  const normalizedKeyword = keyword.trim().toLowerCase();
+
+  const toTagArray = (items?: string[]): string[] => {
+    return (items ?? [])
+      .map((item) => (item ?? "").toString().trim())
+      .filter((item) => item.length > 0);
+  };
+
+  const getToneTags = (tone: Tone): string[] => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    const appendUnique = (items?: string[]) => {
+      toTagArray(items).forEach((item) => {
+        const key = item.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(item);
+        }
+      });
+    };
+
+    appendUnique(tone.tags);
+    appendUnique(tone.categories);
+    appendUnique(tone.artists);
+
+    return result;
+  };
+
+  const getToneAuthor = (tone: Tone): string => {
+    if (tone.author?.trim()) {
+      return tone.author.trim();
+    }
+
+    return "";
+  };
+
+  const getToneDownloadCount = (tone: Tone): number | null => {
+    if (tone.downloadCount == null) {
+      return null;
+    }
+
+    const parsed = Number(tone.downloadCount);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    return Math.max(0, Math.floor(parsed));
+  };
+
+  const formatDownloadCount = (value: number): string => {
+    return new Intl.NumberFormat().format(value);
+  };
+
+  const getSearchBlob = (tone: Tone): string => {
+    return [
+      tone.name,
+      tone.description,
+      getToneAuthor(tone),
+      getToneTags(tone).join(" "),
+    ]
+      .filter((value) => value != null)
+      .join(" ")
+      .toLowerCase();
+  };
+
+  const visibleToneList = React.useMemo(() => {
+    const source = toneList ?? [];
+
+    const filtered = normalizedKeyword.length == 0
+      ? source
+      : source.filter((tone) => getSearchBlob(tone).indexOf(normalizedKeyword) > -1);
+
+    if (sortMode == "default") {
+      return filtered;
+    }
+
+    const sorted = [...filtered];
+    if (sortMode == "downloads") {
+      sorted.sort((a, b) => {
+        const aCount = getToneDownloadCount(a) ?? -1;
+        const bCount = getToneDownloadCount(b) ?? -1;
+
+        if (aCount == bCount) {
+          return (a.name ?? "").localeCompare(b.name ?? "", undefined, {
+            sensitivity: "base",
+          });
+        }
+
+        return bCount - aCount;
+      });
+    }
+
+    if (sortMode == "name") {
+      sorted.sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? "", undefined, {
+          sensitivity: "base",
+        })
+      );
+    }
+
+    return sorted;
+  }, [toneList, normalizedKeyword, sortMode]);
 
   const isFavouriteTone = (t: Tone): boolean => {
     if (
-      favourites.find(
+      (favourites ?? []).find(
         (f) =>
           f.toneId == t.toneId ||
           (t.toneId != null && f.externalId == t.externalId)
@@ -36,16 +153,8 @@ const ToneListControl = ({
     appViewModel.deleteFavourite(t);
   };
 
-  const mapDeviceType = (t) => {
-    if (t == "pg.spark40") {
-      return "Spark 40";
-    } else {
-      return "Unknown Device Type";
-    }
-  };
-
   const formatCategoryTags = (
-    items: string[],
+    items: string[] = [],
     variant: string = "secondary"
   ) => {
     return items.map((i, idx) => (
@@ -56,8 +165,13 @@ const ToneListControl = ({
   };
 
   const renderToneList = () => {
-    return toneList.map((tone: Tone) => (
-      <div key={tone.toneId} className="tone-row">
+    return visibleToneList.map((tone: Tone) => {
+      const tags = getToneTags(tone);
+      const author = getToneAuthor(tone);
+      const downloadCount = getToneDownloadCount(tone);
+
+      return (
+      <div key={tone.toneId ?? tone.externalId ?? tone.name} className="tone-row">
 
         {/* Play / image column */}
         <div className="tone-play">
@@ -83,13 +197,21 @@ const ToneListControl = ({
         <div className="tone-info">
           <span className="tone-name">{tone.name}</span>
           {tone.description && <span className="tone-desc">{tone.description}</span>}
+          {(author || downloadCount != null) && (
+            <div className="tone-meta">
+              {author && <span className="tone-meta-item">By {author}</span>}
+              {downloadCount != null && (
+                <span className="tone-meta-item">
+                  {formatDownloadCount(downloadCount)} downloads
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tags */}
         <div className="tone-tags">
-          
-          {formatCategoryTags(tone.artists, "dark")}
-          {formatCategoryTags(tone.categories, "success")}
+          {formatCategoryTags(tags, "primary")}
         </div>
 
         {/* Favourite toggle */}
@@ -111,13 +233,40 @@ const ToneListControl = ({
         </div>
 
       </div>
-    ));
+    )});
   };
 
   return (
     <div className="tone-list">
+      {enableFiltering && toneList && toneList.length > 0 ? (
+        <div className="tone-list-toolbar">
+          <input
+            className="tone-list-search"
+            type="search"
+            placeholder="Search tones by keyword"
+            value={keyword}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setKeyword(event.target.value);
+            }}
+          />
+          <select
+            className="tone-list-sort"
+            value={sortMode}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+              setSortMode(event.target.value as ToneSortMode);
+            }}
+          >
+            <option value="default">Sort: Default</option>
+            <option value="downloads">Sort: Downloads</option>
+            <option value="name">Sort: Name</option>
+          </select>
+        </div>
+      ) : null}
+
       {!toneList || toneList.length == 0 ? (
         <div className="tone-list-empty">{noResultsMessage}</div>
+      ) : visibleToneList.length == 0 ? (
+        <div className="tone-list-empty">No tones match your search.</div>
       ) : (
         <div>{renderToneList()}</div>
       )}

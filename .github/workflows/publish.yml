@@ -1,48 +1,76 @@
-# This is a basic workflow that is manually triggered
-
 name: Publish Draft for Tag
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
       tagname:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Version name'
-        # Default value if no value is explicitly provided
-        default: 'v1.0.26'
-        # Input has to be provided for the workflow to run
+        description: Existing version tag (for example v1.3.1)
+        type: string
+        required: true
+      run_id:
+        description: Successful app build run ID for this tag
+        type: string
         required: true
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "greet"
-  publish:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+permissions:
+  actions: read
+  contents: write
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+concurrency:
+  group: release-${{ inputs.tagname }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAGNAME: ${{ inputs.tagname }}
+      BUILD_RUN_ID: ${{ inputs.run_id }}
     steps:
-    - name: Download workflow artifact
-      uses: dawidd6/action-download-artifact@v3
-      with:
-        # Workflow name
-        workflow: build.yml
-        workflow_conclusion: success
-        github_token: ${{ secrets.PAT_TOKEN }}
-        
-    - name: Display structure of downloaded files
-      run: ls -R
-    
-    - name: Create Release
-      uses: ncipollo/release-action@v1
-      with:
-        # An optional flag which indicates if we should update a release if it already exists. Defaults to false.
-        allowUpdates: true
-        draft: true
-        artifacts: "soundshed-linux-x64/*, soundshed-macos-x64/*, soundshed-win-x64/*"
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag: $TAGNAME
-        commit: main
+      - name: Validate tag and build provenance
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAGNAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || { echo 'Invalid version tag'; exit 1; }
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]] || { echo 'Invalid build run ID'; exit 1; }
+          gh api "repos/$GH_REPO/git/ref/tags/$TAGNAME" --jq '.ref'
+          tag_sha="$(gh api "repos/$GH_REPO/commits/$TAGNAME" --jq '.sha')"
+          run="$(gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID")"
+          workflow_id="$(gh api "repos/$GH_REPO/actions/workflows/build.yml" --jq '.id')"
+          jq -e --arg sha "$tag_sha" --arg tag "$TAGNAME" --argjson workflow "$workflow_id" \
+            '.conclusion == "success" and .event == "push" and .head_sha == $sha and .head_branch == $tag and .workflow_id == $workflow' \
+            <<< "$run"
+          artifacts="$(gh api --paginate "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID/artifacts" --jq '.artifacts[]')"
+          for name in soundshed-win-x64 soundshed-linux-x64 soundshed-macos-x64; do
+            jq -se --arg name "$name" \
+              '[.[] | select(.name == $name and .expired == false)] | length == 1' <<< "$artifacts"
+          done
+          echo "sha=$tag_sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+          pattern: soundshed-*
+          path: artifacts
+          digest-mismatch: error
+      - name: Create or update draft release
+        shell: bash
+        env:
+          BUILD_SHA: ${{ steps.build.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' files < <(find artifacts -type f -print0)
+          ((${#files[@]} > 0)) || { echo 'No release files downloaded'; exit 1; }
+          releases="$(gh api --paginate "repos/$GH_REPO/releases" --jq '.[]')"
+          release="$(jq -s --arg tag "$TAGNAME" '.[] | select(.tag_name == $tag)' <<< "$releases")"
+          if [[ -n "$release" ]]; then
+            jq -e '.draft == true' <<< "$release" || { echo 'Refusing to modify a published release'; exit 1; }
+            gh release upload "$TAGNAME" "${files[@]}" --clobber
+          else
+            gh release create "$TAGNAME" "${files[@]}" --verify-tag --draft \
+              --target "$BUILD_SHA" --title "$TAGNAME" --generate-notes
+          fi

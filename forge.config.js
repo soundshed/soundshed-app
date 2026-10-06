@@ -1,3 +1,18 @@
+const signRelease = process.env.SOUNDSHED_SIGN_RELEASE === "true";
+
+if (signRelease) {
+    const required = process.platform === "darwin"
+      ? ["MACOS_APPLEID", "MACOS_APP_SPECIFIC_PASSWORD"]
+      : process.platform === "win32"
+        ? ["WIN_CODE_SIGNING_P12", "WIN_CODE_SIGNING_PWD"]
+        : [];
+    for (const name of required) {
+        if (!process.env[name]) {
+            throw new Error(`Missing release signing environment variable: ${name}`);
+        }
+    }
+}
+
 module.exports = {
 
     packagerConfig: { 
@@ -12,29 +27,30 @@ module.exports = {
       ignore:[
         ".vscode",
         "forge.config.js",
-        "secret.p12"
+        "secret.p12",
+        "^/app-private($|/)",
+        "^/build-tools($|/)"
       ],
-      "osxSign": {
+      osxSign: signRelease && process.platform === "darwin" ? {
         "identity": "Developer ID Application: Webprofusion Pty Ltd (2L7LP952XY)",
-        "hardened-runtime": true,
-        "entitlements": "entitlements.plist",
-        "entitlements-inherit": "entitlements.plist",
-        "signature-flags": "library",
-        "gatekeeper-assess": false
-      },
-      "osxNotarize": {
-        "appBundleId":"com.soundshed.tones",
+        optionsForFile: () => ({
+          entitlements: "entitlements.plist",
+          hardenedRuntime: true
+        })
+      } : undefined,
+      osxNotarize: signRelease && process.platform === "darwin" ? {
         "appleId": process.env.MACOS_APPLEID,
-        "appleIdPassword": process.env.MACOS_APP_SIGNING_PWD,
-      }
+        "appleIdPassword": process.env.MACOS_APP_SPECIFIC_PASSWORD,
+        "teamId": "2L7LP952XY"
+      } : undefined
     },
     makers: [
       {
         name: "@electron-forge/maker-squirrel",
         config: {
           name: "soundshed",
-          certificateFile: process.env.WIN_CODE_SIGNING_P12,
-          certificatePassword: process.env.WIN_CODE_SIGNING_PWD,
+          certificateFile: signRelease ? process.env.WIN_CODE_SIGNING_P12 : undefined,
+          certificatePassword: signRelease ? process.env.WIN_CODE_SIGNING_PWD : undefined,
           loadingGif: "images/icon/loading-screen.gif",
           iconUrl:"https://soundshed.com/favicon.ico",
           setupIcon:"images/icon/favicon.ico"

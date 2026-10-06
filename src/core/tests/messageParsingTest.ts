@@ -1,4 +1,3 @@
-import { json } from "react-router-dom";
 import { BleProvider } from "../../spork/src/devices/spark/bleProvider";
 import { SparkDeviceManager } from "../../spork/src/devices/spark/sparkDeviceManager";
 

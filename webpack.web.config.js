@@ -1,6 +1,7 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
+const { ProvidePlugin } = require('webpack');
 
 var path = require('path');
 
@@ -10,7 +11,7 @@ module.exports = {
 	mode: 'production',
 	//devtool: 'inline-source-map',
 	entry: {
-		app: './src/components/app.tsx',	
+		app: './build/components/app.js',
 	},
 	output: {
 		path: path.resolve(__dirname, 'build'),
@@ -23,8 +24,6 @@ module.exports = {
 	},
 	module: {
 		rules: [
-			// all files with a `.ts`, `.tsx`, `.js`, or `.jsx` extension will be handled by `ts-loader`
-			{ test: /\.[tj]sx?$/, loader: "ts-loader" },
 			{
 				test: /\.css$/i,
 				use: ['style-loader', 'css-loader'],
@@ -40,7 +39,8 @@ module.exports = {
 		]
 	},
 	plugins: [
-		new NodePolyfillPlugin(),
+		new NodePolyfillPlugin({ excludeAliases: ['Buffer'] }),
+		new ProvidePlugin({ Buffer: [require.resolve('buffer/'), 'Buffer'] }),
 		new HtmlWebpackPlugin({
 			template: './index.html'
 		}),

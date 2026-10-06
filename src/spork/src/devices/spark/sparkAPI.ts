@@ -98,22 +98,25 @@ export class SparkAPI {
 
     async getToneCloudPresets(query: PGPresetQuery) {
 
-        let queryParams = Object.assign(this.presetQueryParams, query);
+        const queryParams: PGPresetQuery = {
+            ...this.presetQueryParams,
+            ...(query ?? {})
+        };
 
+        const normalizedKeyword = typeof queryParams.keyword == "string"
+            ? queryParams.keyword.trim()
+            : queryParams.keyword;
+
+        queryParams.keyword = normalizedKeyword == "" ? null : normalizedKeyword;
         this.presetQueryParams = queryParams;
 
-        if (this.presetQueryParams.keyword == "") this.presetQueryParams.keyword = null;
         // get preset results
-        let params = "?";
+        const params = Object.entries(this.presetQueryParams)
+            .filter(([, value]) => value != null)
+            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+            .join("&");
 
-        for (const [key, value] of Object.entries(this.presetQueryParams)) {
-            if (value != null) {
-                params += `${key}=${value}&`;
-            }
-        }
-        params = params.substr(0, params.length - 1);
-
-        let url = this.api_base + "/preset" + params;
+        const url = this.api_base + "/preset" + (params.length > 0 ? `?${params}` : "");
 
         let response = await fetch(url, {
             method: 'GET',

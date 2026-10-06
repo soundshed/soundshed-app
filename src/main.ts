@@ -1,5 +1,6 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { updateElectronApp } from 'update-electron-app';
 
 let win: BrowserWindow;
 let callbackForDeviceSelection = null;
@@ -28,7 +29,7 @@ else {
     initApp();
 
     setTimeout(() => {
-        require('update-electron-app')();
+        updateElectronApp();
     }, 10000);
 }
 

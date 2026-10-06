@@ -1,4 +1,4 @@
-import jwt_decode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import env from "../env";
 export interface UserRegistration {
     email: string;
@@ -49,6 +49,9 @@ export interface Tone {
     deviceType: string;
     categories: string[];
     artists: string[];
+    tags?: string[];
+    author?: string;
+    downloadCount?: number;
     fx: ToneFx[];
     name: string;
     description: string;
@@ -86,7 +89,7 @@ export class SoundshedApi {
 
     getCurrentUserInfo(): UserInfo {
         if (this.currentToken) {
-            let decoded = <any>jwt_decode(this.currentToken);
+            let decoded = jwtDecode<{ id: string; name: string }>(this.currentToken);
             return {
                 id: decoded.id,
                 name: decoded.name

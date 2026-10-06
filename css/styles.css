@@ -1248,6 +1248,29 @@ select:focus {
     display: flex;
     flex-direction: column;
 }
+.tone-list-toolbar {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin: 0.35rem 0.45rem 0.7rem;
+}
+.tone-list-search,
+.tone-list-sort {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 7px;
+    font-size: 0.78rem;
+}
+.tone-list-search {
+    flex: 1;
+    min-width: 0;
+    padding: 0.42rem 0.65rem;
+}
+.tone-list-sort {
+    min-width: 145px;
+    padding: 0.38rem 0.55rem;
+}
 .tone-list-empty {
     padding: 1.8rem 0.4rem;
     font-size: 0.85rem;
@@ -1323,13 +1346,23 @@ select:focus {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.tone-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.7rem;
+    margin-top: 0.05rem;
+}
+.tone-meta-item {
+    font-size: 0.66rem;
+    color: var(--text-faint);
+}
 
 .tone-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     flex-shrink: 0;
-    max-width: 200px;
+    max-width: 260px;
 }
 .tone-tag {
     font-size: 0.64rem;
@@ -1373,6 +1406,33 @@ select:focus {
     border-color: rgba(239,68,68,0.4);
     color: var(--red);
     background: rgba(239,68,68,0.06);
+}
+
+@media (max-width: 920px) {
+    .tone-list-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tone-list-sort {
+        min-width: 0;
+    }
+
+    .tone-row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.55rem;
+    }
+
+    .tone-info {
+        min-width: 190px;
+    }
+
+    .tone-tags {
+        order: 5;
+        max-width: 100%;
+        padding-left: 2.2rem;
+    }
 }
 
 /* ────────────────────────────────────────────────────────────

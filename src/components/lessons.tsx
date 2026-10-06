@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 
-import ReactPlayer from "react-player/youtube";
+import ReactPlayer from "react-player";
 import { lessonManager } from "./app";
 import { VideoSearchResult } from "../core/videoSearchApi";
 import { LessonStateStore } from "../stores/lessonstate";
@@ -187,7 +187,7 @@ const LessonsControl = () => {
           </div>
           <ReactPlayer
             controls={true}
-            url="https://www.youtube.com/watch?v=Piu3BF-bUHA&list=PLn8Cg_n-kuKCd6O9kDsTS2kLR2SvhFlHz"
+            src="https://www.youtube.com/watch?v=Piu3BF-bUHA&list=PLn8Cg_n-kuKCd6O9kDsTS2kLR2SvhFlHz"
           />
         </div>
       )}

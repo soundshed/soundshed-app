@@ -302,6 +302,87 @@ export class AppViewModel {
         }
     }
 
+    private toStringArray(source: any): string[] {
+        if (Array.isArray(source)) {
+            return source
+                .map((item) => (item ?? "").toString().trim())
+                .filter((item) => item.length > 0);
+        }
+
+        if (typeof source == "string") {
+            return source
+                .split(/[,;]/)
+                .map((item) => item.trim())
+                .filter((item) => item.length > 0);
+        }
+
+        return [];
+    }
+
+    private extractToneAuthor(source: any): string | null {
+        const authorCandidate = source?.author
+            ?? source?.author_name
+            ?? source?.user_name
+            ?? source?.username
+            ?? source?.nickname
+            ?? source?.creator
+            ?? source?.user?.name
+            ?? source?.user?.username
+            ?? source?.owner?.name;
+
+        if (authorCandidate == null) {
+            return null;
+        }
+
+        const author = authorCandidate.toString().trim();
+        return author.length > 0 ? author : null;
+    }
+
+    private extractToneDownloadCount(source: any): number | null {
+        const downloadCandidate = source?.download_count
+            ?? source?.downloads
+            ?? source?.downloads_count
+            ?? source?.downloadCount
+            ?? source?.stats?.downloads
+            ?? source?.stats?.download_count;
+
+        if (downloadCandidate == null || downloadCandidate === "") {
+            return null;
+        }
+
+        const parsed = Number(downloadCandidate);
+        if (!Number.isFinite(parsed)) {
+            return null;
+        }
+
+        return Math.max(0, Math.floor(parsed));
+    }
+
+    private mapToneCloudPresetToTone(p: any): Tone {
+        const tags = this.toStringArray(p?.tags ?? p?.tag ?? p?.tag_list);
+        const categories = this.toStringArray(p?.category != null ? [p.category] : []);
+
+        return <Tone>{
+            toneId: "pg.tc." + p.id,
+            name: p.name,
+            categories: categories,
+            artists: this.toStringArray(p?.artists).length > 0 ? this.toStringArray(p.artists) : tags,
+            tags: tags,
+            author: this.extractToneAuthor(p),
+            downloadCount: this.extractToneDownloadCount(p),
+            description: p.description,
+            userId: null,
+            deviceType: "pg.spark40",
+            fx: null,
+            bpm: null,
+            version: p.version,
+            timeSig: null,
+            schemaVersion: "pg.preset.summary",
+            imageUrl: p.thumb_url,
+            externalId: p.id
+        };
+    }
+
     async loadLatestToneCloudTones(preferCached: boolean = true, query: PGPresetQuery = null): Promise<Tone[]> {
 
         try {
@@ -320,22 +401,7 @@ export class AppViewModel {
             const result = await this.toneCloudApi.getToneCloudPresets(query);
 
             // convert results to tone
-            let tones: Tone[] = result.map(p => <Tone>{
-                toneId: "pg.tc." + p.id,
-                name: p.name,
-                categories: [p.category],
-                artists: p.tags ?? [],
-                description: p.description,
-                userId: null,
-                deviceType: "pg.spark40",
-                fx: null,
-                bpm: null,
-                version: p.version,
-                timeSig: null,
-                schemaVersion: "pg.preset.summary",
-                imageUrl: p.thumb_url,
-                externalId: p.id
-            });
+            let tones: Tone[] = result.map((p) => this.mapToneCloudPresetToTone(p));
 
             TonesStateStore.update(s => { s.toneCloudResults = tones });
 
@@ -353,22 +419,7 @@ export class AppViewModel {
     async loadToneCloudTonesByUser(userId, pageIndex) {
         TonesStateStore.update(s => { s.isSearchInProgress = true });
         const result = await this.toneCloudApi.getToneCloudPresetsCreatedByUser(userId, pageIndex, 32);
-        let tones: Tone[] = result.map(p => <Tone>{
-            toneId: "pg.tc." + p.id,
-            name: p.name,
-            categories: [p.category],
-            artists: p.tags ?? [],
-            description: p.description,
-            userId: null,
-            deviceType: "pg.spark40",
-            fx: null,
-            bpm: null,
-            version: p.version,
-            timeSig: null,
-            schemaVersion: "pg.preset.summary",
-            imageUrl: p.thumb_url,
-            externalId: p.id
-        });
+        let tones: Tone[] = result.map((p) => this.mapToneCloudPresetToTone(p));
 
         TonesStateStore.update(s => { s.toneCloudResults = tones });
 

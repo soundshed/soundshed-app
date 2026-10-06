@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { useEffect } from "react";
 import Draggable from "react-draggable";
 import { createRoot } from "react-dom/client";
-import ReactPlayer from "react-player/youtube";
+import ReactPlayer from "react-player";
 import {
   HashRouter as Router,
   NavLink,
@@ -57,6 +57,7 @@ const App = () => {
 
   const playingVideoUrl = LessonStateStore.useState((s) => s.playingVideoUrl);
   const [isVideoExpanded, setIsVideoExpanded] = React.useState(true);
+  const videoNodeRef = React.useRef<HTMLDivElement>(null);
 
   const enableSoundshedLogin = UIFeatureToggleStore.useState(
     (s) => s.enableSoundshedLogin
@@ -238,8 +239,8 @@ const App = () => {
         ) : null}
 
         {playingVideoUrl != null ? (
-          <Draggable>
-            <div className="pip-video-control">
+          <Draggable nodeRef={videoNodeRef}>
+            <div ref={videoNodeRef} className="pip-video-control">
               <div className="row">
                 <div className="col">
                   <button
@@ -288,7 +289,7 @@ const App = () => {
               <div>
                 <ReactPlayer
                   controls={true}
-                  url={playingVideoUrl}
+                  src={playingVideoUrl}
                   width={isVideoExpanded ? "640px" : "320px"}
                   height={isVideoExpanded ? "360px" : "180px"}
                 />

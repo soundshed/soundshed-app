@@ -38,20 +38,27 @@ const TcBrowserControl = () => {
 
   useEffect(() => {}, [favourites]);
 
-  const onRefresh = (pageIdx) => {
-    let query: PGPresetQuery = { page: pageIdx ?? pageIndex, keyword: keyword };
+  const onRefresh = (pageIdx, keywordValue: string = keyword) => {
+    const normalizedKeyword = (keywordValue ?? "").trim();
+    let query: PGPresetQuery = {
+      page: pageIdx ?? pageIndex,
+      keyword: normalizedKeyword,
+    };
     appViewModel.loadLatestToneCloudTones(false, query);
   };
 
-  const onSearch = () => {
+  const onSearch = (keywordValue: string = keyword) => {
+    const normalizedKeyword = (keywordValue ?? "").trim();
+    setKeyword(normalizedKeyword);
     setSearchMode("search");
     setPageIndex(defaultPageIndex);
-    onRefresh(defaultPageIndex);
+    onRefresh(defaultPageIndex, normalizedKeyword);
   };
 
-  const onKeySearch = (event) => {
+  const onKeyDownSearch = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
-      onSearch();
+      event.preventDefault();
+      onSearch(event.currentTarget.value);
     }
   };
 
@@ -144,11 +151,11 @@ const TcBrowserControl = () => {
             onChange={(event) => {
               setKeyword(event.target.value);
             }}
-            onKeyPress={onKeySearch}
+            onKeyDown={onKeyDownSearch}
           />
         </Form.Group>
       </Form>
-      <button className="btn btn-sm btn-success" onClick={onSearch}>
+      <button className="btn btn-sm btn-success" onClick={() => onSearch(keyword)}>
         Search
       </button>
       <button className="btn btn-sm btn-primary ms-2" onClick={previous}>
@@ -181,6 +188,7 @@ const TcBrowserControl = () => {
         onEditTone={() => {}}
         noneMsg="No PG ToneCloud Results"
         enableToneEditor={false}
+        enableFiltering={true}
       ></ToneListControl>
       <button className="btn btn-sm btn-primary ms-2" onClick={previous}>
         <FontAwesomeIcon icon={faChevronLeft}></FontAwesomeIcon>
