@@ -389,7 +389,7 @@ export class BleProvider implements SerialCommsProvider {
 
     private handleCharacteristicValueChanged = (event: Event) => {
         const dataView: DataView = (<any>event.target).value;
-        const dataChunk = new Uint8Array(dataView.buffer);
+        const dataChunk = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
         if (event.timeStamp < this.lastTimeStamp) this.log(`[ERROR]: timestamp out of order`);
         this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
         this.handleAndQueueMessageData(dataChunk);
