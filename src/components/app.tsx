@@ -1,7 +1,7 @@
-import faUser from "@fortawesome/free-solid-svg-icons/faUser";
-import faWindowMaximize from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
-import faWindowMinimize from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
-import faWindowRestore from "@fortawesome/free-solid-svg-icons/faWindowRestore";
+import { faUser } from "@fortawesome/free-solid-svg-icons/faUser";
+import { faWindowMaximize } from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
+import { faWindowMinimize } from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
+import { faWindowRestore } from "@fortawesome/free-solid-svg-icons/faWindowRestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import React, { useEffect } from "react";
