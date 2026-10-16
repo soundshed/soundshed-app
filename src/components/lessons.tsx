@@ -10,6 +10,9 @@ const LessonsControl = () => {
   const enableLessons = UIFeatureToggleStore.useState((s) => s.enableLessons);
   const videoSearchResults = LessonStateStore.useState((s) => s.searchResults);
   const favourites = LessonStateStore.useState((s) => s.favourites);
+  const isSearching = LessonStateStore.useState((s) => s.isSearching);
+  const searchError = LessonStateStore.useState((s) => s.searchError);
+  const hasSearched = LessonStateStore.useState((s) => s.hasSearched);
 
   const [view, setView] = React.useState("backingtracks");
   const [playVideoId, setPlayVideoId] = React.useState("");
@@ -49,13 +52,27 @@ const LessonsControl = () => {
   };
 
   const onSearch = () => {
-    lessonManager.getVideoSearchResults(false, "backing track " + keyword);
+    if (isSearching) return;
+    const trimmed = keyword.trim();
+    lessonManager.getVideoSearchResults(
+      false,
+      trimmed ? "backing track " + trimmed : "backing track"
+    );
   };
 
-  const onKeySearch = (event) => {
+  // onKeyDown rather than onKeyPress: onKeyPress is deprecated in React 18 and
+  // removed in 19, and never fires for non-character keys in some browsers.
+  const onKeySearch = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
+      event.preventDefault();
       onSearch();
     }
+  };
+
+  const backingTrackEmptyMessage = () => {
+    if (isSearching) return "Searching…";
+    if (hasSearched) return "No backing tracks matched that search.";
+    return "No results yet. Search for a backing track above.";
   };
 
   const renderView = () => {
@@ -72,26 +89,55 @@ const LessonsControl = () => {
                 placeholder="Search backing tracks…"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                onKeyPress={onKeySearch}
+                onKeyDown={onKeySearch}
               />
-              <button className="jam-search-btn" onClick={onSearch} aria-label="Search">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
+              <button
+                className="jam-search-btn"
+                onClick={onSearch}
+                disabled={isSearching}
+                aria-label="Search"
+              >
+                {isSearching ? (
+                  <span
+                    className="spinner-border spinner-border-sm"
+                    role="status"
+                    aria-label="Searching"
+                  ></span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                )}
                 Search
               </button>
             </div>
-            {listVideoItems(videoSearchResults)}
+            {searchError ? (
+              <div className="jam-error" role="alert">
+                <span>{searchError}</span>
+                <button
+                  className="jam-retry-btn"
+                  onClick={onSearch}
+                  disabled={isSearching}
+                >
+                  Try again
+                </button>
+              </div>
+            ) : (
+              listVideoItems(videoSearchResults, backingTrackEmptyMessage())
+            )}
           </div>
         );
       case "favourites":
-        return <div>{listVideoItems(favourites)}</div>;
+        return <div>{listVideoItems(favourites, "No favourites saved yet.")}</div>;
     }
   };
 
-  const listVideoItems = (results: VideoSearchResult[]) => {
+  const listVideoItems = (
+    results: VideoSearchResult[],
+    emptyMessage = "No results yet. Search for a backing track above."
+  ) => {
     if (!results || results.length === 0) {
-      return <div className="jam-empty">No results yet. Search for a backing track above.</div>;
+      return <div className="jam-empty">{emptyMessage}</div>;
     }
     return (
       <div className="jam-grid" role="list">
