@@ -182,6 +182,23 @@ export class SparkDeviceManager implements DeviceController {
     }
 
     public async sendCommand(type, data) {
+        // Serialise every command. A Spark 2 preset upload is a sequence of chunks
+        // with an ack wait between each one, and those waits happen outside the
+        // transport's send queue — so without this lock an unrelated command (e.g.
+        // a get_preset from the UI) gets written between two chunks and the amp
+        // drops the BLE link mid-transfer.
+        const run = this.commandChain.then(
+            () => this.executeCommand(type, data),
+            () => this.executeCommand(type, data));
+
+        this.commandChain = run.then(() => { }, () => { });
+
+        return run;
+    }
+
+    private commandChain: Promise<any> = Promise.resolve();
+
+    private async executeCommand(type, data) {
 
         let msg = new SparkCommandMessage({ spark2: this.isSpark2 });
 

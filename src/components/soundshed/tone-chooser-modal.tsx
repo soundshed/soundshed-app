@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { FxMappingSparkToTone, FxMappingToneToSpark } from "../../core/fxMapping";
-import { Utils } from "../../core/utils";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { TonesStateStore } from "../../stores/tonestate";
 import { UIFeatureToggleStore } from "../../stores/uifeaturetoggles";
 import { appViewModel, DeviceViewModelContext } from "../app";
 import ToneListControl from "../tone-list";
+import { VIRTUAL_CHANNEL } from "../../core/sparkChannels";
 
 interface ToneChooserModalProps {
   show: boolean;
@@ -55,12 +55,15 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
 
     let p = new FxMappingToneToSpark().mapFrom(t);
 
+    // requestPresetChange now resolves only once the upload and channel switch have
+    // actually finished, so the follow-up query can no longer collide with them.
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
       alert("Could not load tone. Please wait and try again.");
+      return;
     }
 
-    await Utils.sleepAsync(2000);
-    await deviceViewModel.requestPresetConfig();
+    // Applied tones live on the virtual channel, not a hardware slot.
+    await deviceViewModel.requestPresetConfig(VIRTUAL_CHANNEL);
 
     onClose();
   };

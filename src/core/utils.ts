@@ -64,24 +64,32 @@ export class Utils {
 
 interface CustomEvent {
     type: string;
-    action: (event, args) => void;
+    action: (event, args) => any;
 }
 
 export class PlatformEvents {
 
     private evtListeners: CustomEvent[] = [];
 
-    invoke(type: string, data: any): Promise<any> {
-        return new Promise(res => {
-            var e = this.evtListeners.find(f => f.type == type);
-            if (e != null) {
-                console.debug("invoking action type:" + type);
-                e.action(type, data);
-            } else {
-                console.warn("cannot invoke action type, no event listener:" + type);
-            }
-            res(true);
-        });
+    // Resolves with whatever the registered handler returns, awaiting it if it is a
+    // promise. Callers rely on this to know when a hardware command has actually
+    // finished; previously this resolved immediately and every action was
+    // fire-and-forget, which let follow-up commands interleave with in-flight ones.
+    async invoke(type: string, data: any): Promise<any> {
+        var e = this.evtListeners.find(f => f.type == type);
+        if (e == null) {
+            console.warn("cannot invoke action type, no event listener:" + type);
+            return true;
+        }
+
+        console.debug("invoking action type:" + type);
+        try {
+            const result = await e.action(type, data);
+            return result === undefined ? true : result;
+        } catch (err) {
+            console.warn("action threw while invoking type:" + type, err);
+            return false;
+        }
     }
 
     on(type: string, action: (event, args) => void) {
