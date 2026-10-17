@@ -1,6 +1,7 @@
 
 import { SparkDeviceManager } from "../spork/src/devices/spark/sparkDeviceManager";
 import { SerialCommsProvider } from "../spork/src/interfaces/serialCommsProvider";
+import { VIRTUAL_CHANNEL } from "./sparkChannels";
 
 export class DeviceContext {
 
@@ -10,6 +11,11 @@ export class DeviceContext {
     // Monotonic token; bumped on user-initiated scan/connect so a stale auto-reconnect
     // attempt can detect it's been superseded and bail without clobbering UI state.
     private reconnectGeneration = 0;
+
+    // The channel the amp is currently sitting on, as far as we know. Applied tones go
+    // to the virtual channel 0x7f rather than a hardware slot, so a reconnect has to
+    // re-read that channel — reading slot 0 would show a completely different tone.
+    private lastSelectedChannel = 0;
 
     private log(msg: string) {
         console.debug(msg);
@@ -49,7 +55,7 @@ export class DeviceContext {
         if (ok) {
             this.log("DeviceContext: reconnect succeeded");
             this.sendMessageToApp('device-connection-changed', 'connected');
-            await this.deviceManager.sendCommand("get_preset", 0)
+            await this.deviceManager.sendCommand("get_preset", this.lastSelectedChannel)
                 .catch(err => this.log("DeviceContext: post-reconnect get_preset failed: " + err));
         } else {
             this.log("DeviceContext: reconnect attempt failed");
@@ -72,7 +78,7 @@ export class DeviceContext {
         if (args.action == 'scan') {
             // User scan supersedes any in-flight auto-reconnect.
             this.reconnectGeneration++;
-            this.deviceManager.scanForDevices().then((devices) => {
+            return this.deviceManager.scanForDevices().then((devices) => {
                 this.log(JSON.stringify(devices));
 
                 this.sendMessageToApp('devices-discovered', devices);
@@ -90,6 +96,7 @@ export class DeviceContext {
                     if (connectedOk) {
                         this.sendMessageToApp("device-connection-changed", "connected")
 
+                        this.lastSelectedChannel = 0;
                         this.deviceManager.sendCommand("get_preset", 0);
 
                     } else {
@@ -107,31 +114,19 @@ export class DeviceContext {
         }
 
         if (args.action == 'applyPreset') {
-
-            // send preset
-            this.deviceManager.sendCommand("set_preset_from_model", args.data).then(async () => {
-                const channelSwitchDelayMs = this.deviceManager.isSpark2Device() ? 500 : 100;
-                await new Promise(resolve => setTimeout(resolve, channelSwitchDelayMs));
-
-                // apply preset to virtual channel 127 (0x7f)
-                await this.deviceManager.sendCommand("set_channel", 0x7f);
-
-                if (this.deviceManager.isSpark2Device()) {
-                    await this.deviceManager.sendCommand("request_live_sync", {});
-                }
-            });
+            return this.applyPreset(args.data);
         }
 
         if (args.action == 'getCurrentChannel') {
-            this.deviceManager.sendCommand("get_selected_channel", {});
+            return this.deviceManager.sendCommand("get_selected_channel", {});
         }
 
         if (args.action == 'getDeviceName') {
-            this.deviceManager.sendCommand("get_device_name", {});
+            return this.deviceManager.sendCommand("get_device_name", {});
         }
 
         if (args.action == 'getDeviceSerial') {
-            this.deviceManager.sendCommand("get_device_serial", {});
+            return this.deviceManager.sendCommand("get_device_serial", {});
         }
 
         if (args.action == 'getPreset') {
@@ -139,40 +134,65 @@ export class DeviceContext {
             if (args.data >= 0) {
                 ch = args.data;
             }
-            this.deviceManager.sendCommand("get_preset", ch);
+            this.lastSelectedChannel = ch;
+            return this.deviceManager.sendCommand("get_preset", ch);
         }
 
         if (args.action == 'setChannel') {
-            this.deviceManager.sendCommand("set_channel", args.data);
+            this.lastSelectedChannel = args.data;
+            return this.deviceManager.sendCommand("set_channel", args.data);
         }
 
         if (args.action == 'setFxParam') {
-            this.deviceManager.sendCommand("set_fx_param", args.data);
+            return this.deviceManager.sendCommand("set_fx_param", args.data);
         }
 
         if (args.action == 'setFxToggle') {
-            this.deviceManager.sendCommand("set_fx_onoff", args.data);
+            return this.deviceManager.sendCommand("set_fx_onoff", args.data);
         }
 
         if (args.action == 'changeFx') {
-            this.deviceManager.sendCommand("change_fx", args.data);
-
-            /*setTimeout(() => {
-                //apply preset to virtual channel 127
-                //  deviceManager.sendCommand("set_channel", 127);
-            }, 1000);*/
+            return this.deviceManager.sendCommand("change_fx", args.data);
         }
 
         if (args.action == 'changeAmp') {
-            this.deviceManager.sendCommand("change_amp", args.data);
+            return this.deviceManager.sendCommand("change_amp", args.data);
         }
 
         if (args.action == 'storePreset') {
 
             // send current preset with preset and channel num we want to store to
-            this.deviceManager.sendCommand("set_preset_from_model", args.data);
+            return this.deviceManager.sendCommand("set_preset_from_model", args.data);
 
         }
 
+    }
+
+    // Uploads a tone and switches the amp to the virtual channel it was written to.
+    //
+    // The caller must be able to await this. When it was fire-and-forget the tone
+    // chooser would fire a follow-up get_preset on a fixed 2s timer, which on a
+    // Spark 2 lands in the middle of the chunked upload (each chunk waits up to 3s
+    // for its ack) and knocks the BLE link over.
+    private async applyPreset(preset: any): Promise<boolean> {
+        try {
+            await this.deviceManager.sendCommand("set_preset_from_model", preset);
+
+            const channelSwitchDelayMs = this.deviceManager.isSpark2Device() ? 500 : 100;
+            await new Promise(resolve => setTimeout(resolve, channelSwitchDelayMs));
+
+            // apply preset to the virtual channel rather than a hardware slot
+            this.lastSelectedChannel = VIRTUAL_CHANNEL;
+            await this.deviceManager.sendCommand("set_channel", VIRTUAL_CHANNEL);
+
+            if (this.deviceManager.isSpark2Device()) {
+                await this.deviceManager.sendCommand("request_live_sync", {});
+            }
+
+            return true;
+        } catch (err) {
+            this.log("DeviceContext: applyPreset failed: " + err);
+            return false;
+        }
     }
 }

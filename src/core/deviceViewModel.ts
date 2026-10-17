@@ -8,6 +8,7 @@ import { DeviceStateStore } from '../stores/devicestate';
 import { AppStateStore } from '../stores/appstate';
 import { platformEvents, nativeEvents } from './platformUtils';
 import { DeviceContext } from './deviceContext';
+import { VIRTUAL_CHANNEL } from './sparkChannels';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import { TcpProvider } from '../spork/src/devices/spark/tcpProvider';
 import envSettings from '../env';
@@ -101,7 +102,8 @@ export class DeviceViewModel {
         if (this.deviceContext != null) {
             platformEvents.on("perform-action", (event, args) => {
                 // ... do hardware actions on behalf of the Renderer
-                this.deviceContext.performAction(args);
+                // Returned so invoke() resolves only once the action completes.
+                return this.deviceContext.performAction(args);
             });
         }
 
@@ -363,7 +365,7 @@ export class DeviceViewModel {
     async requestPresetConfig(channelNum: number = null): Promise<boolean> {
         this.lastCommandType = "requestPresetConfig";
 
-        await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : 0x7f }).then(
+        await platformEvents.invoke('perform-action', { action: 'getPreset', data: channelNum != null ? channelNum : VIRTUAL_CHANNEL }).then(
             () => {
                 this.log("Completed preset query");
             });
@@ -402,8 +404,8 @@ export class DeviceViewModel {
 
         this.lastCommandType = "requestPresetChange";
         return platformEvents.invoke('perform-action', { action: 'applyPreset', data: args }).then(
-            () => {
-                return true;
+            (result) => {
+                return result !== false;
             });
     }
 
