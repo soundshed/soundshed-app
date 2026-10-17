@@ -1508,6 +1508,41 @@ select:focus {
     background: rgba(245,158,11,0.18);
     box-shadow: 0 0 10px var(--accent-glow);
 }
+.jam-search-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+    box-shadow: none;
+}
+
+/* Search failure notice (quota exhausted, key rejected, offline) */
+.jam-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+    padding: 0.8rem 1rem;
+    border: 1px solid rgba(239,68,68,0.35);
+    border-radius: 10px;
+    background: rgba(239,68,68,0.08);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+.jam-retry-btn {
+    flex-shrink: 0;
+    padding: 0.35em 0.9em;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid rgba(239,68,68,0.45);
+    background: transparent;
+    color: var(--red);
+    cursor: pointer;
+    transition: background var(--transition);
+}
+.jam-retry-btn:hover:not(:disabled) { background: rgba(239,68,68,0.15); }
+.jam-retry-btn:disabled { opacity: 0.55; cursor: default; }
 
 /* Video card grid */
 .jam-grid {

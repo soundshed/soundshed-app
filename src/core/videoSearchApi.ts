@@ -33,7 +33,13 @@ export class VideoSearchApi {
                 channelTitle: r.channelTitle,
                 title: r.title,
                 description: r.description,
-                thumbnailUrl: r.thumbnails.medium.url
+                // Not every result carries every thumbnail size, and reading
+                // medium.url blindly would throw and fail the whole search.
+                thumbnailUrl:
+                    r.thumbnails?.medium?.url ??
+                    r.thumbnails?.high?.url ??
+                    r.thumbnails?.default?.url ??
+                    ""
 
             })
         }
