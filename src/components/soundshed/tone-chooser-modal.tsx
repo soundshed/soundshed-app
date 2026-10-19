@@ -5,7 +5,6 @@ import { TonesStateStore } from "../../stores/tonestate";
 import { UIFeatureToggleStore } from "../../stores/uifeaturetoggles";
 import { appViewModel, DeviceViewModelContext } from "../app";
 import ToneListControl from "../tone-list";
-import { VIRTUAL_CHANNEL } from "../../core/sparkChannels";
 
 interface ToneChooserModalProps {
   show: boolean;
@@ -56,14 +55,14 @@ const ToneChooserModal = ({ show, onClose }: ToneChooserModalProps) => {
     let p = new FxMappingToneToSpark().mapFrom(t);
 
     // requestPresetChange now resolves only once the upload and channel switch have
-    // actually finished, so the follow-up query can no longer collide with them.
+    // actually finished, and updates the UI from the tone we uploaded.
     if ((await deviceViewModel.requestPresetChange(p)) == false) {
       alert("Could not load tone. Please wait and try again.");
       return;
     }
 
-    // Applied tones live on the virtual channel, not a hardware slot.
-    await deviceViewModel.requestPresetConfig(VIRTUAL_CHANNEL);
+    // No follow-up query: a Spark 2 answers a query for the virtual channel with the
+    // contents of its selected hardware slot, which would show the wrong tone.
 
     onClose();
   };

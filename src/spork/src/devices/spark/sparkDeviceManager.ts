@@ -6,6 +6,7 @@ import { SparkMessageReader } from "./sparkMessageReader";
 import { FxMappingSparkToTone } from "../../../../core/fxMapping";
 import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { Utils } from "../../../../core/utils";
+import { isSpark2DeviceName } from "../../../../core/sparkModels";
 
 export class SparkDeviceManager implements DeviceController {
 
@@ -28,14 +29,18 @@ export class SparkDeviceManager implements DeviceController {
 
     public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
 
-        this.isSpark2 = (device?.name || "").toLowerCase().includes("spark 2");
+        this.isSpark2 = isSpark2DeviceName(device?.name);
 
         this.connection.onDisconnected = () => this.handleConnectionLost();
 
         var connected = await this.connection.connect(device);
 
         if (connected && this.connection.isSpark2Connection) {
-            this.isSpark2 = this.connection.isSpark2Connection();
+            // Only ever upgrade. The transport may fall back to the legacy FFC0 service
+            // on a genuine Spark 2, and that must not downgrade the protocol dialect —
+            // sending a Spark 2 the unchunked, unacked Spark 40 preset upload makes it
+            // drop the BLE link mid-transfer.
+            this.isSpark2 = this.isSpark2 || this.connection.isSpark2Connection();
         }
 
         if (connected) {

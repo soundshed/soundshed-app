@@ -2,6 +2,8 @@ import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { BluetoothDeviceInfo } from "../../interfaces/deviceController";
 import { Utils } from "../../../../core/utils";
 import { SparkMessageReader } from "./sparkMessageReader";
+import { bleTrace } from "./bleTrace";
+import { isSpark2DeviceName } from "../../../../core/sparkModels";
 
 export class BleProvider implements SerialCommsProvider {
 
@@ -17,7 +19,14 @@ export class BleProvider implements SerialCommsProvider {
     private spark2CommandCharacteristicUUID = '0xffc9'; // Spark 2 command messages
     private spark2ChangesCharacteristicUUID = '0xffca'; // Spark 2 change messages
 
-    private isSpark2ConnectionActive = false;
+    // Which GATT service we actually bound to. A Spark 2 does not always expose the
+    // FFC8 service, so this can be false even on a genuine Spark 2.
+    private isSpark2ServiceActive = false;
+
+    // Whether the amp is a Spark 2, taken from the advertised device name. This is the
+    // authoritative signal for the protocol dialect (chunked+acked preset upload and
+    // MTU-safe ATT writes), independent of which service we ended up binding to.
+    private isSpark2Hardware = false;
 
     private pendingAckWaiters: {
         cmd: number[];
@@ -100,7 +109,8 @@ export class BleProvider implements SerialCommsProvider {
 
             this.log("Getting Device Service..");
 
-            const expectsSpark2 = (device?.name || "").toLowerCase().includes("spark 2");
+            const expectsSpark2 = isSpark2DeviceName(device?.name);
+            this.isSpark2Hardware = expectsSpark2;
 
             let connected = false;
             if (expectsSpark2) {
@@ -143,9 +153,10 @@ export class BleProvider implements SerialCommsProvider {
 
             this.commandCharacteristic = await service.getCharacteristic(parseInt(commandCharUUID));
             this.changeCharacteristic = await service.getCharacteristic(parseInt(changeCharUUID));
-            this.isSpark2ConnectionActive = isSpark2;
+            this.isSpark2ServiceActive = isSpark2;
 
             this.log(`Using ${isSpark2 ? "Spark 2" : "Spark 40"} BLE profile`);
+            bleTrace.record("event", `connected, service profile=${isSpark2 ? "Spark 2" : "Spark 40"} (${serviceUUID}), hardware=${this.isSpark2Hardware ? "Spark 2" : "Spark 40"}`);
 
             return true;
         } catch (err) {
@@ -165,6 +176,14 @@ export class BleProvider implements SerialCommsProvider {
     buf2hex(buffer) {
         // https://stackoverflow.com/questions/40031688/javascript-arraybuffer-to-hex
         return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+    }
+
+    // Identify the command/sub-command of an outgoing protocol block for tracing.
+    // A block may be preceded by a 16-byte transport header starting 0x01 0xfe.
+    private describeBlock(block: Uint8Array): string {
+        const body = (block[0] === 0x01 && block[1] === 0xfe) ? block.subarray(16) : block;
+        if (body.length < 6) return "cmd=?";
+        return `cmd=0x${body[4].toString(16).padStart(2, "0")} sub=0x${body[5].toString(16).padStart(2, "0")}`;
     }
 
     private log(msg, ...args) {
@@ -214,6 +233,8 @@ export class BleProvider implements SerialCommsProvider {
     private handleUnexpectedDisconnect = () => {
         if (this.intentionalDisconnect) return;
         this.log("BLE device disconnected unexpectedly");
+        bleTrace.record("event", "*** GATT DROPPED ***");
+        bleTrace.dump("device disconnected unexpectedly");
         this.detachNotificationListener();
         this.resetTransportState();
         this.onDisconnected?.();
@@ -231,7 +252,7 @@ export class BleProvider implements SerialCommsProvider {
     // intentional disconnect and unexpected drop paths.
     private resetTransportState() {
         this.isConnected = false;
-        this.isSpark2ConnectionActive = false;
+        this.isSpark2ServiceActive = false;
         this.isReceiving = false;
         this.isSendQueueProcessing = false;
         for (const w of this.pendingAckWaiters) { clearTimeout(w.timeoutHandle); w.resolve(false); }
@@ -357,7 +378,10 @@ export class BleProvider implements SerialCommsProvider {
     }
 
     public isSpark2Connection(): boolean {
-        return this.isSpark2ConnectionActive;
+        // Either signal is enough: the hardware is a Spark 2 even when it only offers
+        // the legacy FFC0 service, and a device whose name we didn't recognise is still
+        // a Spark 2 if it exposes FFC8.
+        return this.isSpark2Hardware || this.isSpark2ServiceActive;
     }
 
     trimHeader(data: Uint8Array) {
@@ -392,6 +416,7 @@ export class BleProvider implements SerialCommsProvider {
         const dataChunk = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
         if (event.timeStamp < this.lastTimeStamp) this.log(`[ERROR]: timestamp out of order`);
         this.log(`[RECV RAW BLE]: ${event.timeStamp} ${this.buf2hex(dataChunk)}`);
+        bleTrace.record("recv", `${dataChunk.length}b ${this.buf2hex(dataChunk.subarray(0, 8))}...`);
         this.handleAndQueueMessageData(dataChunk);
     }
 
@@ -460,9 +485,11 @@ export class BleProvider implements SerialCommsProvider {
         while (attempts > 0) {
             try {
                 attempts--;
+                bleTrace.record("write", `${chunk.length}b ${this.buf2hex(chunk.subarray(0, 8))}...`);
                 await this.commandCharacteristic.writeValueWithoutResponse(chunk as unknown as BufferSource);
                 return;
             } catch (err) {
+                bleTrace.record("error", `write failed (${attempts} left): ${err?.message ?? err}`);
                 if (attempts > 0) {
                     this.log("Error writing command changes, retrying..");
                     await Utils.sleepAsync(25);
@@ -503,8 +530,9 @@ export class BleProvider implements SerialCommsProvider {
                     const uint8Array = new Uint8Array(currentMsg);
 
                     this.log(`Writing command changes.. ${uint8Array.length} bytes`);
+                    bleTrace.record("event", `send block ${uint8Array.length}b ${this.describeBlock(uint8Array)}`);
 
-                    const chunks = this.isSpark2ConnectionActive ? this.splitAttWrites(uint8Array, 100) : [uint8Array];
+                    const chunks = this.isSpark2Connection() ? this.splitAttWrites(uint8Array, 100) : [uint8Array];
                     for (let i = 0; i < chunks.length; i++) {
                         await this.writeChunkWithRetry(chunks[i]);
                         if (chunks.length > 1 && i < chunks.length - 1) {
