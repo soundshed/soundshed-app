@@ -1,6 +1,7 @@
 import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { BluetoothDeviceInfo } from "../../interfaces/deviceController";
 import { SparkMessageReader } from "./sparkMessageReader";
+import { isSpark2DeviceName } from "../../../../core/sparkModels";
 
 interface TcpProviderOptions {
     host?: string;
@@ -57,7 +58,7 @@ export class TcpProvider implements SerialCommsProvider {
 
     private getDeviceName(): string {
         const model = (this.options.model ?? "spark-2").toLowerCase();
-        if (model.includes("spark-2") || model.includes("spark 2")) {
+        if (isSpark2DeviceName(model)) {
             return "Spark 2 (TCP Simulator)";
         }
 
@@ -183,7 +184,7 @@ export class TcpProvider implements SerialCommsProvider {
 
         this.connectedHost = host;
         this.connectedPort = port;
-        this.isSpark2ConnectionActive = (device?.name || this.getDeviceName()).toLowerCase().includes("spark 2");
+        this.isSpark2ConnectionActive = isSpark2DeviceName(device?.name || this.getDeviceName());
 
         const net = this.getNetModule();
 

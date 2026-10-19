@@ -3,6 +3,7 @@ import { DeviceState, FxCatalog, FxCatalogItem, FxChangeMessage, FxParamMessage,
 import { FxMappingSparkToTone, FxMappingToneToSpark } from './fxMapping';
 import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
+import { getPresetSlotsForDeviceName } from "./sparkModels";
 import { Utils } from './utils';
 import { DeviceStateStore } from '../stores/devicestate';
 import { AppStateStore } from '../stores/appstate';
@@ -27,11 +28,7 @@ export class DeviceViewModel {
     public statusMessage = "";
 
     static getPresetSlotsForDevice(deviceName: string): number {
-        if (!deviceName) return 4;
-        const name = deviceName.toLowerCase();
-        if (name.includes("spark 2")) return 8;
-        // Spark 40, Spark Mini, Spark GO, Spark Neo all use 4
-        return 4;
+        return getPresetSlotsForDeviceName(deviceName);
     }
 
     // attached handler to be called by app model state changes and UI may have to react
@@ -40,6 +37,18 @@ export class DeviceViewModel {
     private debouncedFXUpdate;
 
     private lastCommandType = "";
+
+    // When a tone was last uploaded to the virtual channel. Used to ignore the amp's
+    // echo of its hardware slot immediately afterwards, without permanently ignoring
+    // genuine channel changes the user makes on the amp itself.
+    private lastVirtualChannelApplyTime = 0;
+
+    private static readonly virtualChannelEchoWindowMs = 4000;
+
+    private isVirtualChannelToneLive(): boolean {
+        return DeviceStateStore.getRawState().selectedChannel == VIRTUAL_CHANNEL
+            && (Date.now() - this.lastVirtualChannelApplyTime) < DeviceViewModel.virtualChannelEchoWindowMs;
+    }
 
     private lastChannelChange = null;
 
@@ -116,15 +125,24 @@ export class DeviceViewModel {
 
             // change to preset config update, ignore if is in response to fx change/toggle etc
             if (args.presetConfig && !this.lastCommandType.startsWith("requestFx")) {
-                // got a preset, convert to Tone object model as required,
-                let t: Tone;
-                if (args.presetConfig.meta) {
-                    t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
-                } else {
-                    t = <Tone>args.presetConfig;
-                }
 
-                DeviceStateStore.update(s => { s.presetTone = t });
+                // Ignore preset data from the amp while a freshly applied tone is live on
+                // the virtual channel. A Spark 2 answers a query for channel 0x7f with the
+                // contents of its currently selected *hardware* slot, which would replace
+                // the tone the user just loaded with that slot's stored preset.
+                if (this.isVirtualChannelToneLive()) {
+                    this.log("Ignoring preset data from the amp, an applied tone is live on the virtual channel");
+                } else {
+                    // got a preset, convert to Tone object model as required,
+                    let t: Tone;
+                    if (args.presetConfig.meta) {
+                        t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
+                    } else {
+                        t = <Tone>args.presetConfig;
+                    }
+
+                    DeviceStateStore.update(s => { s.presetTone = t });
+                }
             }
 
             if (args.message) {
@@ -132,7 +150,18 @@ export class DeviceViewModel {
                 if (message.type == 'hardware_channel_current') {
                     let presetChange = <PresetChangeMessage>message;
 
+                    this.log(`hardware_channel_current: amp reports ${presetChange.presetNumber}, UI on ${DeviceStateStore.getRawState().selectedChannel}`);
+
                     if (DeviceStateStore.getRawState().selectedChannel != presetChange.presetNumber) {
+
+                        // Ignore the amp's echo of its hardware slot while a freshly applied
+                        // tone is live on the virtual channel. The amp reports a real slot
+                        // number here, and acting on it would switch the UI back to that
+                        // slot's stored preset and overwrite the tone the user just loaded.
+                        if (this.isVirtualChannelToneLive()) {
+                            this.log("Ignoring hardware channel echo, an applied tone is live on the virtual channel");
+                            return;
+                        }
 
                         DeviceStateStore.update(s => { s.selectedChannel = presetChange.presetNumber });
 
@@ -405,7 +434,31 @@ export class DeviceViewModel {
         this.lastCommandType = "requestPresetChange";
         return platformEvents.invoke('perform-action', { action: 'applyPreset', data: args }).then(
             (result) => {
-                return result !== false;
+                const applied = result !== false;
+
+                if (applied) {
+                    // Reflect the tone we just uploaded straight away. We know exactly what
+                    // was sent, so the UI must not depend on the amp echoing preset 0x7f
+                    // back — a Spark 2 does not reliably answer a query for the virtual
+                    // channel, which used to leave the previous tone's name and knobs on
+                    // screen. Any later response from the amp still refines this.
+                    this.lastVirtualChannelApplyTime = Date.now();
+
+                    try {
+                        const tone = args.meta ? new FxMappingSparkToTone().mapFrom(args) : <Tone><any>args;
+
+                        DeviceStateStore.update(s => {
+                            s.presetTone = tone;
+                            s.selectedChannel = VIRTUAL_CHANNEL;
+                        });
+                    } catch (err) {
+                        // The tone is already on the amp; a display mapping failure must not
+                        // turn a successful apply into a reported failure.
+                        this.log("Could not map the applied tone for display: " + err);
+                    }
+                }
+
+                return applied;
             });
     }
 
