@@ -58,7 +58,7 @@ Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 
 - Dependency install scripts are explicitly approved in `package.json` under `allowScripts`; `.npmrc` fails installations with unreviewed scripts instead of silently skipping them. Review new scripts before approving them with `npm install-scripts approve <package>`.
 - Run `npm run typecheck` to check the app and simulator tools, and `npm test` for the Vitest unit tests followed by the headless TCP integration test.
 - TypeScript emits JavaScript into `build/`; webpack bundles the emitted renderer entry. `build-tools/` holds simulator output. Both directories are ignored.
-- React remains on 18 because stable Pullstate does not support React 19. Dependabot intentionally excludes major React/type upgrades until the state layer can be migrated.
+- React is on 19 with Pullstate 2, which is still a prerelease (npm's `latest` tag points to it); Pullstate 1.x only supports React 18. Dependabot intentionally excludes major React/type upgrades so they can be checked against Pullstate first.
 
 ## Run Web Version
 - edit platformUtils.ts to include platformUtils.web.ts, edit env.ts to be web mode
