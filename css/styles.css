@@ -1242,6 +1242,97 @@ select:focus {
 }
 
 /* ────────────────────────────────────────────────────────────
+   ToneCloud search bar
+───────────────────────────────────────────────────────────── */
+.ss-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+}
+.ss-search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 200px;
+    min-width: 0;
+}
+.ss-search-icon {
+    position: absolute;
+    left: 0.65rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+.ss-search-input {
+    width: 100%;
+    padding: 0.45em 0.7em 0.45em 2.1em;
+    font-size: 0.82rem;
+    color: var(--text);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color var(--transition), background var(--transition);
+}
+.ss-search-input::placeholder { color: var(--text-muted); }
+.ss-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.05);
+}
+/* Hide the browser's native clear affordance so the field matches the theme */
+.ss-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.ss-search-btn {
+    padding: 0.45em 1.1em;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #1a1204;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: filter var(--transition), opacity var(--transition);
+    flex-shrink: 0;
+}
+.ss-search-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.ss-search-btn:disabled { opacity: 0.55; cursor: default; }
+
+.ss-search-paging {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+.ss-page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    transition: border-color var(--transition), color var(--transition);
+}
+.ss-page-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text);
+}
+.ss-page-btn:disabled { opacity: 0.35; cursor: default; }
+
+.ss-page-label {
+    min-width: 4.2em;
+    text-align: center;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* ────────────────────────────────────────────────────────────
    Tone list rows
 ───────────────────────────────────────────────────────────── */
 .tone-list {
