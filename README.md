@@ -56,7 +56,7 @@ Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 
 - Clone this repository
 - run `npm ci` on the repo path. Commit `package-lock.json` alongside dependency changes so local and CI builds use the same versions.
 - Dependency install scripts are explicitly approved in `package.json` under `allowScripts`; `.npmrc` fails installations with unreviewed scripts instead of silently skipping them. Review new scripts before approving them with `npm install-scripts approve <package>`.
-- Run `npm run typecheck` to check the app and simulator tools, and `npm test` for the headless TCP integration test.
+- Run `npm run typecheck` to check the app and simulator tools, and `npm test` for the Vitest unit tests followed by the headless TCP integration test.
 - TypeScript emits JavaScript into `build/`; webpack bundles the emitted renderer entry. `build-tools/` holds simulator output. Both directories are ignored.
 - React remains on 18 because stable Pullstate does not support React 19. Dependabot intentionally excludes major React/type upgrades until the state layer can be migrated.
 
@@ -98,6 +98,37 @@ Local installers are unsigned by default. Set `SOUNDSHED_SIGN_RELEASE=true` to e
 ### Headless TCP Comms Test
 - Run `npm run sim:spark:test` to start a temporary TCP simulator and exercise spork comms encode/decode flows without launching the app UI.
 - Use `npm run sim:spark:test:quick -- --port 9124` for faster reruns after app TS is already built.
+
+## Unit Tests
+
+Unit tests run on [Vitest](https://vitest.dev/) and need no hardware, simulator or network access.
+
+```bash
+npm test             # run once (then runs the TCP simulator test)
+npm run test:watch   # re-run on change
+```
+
+Tests live in `__tests__` folders next to the code they cover. The core ones
+cover the Spark protocol layer in `src/spork/src/devices/spark/__tests__/`,
+which is the code most likely to break silently:
+
+| File | Covers |
+| --- | --- |
+| `sparkMessageReader.test.ts` | msgpack primitives: float, string, on/off, cursor handling |
+| `sparkCommandMessage.test.ts` | Block framing, 7-bit payload packing, command ids, multi-chunk splitting |
+| `protocolRoundtrip.test.ts` | Encode → transport-normalise → decode for preset selection, effect changes and parameters, on/off, and full multi-chunk presets |
+| `sparkDeviceManager.test.ts` | Device orchestration against a fake transport: Spark 2 detection, chunked upload acks, reconnect |
+
+The round-trip tests are the important ones. They encode a command with
+`SparkCommandMessage`, strip the transport header the way
+`TcpProvider.trimHeader()` does, then decode it with `SparkMessageReader` and
+assert the values survive. A regression in either the bit packing or the chunk
+reassembly fails the round trip rather than silently corrupting amp state.
+
+The rest are regression tests for specific fixes, such as Spark 2 detection,
+reconnecting, applying tones, and the Jam and ToneCloud searches.
+
+CI runs `npm test` before the web build, on pushes to `main` and on pull requests.
 
 ## Release Process 
 - Electron
