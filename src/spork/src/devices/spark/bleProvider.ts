@@ -57,6 +57,8 @@ export class BleProvider implements SerialCommsProvider {
     // Set true by disconnect() so handleUnexpectedDisconnect ignores the resulting event.
     private intentionalDisconnect = false;
 
+    private connectInFlight: Promise<boolean> | null = null;
+
     // Tracks the characteristic we last subscribed to, so we can detach on disconnect/reconnect.
     private notifyingCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
 
@@ -95,10 +97,33 @@ export class BleProvider implements SerialCommsProvider {
         return devices;
     }
 
-    public async connect(device: BluetoothDeviceInfo): Promise<boolean> {
+    public connect(device: BluetoothDeviceInfo): Promise<boolean> {
+        // Single-flight: an auto-reconnect and a user retry must not both drive
+        // gatt.connect() and service discovery on the same device at once.
+        if (!this.connectInFlight) {
+            this.connectInFlight = this.connectOnce(device).finally(() => { this.connectInFlight = null; });
+        }
+        return this.connectInFlight;
+    }
+
+    private async connectOnce(device: BluetoothDeviceInfo): Promise<boolean> {
 
         if (this.isConnected) {
-            return true;
+            // Trust the actual link, not the flag. Some BLE stacks drop the link without
+            // raising gattserverdisconnected, which used to leave isConnected stuck true so
+            // every later attempt "succeeded" instantly without connecting to anything.
+            if (this.selectedDevice?.gatt?.connected) {
+                return true;
+            }
+            this.log("Connection flag was set but the GATT link is gone; reconnecting from scratch");
+            bleTrace.record("event", "stale connection flag cleared before connect");
+            this.detachNotificationListener();
+            this.resetTransportState();
+        }
+
+        if (!this.selectedDevice?.gatt) {
+            this.log("Cannot connect: no device has been selected");
+            return false;
         }
 
         this.server = await this.selectedDevice.gatt.connect();

@@ -44,7 +44,14 @@ export class SparkDeviceManager implements DeviceController {
         }
 
         if (connected) {
-            await this.startReceiver();
+            if (!await this.startReceiver()) {
+                // Without notifications the amp's replies never arrive, so reporting success
+                // would leave the app "connected" to an amp it cannot hear. Drop the link so
+                // the next attempt starts from scratch.
+                this.log('Connected but could not subscribe to amp notifications; treating as a failed connection');
+                await this.disconnect();
+                return false;
+            }
         } else {
             this.log('Device not yet connected! Cannot listen for data');
         }
@@ -56,10 +63,14 @@ export class SparkDeviceManager implements DeviceController {
         return this.isSpark2;
     }
 
-    public async startReceiver() {
+    public async startReceiver(): Promise<boolean> {
         this.log("Starting background receiver");
 
-        await this.connection.beginQueuedReceive();
+        const receiving = await this.connection.beginQueuedReceive();
+        if (receiving === false) {
+            this.stopReceiverLoop();
+            return false;
+        }
 
         const msgLoop = async () => {
             const queueContent = this.connection.readReceiveQueue();
@@ -75,6 +86,7 @@ export class SparkDeviceManager implements DeviceController {
         msgLoop();
         this.stopReceiverLoop();
         this.receiverInterval = setInterval(msgLoop, 50);
+        return true;
     }
 
     private stopReceiverLoop() {
@@ -94,8 +106,14 @@ export class SparkDeviceManager implements DeviceController {
         }
         this.stopReceiverLoop();
         const ok = await this.connection.reconnect();
-        if (ok) await this.startReceiver();
-        return ok;
+        if (!ok) return false;
+
+        if (!await this.startReceiver()) {
+            this.log('Reconnected but could not subscribe to amp notifications; treating as a failed reconnect');
+            await this.disconnect();
+            return false;
+        }
+        return true;
     }
 
     private handleConnectionLost() {

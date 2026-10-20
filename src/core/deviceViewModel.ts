@@ -236,7 +236,7 @@ export class DeviceViewModel {
             this.log("got connection event from main:" + args);
 
             if (args == "connected") {
-                DeviceStateStore.update(s => { s.isConnected = true; s.isConnectionInProgress = false; });
+                DeviceStateStore.update(s => { s.isConnected = true; s.isConnectionInProgress = false; s.deviceConnectionFailed = false; });
             }
 
             if (args == "failed") {
@@ -288,7 +288,7 @@ export class DeviceViewModel {
 
         this.log("BLE scanning");
 
-        DeviceStateStore.update(s => { s.isDeviceScanInProgress = true, s.deviceScanFailed = false });
+        DeviceStateStore.update(s => { s.isDeviceScanInProgress = true, s.deviceScanFailed = false, s.deviceConnectionFailed = false });
 
         await platformEvents.invoke('perform-action', { action: 'scan' });
 
@@ -321,7 +321,10 @@ export class DeviceViewModel {
             this.deviceInitCompleted = true;
         }
 
-        DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device });
+        // A new attempt clears the previous failure. It was never reset before, and while
+        // set the device selector hid the device list and its Connect buttons, so the only
+        // way to try again was to reload the app.
+        DeviceStateStore.update(s => { s.isConnectionInProgress = true, s.lastAttemptedDevice = device, s.deviceConnectionFailed = false });
 
         try {
             var connected = await this.deviceContext.deviceManager.connect(device);
@@ -331,7 +334,7 @@ export class DeviceViewModel {
             if (connected) {
                 // store last connected devices
 
-                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null });
+                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null; s.deviceConnectionFailed = false });
 
                 // auto-select preset slots based on connected device name
                 const slots = DeviceViewModel.getPresetSlotsForDevice(device.name);

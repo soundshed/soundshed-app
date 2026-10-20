@@ -96,13 +96,16 @@ const DeviceSelectorControl = () => {
       return <div className="alert alert-warning">Could not scan for devices or scan was cancelled. Bluetooth may not be switched on or your browser/OS may not support Bluetooth.</div>;
     }
 
-    if (deviceConnectionFailed) {
-      return <div className="alert alert-danger">Failed to connect to device. Try restarting the device, restarting your computer or unpair the device and try again.</div>;
-    }
+    // Shown above the list rather than instead of it, so the Connect buttons stay
+    // available for a retry.
+    const connectionFailedAlert = deviceConnectionFailed ? (
+      <div className="alert alert-danger" role="alert">Failed to connect to device. Check the amp is on and not connected to another device (such as your phone), then try again.</div>
+    ) : null;
+
     if (!list || list?.length == 0) {
-      return <div>No devices found. Scan to check for devices.</div>;
+      return <>{connectionFailedAlert}<div>No devices found. Scan to check for devices.</div></>;
     } else {
-      return list.map((d) => (
+      return <>{connectionFailedAlert}{list.map((d) => (
         <div key={d.address.toString()} className="row m-2">
           <div className="col-md-6">
             <span className="badge rounded-pill bg-secondary">{d.name}</span> (
@@ -130,7 +133,7 @@ const DeviceSelectorControl = () => {
             </Button>
           </div>
         </div>
-      ));
+      ))}</>;
     }
   };
 

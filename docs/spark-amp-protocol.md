@@ -89,6 +89,9 @@ Subscribe to notifications on `ffca` in addition to `ffc2`. Tone upload and cont
 commands use `ffc1`/`ffc2` as normal; the secondary service is used for the post-upload
 live sync handshake (see Section 5).
 
+Not every Spark 2 exposes FFC8: some units offer only the FFC0 service. Identify a
+Spark 2 by its device name, not by whether FFC8 is present.
+
 ### Bluetooth Classic (Desktop / Raspberry Pi)
 
 1. Scan for a device named "Spark 40 Audio"
