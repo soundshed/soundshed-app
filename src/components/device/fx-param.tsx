@@ -1,6 +1,6 @@
 import React from "react";
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
       "webaudio-knob": any;

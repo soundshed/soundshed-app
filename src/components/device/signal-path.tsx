@@ -2,7 +2,7 @@ import React from "react";
 import ToneChooserModal from "../soundshed/tone-chooser-modal";
 import FxControl from "./fx-control";
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
       "webaudio-knob": any;
