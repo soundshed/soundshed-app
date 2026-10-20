@@ -62,7 +62,7 @@ const HomeControl = () => {
           {/* border-beam frame */}
           <div className="home-image-frame">
             <img
-              src="/images/dark-rider-JmVaNyemtN8-unsplash.jpg"
+              src="images/dark-rider-JmVaNyemtN8-unsplash.jpg"
               alt=""
               className="home-image"
             />

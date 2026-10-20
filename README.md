@@ -111,6 +111,7 @@ Local installers are unsigned by default. Set `SOUNDSHED_SIGN_RELEASE=true` to e
     - ensure web config selected
     - ensure webpack.web.config is set to production
     - Run build and deploy files
+    - The `web pages` workflow builds the web version and deploys it to GitHub Pages on every push to `main` (or run it manually). In repository Settings > Pages, set the source to "GitHub Actions".
 
 ### GitHub Actions configuration
 Pull requests, main-branch pushes, and manual builds produce unsigned installers without needing private signing credentials. Builds use Node 24, `npm ci`, read-only repository permissions, pinned action revisions, and fail if expected installer artifacts are missing. Dependabot checks npm packages and GitHub Actions weekly.
