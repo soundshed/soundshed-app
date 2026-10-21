@@ -93,6 +93,7 @@
     "@stoprocent/bleno@0.13.1": true,
     "@stoprocent/bluetooth-hci-socket@2.3.0": true,
     "electron-winstaller@5.4.0": true,
+    "fsevents": false,
     "usb@2.18.0": true
   }
 }
