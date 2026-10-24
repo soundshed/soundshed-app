@@ -10,6 +10,10 @@ import { TonesStateStore } from '../stores/tonestate';
 import { InputEventMapping } from '../spork/src/interfaces/inputEventMapping';
 import { getAppVersion } from './platformUtils';
 
+// ToneCloud results are cached already mapped to Tones. Change the key when that mapping
+// changes, so tones cached by an older version aren't shown again.
+const TONECLOUD_CACHE_KEY = "_tcResults_v2";
+
 export class AppViewModel {
     private soundshedApi = new SoundshedApi();
     private toneCloudApi = new SparkAPI();
@@ -325,7 +329,7 @@ export class AppViewModel {
             ?? source?.user_name
             ?? source?.username
             ?? source?.nickname
-            ?? source?.creator
+            ?? source?.creator?.userprofile?.full_name
             ?? source?.user?.name
             ?? source?.user?.username
             ?? source?.owner?.name;
@@ -339,7 +343,8 @@ export class AppViewModel {
     }
 
     private extractToneDownloadCount(source: any): number | null {
-        const downloadCandidate = source?.download_count
+        const downloadCandidate = source?.num_downloads
+            ?? source?.download_count
             ?? source?.downloads
             ?? source?.downloads_count
             ?? source?.downloadCount
@@ -387,7 +392,7 @@ export class AppViewModel {
 
         try {
             if (preferCached) {
-                let cached = localStorage.getItem("_tcResults");
+                let cached = localStorage.getItem(TONECLOUD_CACHE_KEY);
 
                 if (cached != null) {
                     let cachedTones = JSON.parse(cached);
@@ -405,7 +410,7 @@ export class AppViewModel {
 
             TonesStateStore.update(s => { s.toneCloudResults = tones });
 
-            localStorage.setItem("_tcResults", JSON.stringify(tones));
+            localStorage.setItem(TONECLOUD_CACHE_KEY, JSON.stringify(tones));
 
             TonesStateStore.update(s => { s.isSearchInProgress = false });
             return tones;
@@ -423,7 +428,7 @@ export class AppViewModel {
 
         TonesStateStore.update(s => { s.toneCloudResults = tones });
 
-        localStorage.setItem("_tcResults", JSON.stringify(tones));
+        localStorage.setItem(TONECLOUD_CACHE_KEY, JSON.stringify(tones));
 
         TonesStateStore.update(s => { s.isSearchInProgress = false });
         return tones;
