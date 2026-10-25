@@ -77,6 +77,8 @@ export class SparkMessageReader {
 
     public deviceState: DeviceState = {};
     public receivedMessageQueue:DeviceMessage[] = [];
+    // set when part of a multi-chunk message (e.g. a preset) in the last batch never arrived
+    public incompleteMessage = false;
 
     constructor() {
         this.data = [];
@@ -113,6 +115,7 @@ export class SparkMessageReader {
     structure_data() {
         this.cmd = 0
         this.sub_cmd = 0
+        this.incompleteMessage = false
         let block_content = bytes([]);
 
         //remove all the block headers and concatenate the contents
@@ -154,6 +157,11 @@ export class SparkMessageReader {
         let chunk_8bit: [number, number, Uint8Array][] = []
 
         for (let chunk of this.data) {
+            //a piece glued together from other chunks when BLE notifications went missing
+            if (chunk.length < 7 || chunk[0] != 0xf0) {
+                this.incompleteMessage = true
+                continue
+            }
             let this_cmd = chunk[4]
             let this_sub_cmd = chunk[5]
             let data7bit = chunk.subarray(6, chunk.length - 1);
@@ -183,6 +191,7 @@ export class SparkMessageReader {
 
         this.message = []
         let concat_data = bytes([])
+        let next_chunk = 0
         for (let chunk of chunk_8bit) {
             let this_cmd = chunk[0]
             let this_sub_cmd = chunk[1]
@@ -191,12 +200,26 @@ export class SparkMessageReader {
                 //found a multi-message
                 let num_chunks = this_data[0]
                 let this_chunk = this_data[1]
+
+                if (this_chunk == 0) {
+                    concat_data = bytes([])
+                    next_chunk = 0
+                }
+
+                //BLE notifications can go missing: a chunk that is out of order, or shorter than
+                //its length byte says, means part of the message never arrived
+                if (this_chunk != next_chunk || this_data[2] != this_data.length - 3) {
+                    this.incompleteMessage = true
+                    continue
+                }
+                next_chunk++
                 concat_data = SparkMessageReader.mergeBytes(concat_data, this_data.subarray(3))
 
                 //if at last chunk of multi-chunk
                 if (this_chunk == num_chunks - 1) {
                     this.message.push(SparkMessageReader.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), concat_data))
                     concat_data = bytes([])
+                    next_chunk = 0
                 }
 
             } else {
@@ -204,6 +227,11 @@ export class SparkMessageReader {
                 this.message.push(SparkMessageReader.mergeBytes(bytes(this_cmd), bytes(this_sub_cmd), this_data))
             }
 
+        }
+
+        //the batch ended part way through a message
+        if (next_chunk > 0) {
+            this.incompleteMessage = true
         }
     }
 

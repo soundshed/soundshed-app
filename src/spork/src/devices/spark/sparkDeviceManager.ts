@@ -12,6 +12,7 @@ export class SparkDeviceManager implements DeviceController {
 
     public onStateChanged;
     public onConnectionLost: (() => void) | null = null;
+    public onIncompleteMessage: (() => void) | null = null;
 
     public deviceAddress = "";
     private isSpark2 = false;
@@ -151,6 +152,11 @@ export class SparkDeviceManager implements DeviceController {
             } else {
                 this.log("No onStateChange handler defined.")
             }
+        }
+
+        if (reader.incompleteMessage) {
+            this.log("Part of a message from the amp never arrived");
+            this.onIncompleteMessage?.();
         }
 
         return msgList;

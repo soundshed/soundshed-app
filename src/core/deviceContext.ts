@@ -17,6 +17,10 @@ export class DeviceContext {
     // re-read that channel — reading slot 0 would show a completely different tone.
     private lastSelectedChannel = 0;
 
+    // The amp sometimes loses part of its reply to a preset query (seen on a Spark Mini),
+    // which would leave the UI on the old preset. Each query may be asked again twice.
+    private presetRetriesLeft = 0;
+
     private log(msg: string) {
         console.debug(msg);
     }
@@ -38,6 +42,14 @@ export class DeviceContext {
             void this.attemptReconnect();
         };
 
+        this.deviceManager.onIncompleteMessage = () => {
+            if (this.presetRetriesLeft == 0) return;
+            this.presetRetriesLeft--;
+            this.log("DeviceContext: part of the preset never arrived, asking again");
+            this.deviceManager.sendCommand("get_preset", this.lastSelectedChannel)
+                .catch(err => this.log("DeviceContext: preset retry failed: " + err));
+        };
+
         this.msgSendDelegate = msgDelegate;
     }
 
@@ -55,7 +67,7 @@ export class DeviceContext {
         if (ok) {
             this.log("DeviceContext: reconnect succeeded");
             this.sendMessageToApp('device-connection-changed', 'connected');
-            await this.deviceManager.sendCommand("get_preset", this.lastSelectedChannel)
+            await this.requestPreset(this.lastSelectedChannel)
                 .catch(err => this.log("DeviceContext: post-reconnect get_preset failed: " + err));
         } else {
             this.log("DeviceContext: reconnect attempt failed");
@@ -96,8 +108,7 @@ export class DeviceContext {
                     if (connectedOk) {
                         this.sendMessageToApp("device-connection-changed", "connected")
 
-                        this.lastSelectedChannel = 0;
-                        this.deviceManager.sendCommand("get_preset", 0);
+                        this.requestPreset(0);
 
                     } else {
                         this.sendMessageToApp("device-connection-changed", "failed")
@@ -134,8 +145,7 @@ export class DeviceContext {
             if (args.data >= 0) {
                 ch = args.data;
             }
-            this.lastSelectedChannel = ch;
-            return this.deviceManager.sendCommand("get_preset", ch);
+            return this.requestPreset(ch);
         }
 
         if (args.action == 'setChannel') {
@@ -168,6 +178,12 @@ export class DeviceContext {
 
     }
 
+    private requestPreset(channel: number) {
+        this.lastSelectedChannel = channel;
+        this.presetRetriesLeft = 2;
+        return this.deviceManager.sendCommand("get_preset", channel);
+    }
+
     // Uploads a tone and switches the amp to the virtual channel it was written to.
     //
     // The caller must be able to await this. When it was fire-and-forget the tone
@@ -175,6 +191,8 @@ export class DeviceContext {
     // Spark 2 lands in the middle of the chunked upload (each chunk waits up to 3s
     // for its ack) and knocks the BLE link over.
     private async applyPreset(preset: any): Promise<boolean> {
+        // the applied tone replaces whatever preset we were still waiting for
+        this.presetRetriesLeft = 0;
         try {
             await this.deviceManager.sendCommand("set_preset_from_model", preset);
 
