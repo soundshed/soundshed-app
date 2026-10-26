@@ -250,3 +250,54 @@ describe("action results", () => {
     expect(commands.find((c) => c.type === "get_preset").data).toBe(0);
   });
 });
+
+describe("a preset reply that is cut short", () => {
+  // The first of a preset's two chunks; the second never arrives.
+  const cutShort = [Uint8Array.from([0xf0, 0x01, 0x3a, 0x00, 0x03, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0xf7])];
+
+  it("asks the amp for the preset again", async () => {
+    await context.performAction({ action: "getPreset", data: 3 });
+    commands.length = 0;
+
+    await context.deviceManager.readStateMessage(cutShort);
+
+    expect(commands).toEqual([{ type: "get_preset", data: 3 }]);
+  });
+
+  it("asks again at most twice per query", async () => {
+    await context.performAction({ action: "getPreset", data: 3 });
+    commands.length = 0;
+
+    for (let i = 0; i < 3; i++) await context.deviceManager.readStateMessage(cutShort);
+
+    expect(commands).toHaveLength(2);
+  });
+
+  it("asks again for the preset read after connecting", async () => {
+    await context.deviceManager.readStateMessage(cutShort);
+
+    expect(commands).toEqual([{ type: "get_preset", data: 0 }]);
+  });
+
+  it("asks again for the preset read after a reconnect", async () => {
+    await context.performAction({ action: "getPreset", data: 3 });
+    for (let i = 0; i < 2; i++) await context.deviceManager.readStateMessage(cutShort);
+    provider.onDisconnected?.();
+    await new Promise((r) => setTimeout(r, 1700)); // attemptReconnect waits 1500ms
+    commands.length = 0;
+
+    await context.deviceManager.readStateMessage(cutShort);
+
+    expect(commands).toEqual([{ type: "get_preset", data: 3 }]);
+  });
+
+  it("does not ask again once a tone has been applied", async () => {
+    await context.performAction({ action: "getPreset", data: 3 });
+    await context.performAction({ action: "applyPreset", data: buildPreset() });
+    commands.length = 0;
+
+    await context.deviceManager.readStateMessage(cutShort);
+
+    expect(commands).toEqual([]);
+  });
+});

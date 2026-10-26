@@ -305,6 +305,16 @@ export class BleProvider implements SerialCommsProvider {
 
         dataChunk = this.trimHeader(dataChunk);
 
+        // Each chunk runs from f0 to f7. When notifications go missing we see a new f0 while a chunk
+        // is unfinished, or the end of a chunk whose start never arrived. Drop the broken chunk
+        // rather than glue it onto another one.
+        if (dataChunk[0] == 0xf0) {
+            this.lastDataChunkRemainder = new Uint8Array();
+        } else if (this.lastDataChunkRemainder.length == 0) {
+            const end = dataChunk.indexOf(0xf7);
+            dataChunk = dataChunk.subarray(end < 0 ? dataChunk.length : end + 1);
+        }
+
         // look for f7
         let terminatorIndexes = [];
         for (let b = 0; b < dataChunk.byteLength; b++) {
@@ -323,10 +333,6 @@ export class BleProvider implements SerialCommsProvider {
 
             for (let i of terminatorIndexes) {
 
-
-                if (this.getTimeDeltaSinceLastMsg() > 100 && this.lastDataChunkRemainder.length > 0) {
-                    this.log("Warning: outdated chunk remainder consumed");
-                }
                 // split item, push result and keep remainder
                 let partial = dataChunk.slice(currentSliceStartIndex, i + 1);
                 let merged = SparkMessageReader.mergeBytes(this.lastDataChunkRemainder, partial);
