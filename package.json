@@ -46,7 +46,7 @@
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/web-bluetooth": "^0.0.21",
+    "@types/web-bluetooth": "^0.0.22",
     "@yaireo/tagify": "^4.39.0",
     "bootstrap": "^5.3.8",
     "buffer": "^6.0.3",
@@ -74,7 +74,7 @@
     "typescript": "^7.0.2",
     "vitest": "^5.0.1",
     "webmidi": "^3.3.1",
-    "webpack": "^5.112.0",
+    "webpack": "^5.112.2",
     "webpack-cli": "^7.2.3",
     "youtube-search": "^1.1.6"
   },
