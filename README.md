@@ -76,6 +76,28 @@ The final installable app is packaged using electron-forge:
 
 Local installers are unsigned by default. Set `SOUNDSHED_SIGN_RELEASE=true` to enable signing; required signing credentials must be provided in the environment.
 
+## Run with Nix
+The flake builds the Electron app from source for `x86_64-linux` and `aarch64-darwin`. Amp control uses Bluetooth, so on NixOS set `hardware.bluetooth.enable = true`.
+
+To try it without installing:
+- Linux: `nix run github:soundshed/soundshed-app`
+- macOS: `nix build github:soundshed/soundshed-app`, then `open result/Applications/Soundshed.app`. The macOS package is an app bundle with no `bin/`, so `nix run` doesn't work there.
+
+To install it from a system or home-manager flake, add the input:
+
+```nix
+inputs.soundshed = {
+  url = "github:soundshed/soundshed-app";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
+Then add the package to `environment.systemPackages` or `home.packages`:
+
+```nix
+inputs.soundshed.packages.${pkgs.stdenv.hostPlatform.system}.default
+```
+
 ## Toggle between web and electron mode
 - edit env.ts, set IsWebMode true/false
 - edit platformUtils.ts, import required platform
