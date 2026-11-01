@@ -35,6 +35,7 @@ describe("recovering from a failed connection", () => {
             s.deviceConnectionFailed = false;
             s.deviceScanFailed = false;
             s.lastAttemptedDevice = null;
+            s.connectionLost = false;
             // Skip the wait-for-channel loop on a successful connect.
             s.selectedChannel = 0;
         });
@@ -94,5 +95,22 @@ describe("recovering from a failed connection", () => {
         await vm.scanForDevices();
 
         expect(failed()).toBe(false);
+    });
+
+    it("remembers that the amp dropped until it connects again", async () => {
+        const handlers: Record<string, (event: any, args: any) => void> = {};
+        vi.spyOn(platformEvents, "on").mockImplementation((type: string, handler: any) => {
+            handlers[type] = handler;
+            return platformEvents as any;
+        });
+        const { vm } = viewModelWithConnectResults(true);
+        vm.setupEventListeners();
+
+        handlers["device-connection-changed"](null, "disconnected");
+        expect(DeviceStateStore.getRawState().connectionLost).toBe(true);
+
+        await vm.connectDevice(AMP);
+
+        expect(DeviceStateStore.getRawState().connectionLost).toBe(false);
     });
 });

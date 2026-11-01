@@ -25,6 +25,7 @@ import { AppStateStore } from "../stores/appstate";
 import { DeviceStateStore } from "../stores/devicestate";
 import { LessonStateStore } from "../stores/lessonstate";
 import { UIFeatureToggleStore } from "../stores/uifeaturetoggles";
+import { useWakeLock } from "../core/wakeLock";
 import AboutControl from "./about";
 import DeviceMainControl from "./device/device-main";
 import DeviceSelectorControl from "./device/device-selector";
@@ -54,6 +55,7 @@ const App = () => {
   const userInfo = AppStateStore.useState((s) => s.userInfo);
 
   const isConnected = DeviceStateStore.useState((s) => s.isConnected);
+  useWakeLock(isConnected);
 
   const playingVideoUrl = LessonStateStore.useState((s) => s.playingVideoUrl);
   const [isVideoExpanded, setIsVideoExpanded] = React.useState(true);

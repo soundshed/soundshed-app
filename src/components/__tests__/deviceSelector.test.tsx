@@ -2,7 +2,7 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../testing/componentTestSetup";
 import { DeviceStateStore } from "../../stores/devicestate";
 
@@ -40,6 +40,7 @@ describe("device selector after a failed connection", () => {
       deviceScanFailed: false,
       deviceConnectionFailed: false,
       lastAttemptedDevice: null,
+      connectionLost: false,
     });
   });
 
@@ -75,5 +76,43 @@ describe("device selector after a failed connection", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
     expect(connectButton()).not.toBeNull();
+  });
+});
+
+describe("device selector after the amp dropped", () => {
+  beforeEach(() => {
+    setState({
+      devices: [AMP],
+      isConnected: false,
+      isConnectionInProgress: false,
+      deviceScanFailed: false,
+      deviceConnectionFailed: false,
+      connectionLost: true,
+    });
+  });
+
+  afterEach(() => setState({ connectionLost: false }));
+
+  // A Mac that slept can keep holding the amp, so Scan can't find it until the page reloads.
+  it("offers to reload the page", () => {
+    render(<DeviceSelectorControl />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
+    expect(screen.getByRole("button", { name: "Reload" })).not.toBeNull();
+  });
+
+  it("doesn't blame another device when a retry fails", () => {
+    render(<DeviceSelectorControl />);
+    setState({ deviceConnectionFailed: true });
+
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert")).not.toHaveTextContent(/your phone/i);
+  });
+
+  it("waits while the app is still reconnecting", () => {
+    render(<DeviceSelectorControl />);
+    setState({ isConnectionInProgress: true });
+
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
