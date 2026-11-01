@@ -22,6 +22,7 @@ const DeviceSelectorControl = () => {
   const deviceConnectionFailed = DeviceStateStore.useState(
     (s) => s.deviceConnectionFailed
   );
+  const connectionLost = DeviceStateStore.useState((s) => s.connectionLost);
   const [autoConnect, setAutoConnect] = React.useState(true);
   const autoConnectTriggered = React.useRef(false);
   const requestScanForDevices = () => {
@@ -97,8 +98,8 @@ const DeviceSelectorControl = () => {
     }
 
     // Shown above the list rather than instead of it, so the Connect buttons stay
-    // available for a retry.
-    const connectionFailedAlert = deviceConnectionFailed ? (
+    // available for a retry. After a lost connection the alert below explains instead.
+    const connectionFailedAlert = deviceConnectionFailed && !connectionLost ? (
       <div className="alert alert-danger" role="alert">Failed to connect to device. Check the amp is on and not connected to another device (such as your phone), then try again.</div>
     ) : null;
 
@@ -146,6 +147,24 @@ const DeviceSelectorControl = () => {
 
       </p>
       <p>Ensure that the amp is not already connected to a different device (such as your phone) as the amp can only connect to one device at a time.</p>
+
+      {/* When a Mac sleeps, macOS can keep the amp's Bluetooth link while telling the
+          browser it disconnected. The amp then stays invisible to Scan until the
+          browser lets go, which only happens once no page is using Bluetooth. */}
+      {connectionLost && !connectionInProgress && (
+        <div className="alert alert-warning" role="alert">
+          Lost the connection to the amp. If your computer went to sleep, the browser may
+          still be holding on to the amp, so Scan won't find it. Reload this page (or switch
+          the amp off and on), then Scan.{" "}
+          <button
+            type="button"
+            className="btn btn-sm btn-warning"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      )}
 
       {deviceScanInProgress ? (
         <div>
