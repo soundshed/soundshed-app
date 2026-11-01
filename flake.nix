@@ -15,7 +15,7 @@
             npmRebuildFlags = [ "--ignore-scripts" ];
             npmBuildScript = "build-electron";
 
-            # ponytail: updater removed, it is inert under Nix and this frees node_modules; a silent miss would build, then die at launch
+            # updater removed, it is inert under Nix and this frees node_modules; a silent miss would build, then die at launch
             postPatch = ''
               cp src/core/platformUtils.electron.ts src/core/platformUtils.ts
               substituteInPlace src/env.ts --replace-fail 'IsWebMode: true' 'IsWebMode: false'
