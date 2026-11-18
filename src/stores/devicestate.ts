@@ -11,6 +11,8 @@ export const DeviceStateStore = new Store({
     isDeviceScanInProgress: false,
     deviceScanFailed:false,
     deviceConnectionFailed:false,
+    // the amp dropped unexpectedly and hasn't connected again since
+    connectionLost: false,
     presetTone: null,
     fxCatalog: null
 });

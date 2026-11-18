@@ -236,7 +236,7 @@ export class DeviceViewModel {
             this.log("got connection event from main:" + args);
 
             if (args == "connected") {
-                DeviceStateStore.update(s => { s.isConnected = true; s.isConnectionInProgress = false; s.deviceConnectionFailed = false; });
+                DeviceStateStore.update(s => { s.isConnected = true; s.isConnectionInProgress = false; s.deviceConnectionFailed = false; s.connectionLost = false; });
             }
 
             if (args == "failed") {
@@ -245,7 +245,7 @@ export class DeviceViewModel {
 
             if (args == "disconnected") {
                 // Unexpected BLE drop. 'reconnecting' is sent separately if a retry kicks off.
-                DeviceStateStore.update(s => { s.isConnected = false; });
+                DeviceStateStore.update(s => { s.isConnected = false; s.connectionLost = true; });
             }
 
             if (args == "reconnecting") {
@@ -334,7 +334,7 @@ export class DeviceViewModel {
             if (connected) {
                 // store last connected devices
 
-                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null; s.deviceConnectionFailed = false });
+                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null; s.deviceConnectionFailed = false; s.connectionLost = false });
 
                 // auto-select preset slots based on connected device name
                 const slots = DeviceViewModel.getPresetSlotsForDevice(device.name);
