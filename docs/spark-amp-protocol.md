@@ -425,7 +425,7 @@ A rename is the whole preset sent again with `01 01`, with the **same UUID**, th
 
 Name encoding: up to 31 bytes the name is a fixstr (`a0 + length`, at most `bf`); 32–255 bytes need `str8` (`d9 length …`). The official app limits names to **40 characters** (`Preset.MaxNameLength = 40` in Flint, from the app's `popup_edit_preset`; SparkBox's `STR_LEN` is also 40), so names of 32–40 bytes must use `str8`. Readers commonly replace bytes outside printable ASCII (`0x20`–`0x7E`) with spaces, and how the amp handles UTF-8 is undocumented, so Soundshed only accepts printable ASCII names.
 
-> **Not confirmed on hardware:** that a Spark 2 keeps a slot written this way (with no store command) after a power cycle. The simulator does; Soundshed reads the slot back after a rename and reports a different name.
+> **Hardware result:** renaming this way was reported working on a Spark 2. Whether the slot survives a power cycle was not recorded. After a rename, Soundshed reads the slot back and shows a notice if the amp reports a different name.
 
 ### Preset Checksum
 

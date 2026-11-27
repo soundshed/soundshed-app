@@ -4,7 +4,7 @@
 // 40 characters is the limit of the official app's name field (also SparkBox's
 // STR_LEN). Only printable ASCII is accepted: the amp's handling of UTF-8 is
 // undocumented and the reader turns every byte outside 0x20-0x7E into a space, so a
-// name like "クリーン" would come back as spaces.
+// name in Japanese, for example, would come back as spaces.
 
 export const PRESET_NAME_MAX_LENGTH = 40;
 
