@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MidiMappingController } from "../midiMappingController";
+import { MixerEvents, MixerViewModel } from "../mixerViewModel";
+import { initialMixerState, MixerStateStore } from "../../stores/mixerstate";
 import { AppStateStore } from "../../stores/appstate";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { MidiStateStore } from "../../stores/midistate";
@@ -209,5 +211,252 @@ describe("MidiMappingController", () => {
     controller.removeMapping("m");
     expect(AppStateStore.getRawState().midiControlMappings).toEqual([]);
     expect(persist).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("MidiMappingController amp mixer targets", () => {
+  class FakeMixerEvents implements MixerEvents {
+    invoke = vi.fn(async (_type: string, _data: any): Promise<any> => true);
+    on() { }
+  }
+
+  let controller: MidiMappingController;
+  let events: FakeMixerEvents;
+  let mixer: MixerViewModel;
+  let persist: ReturnType<typeof vi.fn<() => void>>;
+
+  const setConnected = (connected: boolean) =>
+    DeviceStateStore.update((s) => {
+      s.isConnected = connected;
+    });
+  const sets = () =>
+    events.invoke.mock.calls
+      .map((c) => c[1])
+      .filter((a) => a.action == "setMixerVolume")
+      .map((a) => [a.data.channel, a.data.value]);
+  const mixerMappings = (): InputEventMapping[] => [
+    {
+      id: "vol", name: "Expression → Guitar volume", source: { type: "midi", kind: "cc", code: "11", channel: "any" },
+      target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear" },
+    },
+    {
+      id: "mute", name: "Footswitch → Music mute", source: { type: "midi", kind: "cc", code: "64", channel: "any" },
+      target: { type: "mixer-mute", value: "5", mode: "toggle" },
+    },
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setConnected(false);
+    MixerStateStore.update((s) => Object.assign(s, initialMixerState()));
+    AppStateStore.update((s) => {
+      s.inputEventMappings = [];
+      s.midiControlMappings = [];
+      s.isMidiInputAvailable = true;
+    });
+    MidiStateStore.update((s) => {
+      s.learningMappingIds = [];
+      s.learnStatus = null;
+    });
+    events = new FakeMixerEvents();
+    mixer = new MixerViewModel(events, () => 1000, { readOnConnect: false });
+    controller = new MidiMappingController();
+    persist = vi.fn<() => void>();
+    controller.attach(makeDevice(), persist);
+    controller.attachMixer(mixer);
+  });
+
+  afterEach(() => {
+    mixer.dispose();
+    setConnected(false);
+    vi.useRealTimers();
+  });
+
+  it("never sends on load or connect, only on incoming MIDI", async () => {
+    AppStateStore.update((s) => {
+      s.midiControlMappings = mixerMappings();
+    });
+    setConnected(true);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(events.invoke).not.toHaveBeenCalled();
+
+    controller.handleMidiEvent(ccEvent(11, 127));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sets()).toEqual([[0, 1]]);
+  });
+
+  it("drives the guitar volume and the music mute through the mixer view model", async () => {
+    setConnected(true);
+    await mixer.setVolume(5, 0.7);
+    events.invoke.mockClear();
+    AppStateStore.update((s) => {
+      s.midiControlMappings = mixerMappings();
+    });
+
+    controller.handleMidiEvent(ccEvent(11, 0));
+    await vi.advanceTimersByTimeAsync(100);
+    controller.handleMidiEvent(ccEvent(64, 127));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(MixerStateStore.getRawState().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.7 });
+    controller.handleMidiEvent(ccEvent(64, 0));
+    await vi.advanceTimersByTimeAsync(400);
+    controller.handleMidiEvent(ccEvent(64, 127));
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(sets()).toEqual([
+      [0, 0],
+      [5, 0],
+      [5, 0.7],
+    ]);
+    expect(MixerStateStore.getRawState().channels[5]).toMatchObject({ muted: false, value: 0.7 });
+  });
+
+  it("does not send a mute the channel already has (momentary on a muted channel)", async () => {
+    setConnected(true);
+    await mixer.setMuted(5, true);
+    events.invoke.mockClear();
+    AppStateStore.update((s) => {
+      s.midiControlMappings = [{ ...mixerMappings()[1], target: { type: "mixer-mute", value: "5", mode: "momentary" } }];
+    });
+    controller.handleMidiEvent(ccEvent(64, 127));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(events.invoke).not.toHaveBeenCalled();
+  });
+
+  it("ignores mixer mappings while no amp is connected, without errors", async () => {
+    AppStateStore.update((s) => {
+      s.midiControlMappings = mixerMappings();
+    });
+    controller.handleMidiEvent(ccEvent(11, 100));
+    controller.handleMidiEvent(ccEvent(64, 127));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(events.invoke).not.toHaveBeenCalled();
+    expect(MixerStateStore.getRawState().lastError).toBeNull();
+    expect(MixerStateStore.getRawState().channels).toEqual({});
+  });
+
+  it("ignores mixer mappings when no mixer is attached", async () => {
+    const bare = new MidiMappingController();
+    bare.attach(makeDevice(), persist);
+    setConnected(true);
+    AppStateStore.update((s) => {
+      s.midiControlMappings = mixerMappings();
+    });
+    bare.handleMidiEvent(ccEvent(11, 100));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(events.invoke).not.toHaveBeenCalled();
+  });
+
+  it("learns a new mapping for a nav control and keeps it once a control is learned", () => {
+    const id = controller.learnMixerTarget("mixer-volume", 0);
+    const added = controller.getMappings();
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      id,
+      name: "MIDI → Guitar volume",
+      target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear" },
+    });
+    expect(MidiStateStore.getRawState().learningMappingIds).toEqual([id]);
+
+    controller.handleMidiEvent(ccEvent(7, 30, 2));
+    expect(controller.getMappings()[0].source).toEqual({ type: "midi", kind: "cc", code: "7", channel: "2", deviceId: "Pedal" });
+
+    // a later cancel or timeout leaves the learned mapping alone
+    controller.cancelLearn();
+    expect(controller.getMappings()).toHaveLength(1);
+  });
+
+  it("removes a nav learn's mapping again if nothing is learned", () => {
+    controller.learnMixerTarget("mixer-mute", 5);
+    vi.advanceTimersByTime(10001);
+    expect(controller.getMappings()).toEqual([]);
+
+    controller.learnMixerTarget("mixer-mute", 5);
+    controller.cancelLearn();
+    expect(controller.getMappings()).toEqual([]);
+
+    // starting another learn drops the first one too
+    controller.learnMixerTarget("mixer-mute", 5);
+    const second = controller.learnMixerTarget("mixer-volume", 5);
+    expect(controller.getMappings().map((m) => m.id)).toEqual([second]);
+  });
+
+  it("re-learning a nav control re-assigns its one mapping, keeping its settings", async () => {
+    setConnected(true);
+    await mixer.setVolume(0, 0.5);
+    controller.addMappings([{ ...mixerMappings()[0], target: { ...mixerMappings()[0].target, min: 0.2, max: 0.8 } }]);
+
+    expect(controller.learnMixerTarget("mixer-volume", 0)).toBe("vol");
+    controller.handleMidiEvent(ccEvent(7, 30, 2));
+    const mappings = controller.getMappings();
+    expect(mappings).toHaveLength(1);
+    expect(mappings[0]).toMatchObject({
+      id: "vol",
+      source: { type: "midi", kind: "cc", code: "7", channel: "2", deviceId: "Pedal" },
+      target: { type: "mixer-volume", value: "0", min: 0.2, max: 0.8 },
+    });
+
+    // the old CC no longer drives the knob, the new one does
+    events.invoke.mockClear();
+    controller.handleMidiEvent(ccEvent(11, 127));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sets()).toEqual([]);
+    controller.handleMidiEvent(ccEvent(7, 127, 2));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sets()).toEqual([[0, 0.8]]);
+
+    // a cancelled re-learn keeps the mapping as it was
+    controller.learnMixerTarget("mixer-volume", 0);
+    controller.cancelLearn();
+    expect(controller.getMappings()).toEqual(mappings);
+  });
+
+  it("re-learning a mute on the same footswitch doesn't stack a second toggle", async () => {
+    setConnected(true);
+    await mixer.setVolume(5, 0.7);
+    for (let i = 0; i < 2; i++) {
+      controller.learnMixerTarget("mixer-mute", 5);
+      controller.handleMidiEvent(ccEvent(80, 127));
+      controller.handleMidiEvent(ccEvent(80, 0));
+      await vi.advanceTimersByTimeAsync(400);
+    }
+    expect(controller.getMappings()).toHaveLength(1);
+
+    events.invoke.mockClear();
+    controller.handleMidiEvent(ccEvent(80, 127));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(sets()).toEqual([[5, 0]]);
+    expect(MixerStateStore.getRawState().channels[5]).toMatchObject({ muted: true });
+  });
+
+  it("with several mappings, a nav learn adds one and drops those on the same MIDI message", () => {
+    const vol = mixerMappings()[0];
+    controller.addMappings([
+      vol,
+      { ...vol, id: "vol-knob", source: { type: "midi", kind: "cc", code: "20", channel: "1" } },
+      // another control on the same CC stays
+      { ...vol, id: "vol-music", target: { ...vol.target, value: "5" } },
+    ]);
+    const id = controller.learnMixerTarget("mixer-volume", 0);
+    expect(controller.getMappings()).toHaveLength(4);
+    controller.handleMidiEvent(ccEvent(20, 10, 1));
+    expect(controller.getMappings().map((m) => m.id)).toEqual(["vol", "vol-music", id]);
+  });
+
+  it("keeps mappings added from the settings panel when their learn times out", () => {
+    controller.addMappings(mixerMappings().map((m) => ({ ...m, source: { ...m.source, code: "" } })));
+    controller.startLearn(["vol"], 1000);
+    vi.advanceTimersByTime(1001);
+    expect(controller.getMappings()).toHaveLength(2);
+  });
+
+  it("clears every mapping of one mixer control", () => {
+    controller.addMappings([
+      ...mixerMappings(),
+      { ...mixerMappings()[0], id: "vol2", target: { ...mixerMappings()[0].target } },
+      { ...mixerMappings()[0], id: "vol-music", target: { ...mixerMappings()[0].target, value: "5" } },
+    ]);
+    controller.clearMixerTarget("mixer-volume", 0);
+    expect(controller.getMappings().map((m) => m.id)).toEqual(["mute", "vol-music"]);
   });
 });

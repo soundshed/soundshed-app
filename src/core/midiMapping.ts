@@ -223,9 +223,10 @@ export class KeyedThrottle<T> {
         }, this.intervalMs);
     }
 
-    /** Sends any pending values now. */
-    flush() {
+    /** Sends any pending values now (only the given key's, if one is given). */
+    flush(onlyKey?: string) {
         for (const [key, s] of Array.from(this.state.entries())) {
+            if (onlyKey != null && key !== onlyKey) continue;
             this.timers.clearTimeout(s.timer);
             this.state.delete(key);
             if (s.pending) s.pending.send(s.pending.value);
@@ -274,6 +275,16 @@ export interface MidiMappingSink {
     setFxEnabled(dspId: string, enabled: boolean): void;
     /** Current on/off state of an effect in the live preset, if known. */
     isFxEnabled(dspId: string): boolean | undefined;
+
+    /*
+     * Amp mixer (mixer-volume / mixer-mute targets). Optional: without them those
+     * targets do nothing. Nothing is sent while isMixerAvailable() is false (no amp).
+     */
+    isMixerAvailable?(): boolean;
+    setMixerVolume?(channel: number, value: number): void;
+    setMixerMuted?(channel: number, muted: boolean): void;
+    /** Whether the app currently shows the channel as muted. */
+    isMixerMuted?(channel: number): boolean | undefined;
 }
 
 /**
@@ -300,6 +311,22 @@ export interface HandleEventResult {
 }
 
 export const paramThrottleKey = (dspId: string, paramIndex: number) => `fx-param|${dspId}|${paramIndex}`;
+
+export const mixerThrottleKey = (channel: number) => `mixer|${channel}`;
+
+/** The channel byte is a msgpack positive fixint (see spork/src/interfaces/mixer.ts). */
+const MIXER_TARGET_MAX_CHANNEL = 127;
+
+/**
+ * The mixer channel of a mixer-volume / mixer-mute target, or null when it isn't a
+ * whole number 0..127 (a hand edited or corrupt saved mapping is ignored, not guessed).
+ */
+export function parseMixerChannel(value: any): number | null {
+    const text = value == null ? "" : value.toString().trim();
+    if (!/^\d{1,3}$/.test(text)) return null;
+    const channel = parseInt(text, 10);
+    return channel <= MIXER_TARGET_MAX_CHANNEL ? channel : null;
+}
 
 export class MidiMappingEngine {
     private throttle: KeyedThrottle<number>;
@@ -364,6 +391,11 @@ export class MidiMappingEngine {
 
     private dispatch(mapping: InputEventMapping, ev: NormalisedMidiEvent) {
         const target = mapping.target;
+        // no amp: drop mixer events before they touch the runtime state, so a press
+        // while disconnected can't leave the switch edge detection half updated
+        // (lastValue set, lastHighTime not) and swallow the first press after connecting
+        const isMixerTarget = target?.type === "mixer-volume" || target?.type === "mixer-mute";
+        if (isMixerTarget && (parseMixerChannel(target.value) == null || !this.mixerAvailable())) return;
         const state = this.stateFor(mapping);
         const prevValue = state.lastValue;
         state.lastValue = ev.value;
@@ -386,10 +418,33 @@ export class MidiMappingEngine {
             }
             case "fx-onoff": {
                 if (!target.dspId) return;
-                const desired = this.resolveSwitch(target, ev, state, prevValue);
+                const desired = this.resolveSwitch(target, ev, state, prevValue, this.sink.isFxEnabled(target.dspId));
                 if (desired != null) {
                     state.lastSwitchState = desired;
                     this.sink.setFxEnabled(target.dspId, desired);
+                }
+                return;
+            }
+            case "mixer-volume": {
+                if (ev.kind === "note" && ev.noteOff) return;
+                // (checked above: a valid channel and an amp to send to)
+                const channel = parseMixerChannel(target.value)!;
+                const value = scaleMidiValue(ev.value, target);
+                this.throttle.push(mixerThrottleKey(channel), value, (v) => {
+                    // the trailing value of a sweep may come due after a disconnect
+                    if (this.mixerAvailable()) this.sink.setMixerVolume?.(channel, v);
+                });
+                return;
+            }
+            case "mixer-mute": {
+                const channel = parseMixerChannel(target.value)!;
+                const desired = this.resolveSwitch(target, ev, state, prevValue, this.sink.isMixerMuted?.(channel));
+                if (desired != null) {
+                    state.lastSwitchState = desired;
+                    // a volume still waiting in the throttle would unmute right after the
+                    // mute, so let it go out first
+                    this.throttle.flush(mixerThrottleKey(channel));
+                    this.sink.setMixerMuted?.(channel, desired);
                 }
                 return;
             }
@@ -400,10 +455,23 @@ export class MidiMappingEngine {
         }
     }
 
-    private resolveSwitch(target: EventTargetMapping, ev: NormalisedMidiEvent, state: MappingRuntimeState, prevValue: number | undefined): boolean | null {
+    private mixerAvailable(): boolean {
+        return this.sink.isMixerAvailable?.() === true;
+    }
+
+    /**
+     * The on/off state a switch target (fx-onoff, mixer-mute) should change to, or null
+     * for no change. `current` is the live state (effect enabled, channel muted) if known.
+     */
+    private resolveSwitch(
+        target: EventTargetMapping,
+        ev: NormalisedMidiEvent,
+        state: MappingRuntimeState,
+        prevValue: number | undefined,
+        current: boolean | undefined
+    ): boolean | null {
         const mode = target.mode ?? "toggle";
-        const current = this.sink.isFxEnabled(target.dspId);
-        // the live preset wins, so switching the effect in the UI isn't undone by stale state
+        // the live state wins, so switching the effect in the UI isn't undone by stale state
         const known = current ?? state.lastSwitchState;
 
         const changeTo = (desired: boolean) => (known === desired ? null : desired);

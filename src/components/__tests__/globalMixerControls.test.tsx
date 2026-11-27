@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../testing/componentTestSetup";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { MixerStateStore, initialMixerState } from "../../stores/mixerstate";
 import { MixerEvents, MixerViewModel } from "../../core/mixerViewModel";
+import { midiMappingController } from "../../core/midiMappingController";
+import { AppStateStore } from "../../stores/appstate";
+import { MidiStateStore } from "../../stores/midistate";
+import { InputEventMapping } from "../../spork/src/interfaces/inputEventMapping";
 import GlobalMixerControls from "../device/mixer/global-mixer-controls";
 
 class FakeEvents implements MixerEvents {
@@ -249,5 +253,167 @@ describe("GlobalMixerControls", () => {
 
     expect(muteButton("Mute guitar")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("nav-mixer-value-0")).toHaveTextContent("25 %");
+  });
+});
+
+describe("GlobalMixerControls MIDI learn", () => {
+  const persist = vi.fn();
+  const mappings = () => AppStateStore.getRawState().midiControlMappings as InputEventMapping[];
+  const learning = () => MidiStateStore.getRawState().learningMappingIds;
+  const ccFrom = (number: number, rawValue: number) => ({
+    type: "controlchange", controller: { number }, rawValue, value: rawValue / 127,
+    message: { channel: 1, dataBytes: [number, rawValue] }, port: { name: "Pedal" },
+  });
+
+  beforeEach(() => {
+    midiMappingController.attach(
+      {
+        setChannel: vi.fn().mockResolvedValue(true),
+        requestFxParamChangeImmediate: vi.fn().mockResolvedValue(true),
+        requestFxToggle: vi.fn().mockResolvedValue(true),
+      },
+      persist
+    );
+    act(() => {
+      AppStateStore.update((s) => {
+        s.inputEventMappings = [];
+        s.midiControlMappings = [];
+        s.isMidiInputAvailable = true;
+      });
+      MidiStateStore.update((s) => {
+        s.learningMappingIds = [];
+        s.learnStatus = null;
+      });
+    });
+  });
+
+  afterEach(() => {
+    act(() => midiMappingController.cancelLearn());
+  });
+
+  it("learns a MIDI control for the guitar knob from its right-click menu", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    fireEvent.contextMenu(knob("Guitar volume"));
+
+    const menu = screen.getByRole("menu", { name: "MIDI learn: Guitar volume" });
+    expect(menu).toHaveTextContent("Not mapped");
+    expect(screen.getByRole("menuitem", { name: "Clear" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Learn" }));
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(mappings()).toHaveLength(1);
+    expect(mappings()[0]).toMatchObject({
+      name: "MIDI → Guitar volume",
+      target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear" },
+    });
+    expect(learning()).toEqual([mappings()[0].id]);
+    expect(screen.getByTestId("nav-mixer-knob-0")).toHaveClass("is-learning");
+    expect(screen.getByTestId("nav-mixer-learn-status-0")).toHaveTextContent(/Guitar volume: move a control/);
+    expect(screen.getByTestId("nav-mixer-learn-status-5")).toHaveTextContent("");
+
+    act(() => {
+      midiMappingController.handleMidiEvent(ccFrom(7, 20));
+    });
+    expect(learning()).toEqual([]);
+    expect(screen.getByTestId("nav-mixer-knob-0")).not.toHaveClass("is-learning");
+    expect(mappings()[0].source).toMatchObject({ kind: "cc", code: "7" });
+    // learning sent nothing to the amp
+    expect(sets()).toEqual([]);
+
+    fireEvent.contextMenu(knob("Guitar volume"));
+    expect(screen.getByRole("menu")).toHaveTextContent("CC 7 · ch 1 · Pedal");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Clear" }));
+    expect(mappings()).toEqual([]);
+  });
+
+  it("learns a MIDI control for the music mute button", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    fireEvent.contextMenu(muteButton("Mute music"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Learn" }));
+
+    expect(mappings()[0]).toMatchObject({ name: "MIDI → Music mute", target: { type: "mixer-mute", value: "5", mode: "toggle" } });
+    expect(muteButton("Mute music")).toHaveClass("is-learning");
+    expect(muteButton("Mute music")).toHaveAttribute("title", "Music mute: listening for MIDI…");
+
+    // the menu offers to cancel while learning; cancelling removes the unlearned mapping
+    fireEvent.contextMenu(muteButton("Mute music"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Cancel learn" }));
+    expect(learning()).toEqual([]);
+    expect(mappings()).toEqual([]);
+    expect(muteButton("Mute music")).not.toHaveClass("is-learning");
+    // the right-click never toggled the mute
+    expect(muteButton("Mute music")).toHaveAttribute("aria-pressed", "false");
+    expect(sets()).toEqual([]);
+  });
+
+  it("opens with Shift+F10 and closes with Escape, back on the control", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    const button = muteButton("Mute guitar");
+    button.focus();
+    // F10 alone does nothing
+    fireEvent.keyDown(button, { key: "F10" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    const event = createEvent.keyDown(button, { key: "F10", shiftKey: true });
+    fireEvent(button, event);
+    expect(event.defaultPrevented).toBe(true);
+
+    expect(screen.getByRole("menuitem", { name: "Learn" })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    expect(screen.getByRole("menuitem", { name: "Close" })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(button).toHaveFocus();
+    expect(mappings()).toEqual([]);
+  });
+
+  it("opens from the knob with the context menu key, back on the dial", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    const dial = knob("Guitar volume");
+    dial.focus();
+    fireEvent.keyDown(dial, { key: "ContextMenu" });
+    expect(screen.getByRole("menu", { name: "MIDI learn: Guitar volume" })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(dial).toHaveFocus();
+    // the knob's own keys still work and don't open the menu
+    fireEvent.keyDown(dial, { key: "ArrowUp" });
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("tells hover and screen reader users about the learn menu on the dial and the mute button", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    const dial = knob("Guitar volume");
+    expect(dial.getAttribute("title")).toMatch(/Right-click or Shift\+F10 for MIDI learn$/);
+    expect(muteButton("Mute guitar").getAttribute("title")).toMatch(/\(right-click or Shift\+F10 for MIDI learn\)$/);
+    for (const el of [dial, muteButton("Mute guitar")]) {
+      const id = el.getAttribute("aria-describedby");
+      expect(id).toBeTruthy();
+      expect(document.getElementById(id!)).toHaveTextContent("Right-click or press Shift+F10 for the MIDI learn menu.");
+    }
+
+    act(() => {
+      midiMappingController.learnMixerTarget("mixer-volume", 0);
+    });
+    expect(dial.getAttribute("title")).toMatch(/Listening for MIDI…$/);
+  });
+
+  it("re-learning from the menu re-assigns the control instead of adding a mapping", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    for (const code of [80, 80, 81]) {
+      fireEvent.contextMenu(muteButton("Mute music"));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Learn" }));
+      act(() => {
+        midiMappingController.handleMidiEvent(ccFrom(code, 127));
+      });
+    }
+    expect(mappings()).toHaveLength(1);
+    expect(mappings()[0].source).toMatchObject({ kind: "cc", code: "81" });
+  });
+
+  it("closes on a click outside", () => {
+    render(<GlobalMixerControls viewModel={vm} />);
+    fireEvent.contextMenu(knob("Music volume"));
+    expect(screen.getByRole("menu", { name: "MIDI learn: Music volume" })).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });

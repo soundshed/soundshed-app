@@ -666,6 +666,53 @@ describe("MixerViewModel", () => {
     });
   });
 
+  describe("setMuted", () => {
+    beforeEach(() => setConnected(true));
+
+    it("mutes and unmutes like toggleMute", async () => {
+      await vm.setVolume(5, 0.6);
+      await expect(vm.setMuted(5, true)).resolves.toBe(true);
+      expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0 });
+      await expect(vm.setMuted(5, false)).resolves.toBe(true);
+      expect(state().channels[5]).toMatchObject({ muted: false, unmuteValue: null, value: 0.6 });
+      expect(sets()).toEqual([
+        [5, 0.6],
+        [5, 0],
+        [5, 0.6],
+      ]);
+    });
+
+    it("is idempotent: a channel already in that state sends nothing", async () => {
+      await vm.setVolume(0, 0.5);
+      await expect(vm.setMuted(0, false)).resolves.toBe(true);
+      await vm.setMuted(0, true);
+      await expect(vm.setMuted(0, true)).resolves.toBe(true);
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5 });
+      expect(sets()).toEqual([
+        [0, 0.5],
+        [0, 0],
+      ]);
+    });
+
+    it("counts a mute still being sent as muted", async () => {
+      const first = deferred<boolean>();
+      events.invoke.mockImplementationOnce(() => first.promise);
+      const muting = vm.setMuted(0, true);
+      await vm.setMuted(0, true);
+      first.resolve(true);
+      await muting;
+      await flush();
+      expect(sets()).toEqual([[0, 0]]);
+    });
+
+    it("refuses while disconnected or for an invalid channel", async () => {
+      await expect(vm.setMuted(200, true)).resolves.toBe(false);
+      setConnected(false);
+      await expect(vm.setMuted(0, true)).resolves.toBe(false);
+      expect(events.invoke).not.toHaveBeenCalled();
+    });
+  });
+
   describe("read on connect and mutes over a reconnect", () => {
     const reads = () => actions(events).filter((a) => a.action == "getMixerVolume").map((a) => a.data);
 

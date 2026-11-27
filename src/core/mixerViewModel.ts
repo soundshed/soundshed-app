@@ -23,8 +23,9 @@ import { platformEvents } from "./platformUtils";
 //
 // SAFETY: nothing here ever sends a mixer value on its own. Not on connect, not
 // on a channel switch, not from saved settings (values are not persisted). Only
-// setVolume() and toggleMute(), called from an explicit user action, write to the
-// amp. Reads (0x02 0x33) are harmless: Guitar and Music are read once when an amp
+// setVolume(), setMuted() and toggleMute(), called from an explicit user action (a
+// control in the app, or incoming MIDI through a mixer-volume / mixer-mute
+// mapping), write to the amp. Reads (0x02 0x33) are harmless: Guitar and Music are read once when an amp
 // connects, and again when the drawer opens.
 //
 // MUTE: the amp has no mute command, so muting sends 0 and remembers the level to
@@ -342,12 +343,18 @@ export class MixerViewModel {
         return this.queueSend(channel, clampMixerValue(value), unmute);
     }
 
+    /** Mutes a channel, or unmutes a muted one. Only call this from a user action (see setMuted). */
+    async toggleMute(channel: number): Promise<boolean> {
+        return this.setMuted(channel, !this.state.channels[channel]?.muted);
+    }
+
     /**
      * Mutes or unmutes a channel. Only call this from a user action. Muting sends 0 and
      * remembers the known level (if above 0); unmuting sends that level back, or only
      * clears the mute when there is none, leaving the level at 0 rather than guessing.
+     * Idempotent: a channel already in that state sends nothing and resolves true.
      */
-    async toggleMute(channel: number): Promise<boolean> {
+    async setMuted(channel: number, muted: boolean): Promise<boolean> {
         if (!isValidMixerChannel(channel)) {
             this.update({ lastError: `Invalid mixer channel (${channel}).` });
             return false;
@@ -358,7 +365,8 @@ export class MixerViewModel {
         }
 
         const ch = this.state.channels[channel];
-        if (!ch?.muted) {
+        if (!!ch?.muted == muted) return true;
+        if (muted) {
             const level = ch?.value;
             return this.queueSend(channel, 0, { muted: true, unmuteValue: level != null && level > 0 ? level : null });
         }

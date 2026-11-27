@@ -20,6 +20,12 @@ import {
   MIDI_MAX_VALUE,
   newMappingId,
 } from "../../../core/midiMapping";
+import {
+  buildMixerMapping,
+  describeMixerTarget,
+  isMixerTargetType,
+  MIXER_MIDI_CHANNELS,
+} from "../../../core/mixerMidiTargets";
 
 /*
  * MIDI learn and continuous control mappings (expression pedals, knobs, footswitches).
@@ -87,6 +93,7 @@ export const ValueMeter = ({ value, label }: { value: number | null | undefined;
 const describeTarget = (target: EventTargetMapping, fxTargets: FxTargetOption[], catalog: any): string => {
   if (target == null) return "";
   if (target.type === "amp-channel") return `Amp channel ${parseInt(target.value ?? "0") + 1}`;
+  if (isMixerTargetType(target.type)) return describeMixerTarget(target);
   if (target.type === "fx-param" || target.type === "fx-onoff") {
     const live = fxTargets.find((f) => f.dspId === target.dspId);
     const def = catalog?.catalog?.find((c) => c.dspId === target.dspId);
@@ -184,7 +191,7 @@ const MappingEditor = ({
           </select>
         </label>
 
-        {target.type === "fx-param" && (
+        {(target.type === "fx-param" || target.type === "mixer-volume") && (
           <>
             <label style={labelStyle}>
               Min
@@ -216,14 +223,25 @@ const MappingEditor = ({
           </>
         )}
 
-        {target.type === "fx-onoff" && (
+        {(target.type === "fx-onoff" || target.type === "mixer-mute") && (
           <>
             <label style={labelStyle}>
               Mode
               <select style={controlStyle} value={target.mode ?? "toggle"} onChange={(e) => patchTarget({ mode: e.target.value as FxOnOffMode })}>
-                <option value="toggle">Toggle on press</option>
-                <option value="momentary">Momentary (on while held)</option>
-                <option value="threshold">Threshold (on above value)</option>
+                {/* for a mute, "on" means muted */}
+                {target.type === "mixer-mute" ? (
+                  <>
+                    <option value="toggle">Toggle mute on press</option>
+                    <option value="momentary">Momentary (muted while held)</option>
+                    <option value="threshold">Threshold (muted above value)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="toggle">Toggle on press</option>
+                    <option value="momentary">Momentary (on while held)</option>
+                    <option value="threshold">Threshold (on above value)</option>
+                  </>
+                )}
               </select>
             </label>
             {target.mode === "threshold" && (
@@ -245,7 +263,10 @@ const MappingEditor = ({
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
-type NewTargetType = "fx-param" | "fx-onoff" | "amp-channel";
+type NewTargetType = "fx-param" | "fx-onoff" | "amp-channel" | "mixer-volume" | "mixer-mute";
+
+/** Target types chosen from the current preset's effects. */
+const isFxTargetType = (t: NewTargetType) => t === "fx-param" || t === "fx-onoff";
 
 const MidiMappingPanel = () => {
   // control mappings are a separate list from the legacy "Input Event Mappings" table
@@ -269,6 +290,7 @@ const MidiMappingPanel = () => {
   const [newFx, setNewFx] = React.useState<string>("");
   const [newParam, setNewParam] = React.useState<number>(0);
   const [newChannel, setNewChannel] = React.useState<number>(0);
+  const [newMixerChannel, setNewMixerChannel] = React.useState<number>(MIXER_MIDI_CHANNELS[0].channel);
   const [wahAutoEnable, setWahAutoEnable] = React.useState(true);
   const [presetMessage, setPresetMessage] = React.useState<string>(null);
 
@@ -280,10 +302,17 @@ const MidiMappingPanel = () => {
     if (selectedFx && !selectedFx.params.some((p) => p.index === newParam)) setNewParam(selectedFx.params[0]?.index ?? 0);
   }, [selectedFx, newFx, newParam]);
 
-  const canAdd = newType === "amp-channel" || selectedFx != null;
+  const canAdd = !isFxTargetType(newType) || selectedFx != null;
 
   const addMapping = () => {
     if (!canAdd) return;
+    if (isMixerTargetType(newType)) {
+      // needs no amp to set up; it only acts while one is connected
+      const mixerMapping = buildMixerMapping(newType, newMixerChannel);
+      midiMappingController.addMappings([mixerMapping]);
+      midiMappingController.startLearn([mixerMapping.id]);
+      return;
+    }
     const source: MidiEventSource = { type: "midi", kind: "cc", code: "", channel: MIDI_CHANNEL_ANY };
     let target: EventTargetMapping;
     let name: string;
@@ -314,7 +343,7 @@ const MidiMappingPanel = () => {
         <div>
           <h2 className="settings-section-title">MIDI Learn &amp; Continuous Control</h2>
           <p className="settings-section-desc">
-            Map expression pedals, knobs and footswitches (CC, notes or program changes) to effect parameters and on/off switches of the current preset.
+            Map expression pedals, knobs and footswitches (CC, notes or program changes) to effect parameters and on/off switches of the current preset, or to the amp&apos;s Guitar / Music volume and mute (experimental, only while an amp is connected).
           </p>
         </div>
       </div>
@@ -378,10 +407,12 @@ const MidiMappingPanel = () => {
             <option value="fx-param">Effect parameter</option>
             <option value="fx-onoff">Effect on/off</option>
             <option value="amp-channel">Amp channel</option>
+            <option value="mixer-volume">Amp volume</option>
+            <option value="mixer-mute">Amp mute</option>
           </select>
         </label>
 
-        {newType !== "amp-channel" && (
+        {isFxTargetType(newType) && (
           fxTargets.length === 0 ? (
             <span className="settings-empty">Connect to the amp to choose effects from the current preset.</span>
           ) : (
@@ -413,6 +444,17 @@ const MidiMappingPanel = () => {
             <select style={controlStyle} value={newChannel} onChange={(e) => setNewChannel(parseInt(e.target.value))}>
               {Array.from({ length: numPresetSlots ?? 4 }, (_, i) => (
                 <option key={i} value={i}>{i + 1}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {isMixerTargetType(newType) && (
+          <label style={labelStyle}>
+            Mixer channel
+            <select style={controlStyle} value={newMixerChannel} onChange={(e) => setNewMixerChannel(parseInt(e.target.value))}>
+              {MIXER_MIDI_CHANNELS.map((c) => (
+                <option key={c.channel} value={c.channel}>{c.label}</option>
               ))}
             </select>
           </label>

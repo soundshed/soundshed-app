@@ -132,6 +132,89 @@ describe("MidiMappingPanel", () => {
     expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
   });
 
+  it("adds Amp volume and Amp mute mappings for the chosen mixer channel and learns them", () => {
+    render(<MidiMappingPanel />);
+    fireEvent.change(screen.getByLabelText("Target"), { target: { value: "mixer-volume" } });
+    // the mixer needs no effect choice, and offers only Guitar and Music
+    expect(screen.queryByLabelText("Effect")).toBeNull();
+    const channels = screen.getByLabelText("Mixer channel") as HTMLSelectElement;
+    expect(Array.from(channels.options).map((o) => [o.value, o.text])).toEqual([["0", "Guitar"], ["5", "Music"]]);
+    fireEvent.click(screen.getByRole("button", { name: "Add & Learn" }));
+
+    expect(mappings()[0]).toMatchObject({
+      name: "MIDI → Guitar volume",
+      target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear" },
+    });
+    expect(MidiStateStore.getRawState().learningMappingIds).toEqual([mappings()[0].id]);
+
+    fireEvent.change(screen.getByLabelText("Target"), { target: { value: "mixer-mute" } });
+    fireEvent.change(screen.getByLabelText("Mixer channel"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add & Learn" }));
+
+    expect(mappings()[1]).toMatchObject({ name: "MIDI → Music mute", target: { type: "mixer-mute", value: "5", mode: "toggle" } });
+    expect(MidiStateStore.getRawState().learningMappingIds).toEqual([mappings()[1].id]);
+    // added from the panel, so kept for a later Learn even if nothing is learned now
+    act(() => midiMappingController.cancelLearn());
+    expect(mappings()).toHaveLength(2);
+    expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
+  });
+
+  it("can add mixer mappings without a connected amp", () => {
+    act(() => {
+      DeviceStateStore.update((s) => {
+        s.presetTone = null;
+      });
+    });
+    render(<MidiMappingPanel />);
+    fireEvent.change(screen.getByLabelText("Target"), { target: { value: "mixer-mute" } });
+    expect(screen.getByRole("button", { name: "Add & Learn" })).toBeEnabled();
+  });
+
+  it("edits mixer volume like a parameter and mixer mute like an on/off switch", () => {
+    act(() => {
+      AppStateStore.update((s) => {
+        s.midiControlMappings = [
+          {
+            id: "v", name: "Pedal volume", source: { type: "midi", kind: "cc", code: "11", channel: "any" },
+            target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear" },
+          },
+        ];
+      });
+    });
+    const { unmount } = render(<MidiMappingPanel />);
+    expect(screen.getAllByText("Guitar volume").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Mode")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Min"), { target: { value: "0.1" } });
+    fireEvent.change(screen.getByLabelText("Max"), { target: { value: "0.8" } });
+    fireEvent.click(screen.getByLabelText("Invert"));
+    fireEvent.change(screen.getByLabelText("Curve"), { target: { value: "log" } });
+    expect(mappings()[0].target).toEqual({ type: "mixer-volume", value: "0", min: 0.1, max: 0.8, invert: true, curve: "log" });
+    unmount();
+
+    act(() => {
+      AppStateStore.update((s) => {
+        s.midiControlMappings = [
+          {
+            id: "m", name: "Switch mute", source: { type: "midi", kind: "cc", code: "64", channel: "any" },
+            target: { type: "mixer-mute", value: "5", mode: "toggle", threshold: 64 },
+          },
+        ];
+      });
+    });
+    render(<MidiMappingPanel />);
+    expect(screen.getAllByText("Music mute").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Curve")).toBeNull();
+    const mode = screen.getByLabelText("Mode") as HTMLSelectElement;
+    expect(Array.from(mode.options).map((o) => o.text)).toEqual([
+      "Toggle mute on press",
+      "Momentary (muted while held)",
+      "Threshold (muted above value)",
+    ]);
+    fireEvent.change(mode, { target: { value: "threshold" } });
+    fireEvent.change(screen.getByLabelText("Threshold"), { target: { value: "90" } });
+    expect(mappings()[0].target).toEqual({ type: "mixer-mute", value: "5", mode: "threshold", threshold: 90 });
+  });
+
   it("persists the listen to all inputs option", () => {
     render(<MidiMappingPanel />);
     persist.mockClear();

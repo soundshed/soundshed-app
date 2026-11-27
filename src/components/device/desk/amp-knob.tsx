@@ -55,6 +55,10 @@ export interface AmpKnobProps {
    * screen, where an upward drag soon runs out of room.
    */
   horizontalDrag?: boolean;
+  /** Appended to the dial's tooltip, e.g. how to open a menu on it. */
+  hint?: string;
+  /** id of an element that describes the dial (aria-describedby). */
+  describedBy?: string;
 }
 
 export const defaultKnobFormat = (value: number) => (value * 10).toFixed(1);
@@ -93,6 +97,8 @@ const AmpKnob = ({
   endValue = 1,
   dragRange = DRAG_FULL_RANGE_PX,
   horizontalDrag = false,
+  hint,
+  describedBy,
 }: AmpKnobProps) => {
   const [display, setDisplay] = React.useState(() => sanitise(value));
   const [editing, setEditing] = React.useState(false);
@@ -422,7 +428,8 @@ const AmpKnob = ({
         aria-valuenow={Math.round(display * 1000) / 1000}
         aria-valuetext={text}
         aria-disabled={disabled || undefined}
-        title={`${label}: ${text}${defaultValue != null ? " (double-click to reset)" : ""}`}
+        aria-describedby={describedBy}
+        title={`${label}: ${text}${defaultValue != null ? " (double-click to reset)" : ""}${hint ? `. ${hint}` : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

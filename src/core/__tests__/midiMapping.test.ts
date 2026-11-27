@@ -12,9 +12,11 @@ import {
   MidiEventDeduper,
   MidiMappingEngine,
   MidiMappingSink,
+  mixerThrottleKey,
   normaliseMidiEvent,
   NormalisedMidiEvent,
   noteName,
+  parseMixerChannel,
   scaleMidiValue,
   sourceFromEvent,
 } from "../midiMapping";
@@ -480,5 +482,227 @@ describe("expression pedal -> wah preset", () => {
     engine.flush();
     expect(calls).toContainEqual(["onoff", "pg.spark40.JH.Vox846", true]);
     expect(calls).toContainEqual(["param", "pg.spark40.JH.Vox846", 4, 1]);
+  });
+});
+
+describe("amp mixer targets", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const makeMixerSink = (opts: { connected?: boolean; muted?: Record<number, boolean> } = {}) => {
+    const calls: any[] = [];
+    const muted = opts.muted ?? {};
+    const status = { connected: opts.connected ?? true };
+    const sink: MidiMappingSink = {
+      ...makeSink().sink,
+      isMixerAvailable: () => status.connected,
+      setMixerVolume: (c, v) => calls.push(["volume", c, v]),
+      setMixerMuted: (c, m) => {
+        // like MixerViewModel.setMuted, the store reflects the mute straight away
+        muted[c] = m;
+        calls.push(["mute", c, m]);
+      },
+      isMixerMuted: (c) => muted[c] === true,
+    };
+    return { sink, calls, muted, status };
+  };
+
+  const volumeMapping = (over: Partial<InputEventMapping["target"]> = {}, code = "11"): InputEventMapping => ({
+    id: "v" + code,
+    name: "Expression → Guitar volume",
+    source: { type: "midi", kind: "cc", code, channel: "any" },
+    target: { type: "mixer-volume", value: "0", min: 0, max: 1, invert: false, curve: "linear", ...over },
+  });
+
+  const muteMapping = (over: Partial<InputEventMapping["target"]> = {}, code = "64"): InputEventMapping => ({
+    id: "m" + code,
+    name: "Footswitch → Music mute",
+    source: { type: "midi", kind: "cc", code, channel: "any" },
+    target: { type: "mixer-mute", value: "5", mode: "toggle", ...over },
+  });
+
+  it("parses mixer channels strictly", () => {
+    expect(parseMixerChannel("0")).toBe(0);
+    expect(parseMixerChannel("5")).toBe(5);
+    expect(parseMixerChannel(" 9 ")).toBe(9);
+    expect(parseMixerChannel(127)).toBe(127);
+    for (const bad of [undefined, null, "", "x", "5abc", "-1", "1.5", "128", "1000"]) {
+      expect(parseMixerChannel(bad)).toBeNull();
+    }
+  });
+
+  it("scales a CC to the guitar volume with range, invert and curve", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    engine.handleEvent(cc(11, 127), [volumeMapping({ min: 0.2, max: 0.8 }, "11")]);
+    // same channel, so wait out the throttle
+    vi.advanceTimersByTime(100);
+    engine.handleEvent(cc(12, 127), [volumeMapping({ invert: true }, "12")]);
+    engine.handleEvent(cc(13, 32), [volumeMapping({ curve: "log", value: "5" }, "13")]);
+    expect(calls).toEqual([
+      ["volume", 0, 0.8],
+      ["volume", 0, 0],
+      ["volume", 5, scaleMidiValue(32, { curve: "log" })],
+    ]);
+  });
+
+  it("uses note-on velocity and ignores note-off, like fx-param", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    const mapping: InputEventMapping = { ...volumeMapping(), source: { type: "midi", kind: "note", code: "60", channel: "any" } };
+    engine.handleEvent(noteOn(60, 127), [mapping]);
+    engine.handleEvent(noteOff(60), [mapping]);
+    expect(calls).toEqual([["volume", 0, 1]]);
+  });
+
+  it("rate limits a fast sweep per channel and ends on the last value", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink, { throttleMs: 25 });
+    const mappings = [volumeMapping()];
+    for (let v = 0; v <= 127; v++) {
+      engine.handleEvent(cc(11, v), mappings);
+      vi.advanceTimersByTime(2);
+    }
+    vi.advanceTimersByTime(50);
+    expect(calls.length).toBeLessThan(20);
+    expect(calls[0]).toEqual(["volume", 0, 0]);
+    expect(calls[calls.length - 1]).toEqual(["volume", 0, 1]);
+    expect(mixerThrottleKey(0)).toBe("mixer|0");
+  });
+
+  it("ignores events while no amp is connected, including a sweep's trailing value", () => {
+    const { sink, calls, status } = makeMixerSink({ connected: false });
+    const engine = new MidiMappingEngine(sink, { throttleMs: 25 });
+    engine.handleEvent(cc(11, 100), [volumeMapping()]);
+    engine.handleEvent(cc(64, 127), [muteMapping()]);
+    expect(calls).toEqual([]);
+
+    status.connected = true;
+    engine.handleEvent(cc(11, 0), [volumeMapping()]);
+    engine.handleEvent(cc(11, 127), [volumeMapping()]);
+    status.connected = false;
+    vi.advanceTimersByTime(50);
+    expect(calls).toEqual([["volume", 0, 0]]);
+  });
+
+  it("a press ignored while disconnected doesn't swallow the first press after connecting", () => {
+    // a footswitch that sends only 127 per press (no release message)
+    const { sink, calls, status } = makeMixerSink({ connected: false });
+    let now = 1000;
+    const engine = new MidiMappingEngine(sink, { now: () => now });
+    const mapping = muteMapping();
+    engine.handleEvent(cc(64, 127), [mapping]);
+    expect(calls).toEqual([]);
+
+    status.connected = true;
+    now += 2000;
+    engine.handleEvent(cc(64, 127), [mapping]);
+    expect(calls).toEqual([["mute", 5, true]]);
+    now += 2000;
+    engine.handleEvent(cc(64, 127), [mapping]);
+    expect(calls).toEqual([
+      ["mute", 5, true],
+      ["mute", 5, false],
+    ]);
+  });
+
+  it("does nothing without mixer support in the sink", () => {
+    const { sink, calls } = makeSink();
+    const engine = new MidiMappingEngine(sink);
+    engine.handleEvent(cc(11, 100), [volumeMapping()]);
+    engine.handleEvent(cc(64, 127), [muteMapping()]);
+    expect(calls).toEqual([]);
+  });
+
+  it("ignores mappings with an invalid channel", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    for (const value of [undefined, "", "guitar", "128", "-1"]) {
+      engine.handleEvent(cc(11, 100), [volumeMapping({ value })]);
+      engine.handleEvent(cc(64, 127), [muteMapping({ value })]);
+      engine.handleEvent(cc(64, 0), [muteMapping({ value })]);
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("accepts any valid channel from a saved mapping (e.g. Master 9)", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    engine.handleEvent(cc(11, 127), [volumeMapping({ value: "9" })]);
+    expect(calls).toEqual([["volume", 9, 1]]);
+  });
+
+  it("toggles the mute on each press (CC >= 64 or note-on)", () => {
+    const { sink, calls } = makeMixerSink();
+    let now = 1000;
+    const engine = new MidiMappingEngine(sink, { now: () => now });
+    const mapping = muteMapping();
+    engine.handleEvent(cc(64, 127), [mapping]);
+    now += 100;
+    engine.handleEvent(cc(64, 0), [mapping]);
+    now += 100;
+    engine.handleEvent(cc(64, 127), [mapping]);
+    now += 100;
+    engine.handleEvent(cc(64, 0), [mapping]);
+
+    const noteMapping: InputEventMapping = { ...muteMapping({}, "1"), id: "n", source: { type: "midi", kind: "note", code: "36", channel: "any" } };
+    now += 100;
+    engine.handleEvent(noteOn(36), [noteMapping]);
+    engine.handleEvent(noteOff(36), [noteMapping]);
+    expect(calls).toEqual([
+      ["mute", 5, true],
+      ["mute", 5, false],
+      ["mute", 5, true],
+    ]);
+  });
+
+  it("toggles from the app's current mute, so a mute made in the app isn't undone", () => {
+    const { sink, calls } = makeMixerSink({ muted: { 5: true } });
+    const engine = new MidiMappingEngine(sink);
+    engine.handleEvent(cc(64, 127), [muteMapping()]);
+    expect(calls).toEqual([["mute", 5, false]]);
+  });
+
+  it("momentary: muted while held, unmuted on release", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    const mapping = muteMapping({ mode: "momentary" });
+    engine.handleEvent(cc(64, 127), [mapping]);
+    engine.handleEvent(cc(64, 0), [mapping]);
+    const noteMapping: InputEventMapping = { ...muteMapping({ mode: "momentary" }, "1"), id: "n", source: { type: "midi", kind: "note", code: "36", channel: "any" } };
+    engine.handleEvent(noteOn(36), [noteMapping]);
+    engine.handleEvent(noteOff(36), [noteMapping]);
+    expect(calls).toEqual([
+      ["mute", 5, true],
+      ["mute", 5, false],
+      ["mute", 5, true],
+      ["mute", 5, false],
+    ]);
+  });
+
+  it("threshold: muted at/above the threshold, with hysteresis below it", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink);
+    const mapping = muteMapping({ mode: "threshold", threshold: 64 }, "11");
+    for (const v of [10, 64, 70, 63, 62, 64, 61, 30]) engine.handleEvent(cc(11, v), [mapping]);
+    expect(calls).toEqual([
+      ["mute", 5, true],
+      ["mute", 5, false],
+    ]);
+  });
+
+  it("sends a volume still waiting in the throttle before a mute of that channel", () => {
+    const { sink, calls } = makeMixerSink();
+    const engine = new MidiMappingEngine(sink, { throttleMs: 25 });
+    const volume = volumeMapping({ value: "5" });
+    engine.handleEvent(cc(11, 0), [volume]);
+    engine.handleEvent(cc(11, 127), [volume]);
+    engine.handleEvent(cc(64, 127), [muteMapping()]);
+    vi.advanceTimersByTime(50);
+    expect(calls).toEqual([
+      ["volume", 5, 0],
+      ["volume", 5, 1],
+      ["mute", 5, true],
+    ]);
   });
 });

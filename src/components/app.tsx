@@ -20,6 +20,7 @@ import "../../css/styles.css";
 import AppViewModel from "../core/appViewModel";
 import DeviceViewModel from "../core/deviceViewModel";
 import { LessonManager } from "../core/lessonManager";
+import { midiMappingController } from "../core/midiMappingController";
 import { getMixerViewModel } from "../core/mixerViewModel";
 import { Login, UserRegistration } from "../core/soundshedApi";
 import { AppStateStore } from "../stores/appstate";
@@ -47,7 +48,9 @@ export const lessonManager: LessonManager = new LessonManager();
 // The nav-bar mixer knobs are on every page, so the mixer view model lives as long as
 // the app: it reads Guitar / Music when an amp connects and follows acks and 0x03 0x6b
 // whichever page is open. A singleton, so this never adds a second set of listeners.
-getMixerViewModel();
+// MIDI mappings to Guitar / Music volume and mute drive it too (only on incoming MIDI,
+// and only while an amp is connected).
+midiMappingController.attachMixer(getMixerViewModel());
 
 // export context providers for view models
 export const AppViewModelContext = React.createContext(appViewModel);
