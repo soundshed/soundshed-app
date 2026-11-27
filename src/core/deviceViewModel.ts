@@ -220,7 +220,8 @@ export class DeviceViewModel {
 
                             fx.type = this.expandedDspId(msg.dspIdNew);
                             let catalog: FxCatalogItem[] = DeviceStateStore.getRawState().fxCatalog.catalog;
-                            fx.name = catalog.find(c => c.dspId == fx.type).name;
+                            // the amp may switch to a model the catalog doesn't know yet
+                            fx.name = catalog.find(c => c.dspId == fx.type)?.name ?? msg.dspIdNew;
                             DeviceStateStore.update(s => { s.presetTone = presetState });
                         }
 
@@ -518,6 +519,12 @@ export class DeviceViewModel {
         let newFx = (<FxCatalog>DeviceStateStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
 
         var fx = currentTone.fx.find(f => f.type == args.dspIdOld);
+
+        if (!newFx || !fx) {
+            this.log("Cannot change fx, unknown fx id or fx not in current preset: " + args.dspIdOld + " -> " + args.dspIdNew);
+            return false;
+        }
+
         fx.type = args.dspIdNew;
         fx.name = newFx.name;
 
