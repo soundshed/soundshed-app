@@ -21,6 +21,9 @@ import { BpmMessage, DeviceMessage, DeviceState, FxChangeMessage, FxParam, FxPar
 //      reader.message is the 8 bit data in the message
 
 
+// Spark 2 looper
+import { LOOPER_DEFAULT_MAX_DURATION, LooperCommandMessage, LooperMeasureMessage, LooperSettings, LooperSettingsMessage, LooperStatus, LooperStatusMessage } from "./sparkLooper";
+
 var enc = new TextEncoder();
 
 function bytes(val): Uint8Array {
@@ -646,6 +649,18 @@ export class SparkMessageReader {
             else if (sub_cmd == 0x63) {
                 this.read_bpm()
             }
+            else if (sub_cmd == 0x75) {
+                this.read_looper_command()
+            }
+            else if (sub_cmd == 0x76) {
+                this.read_looper_settings()
+            }
+            else if (sub_cmd == 0x77) {
+                this.read_looper_measure()
+            }
+            else if (sub_cmd == 0x78) {
+                this.read_looper_status()
+            }
             else {
                 this.log(hex(cmd), hex(sub_cmd), "not handled")
             }
@@ -710,5 +725,74 @@ export class SparkMessageReader {
         const received = [...this.receivedMessageQueue];
         this.receivedMessageQueue = [];
         return received;
+    }
+
+    // // // // // // // //  Spark 2 looper (see sparkLooper.ts for the protocol notes)
+
+    // msgpack unsigned int: positive fixint, 0xCC + uint8 or 0xCD + uint16 (big endian).
+    // Mirrors Ignitron's readInt(); Ignitron's readInt16() is the 0xCD case.
+    read_looper_uint() {
+        const first = this.read_byte()
+        if (first == 0xcc || first == 0xd0) {
+            return this.read_byte()
+        }
+        if (first == 0xcd) {
+            const major = this.read_byte()
+            const minor = this.read_byte()
+            return ((major << 8) | minor) & 0xffff
+        }
+        return first
+    }
+
+    read_looper_command() {
+        if (!this.has_remaining_bytes()) {
+            this.log("Looper command without a command byte")
+            return
+        }
+        const command = this.read_byte()
+        this.receivedMessageQueue.push(<LooperCommandMessage>{ type: 'looper_command', command: command });
+    }
+
+    read_looper_settings() {
+        // bpm, count, bars, free, click, unknown, 0xCD + uint16 max duration = at least 9 bytes
+        if (!this.has_remaining_bytes(9)) {
+            this.log("Looper settings message too short")
+            return
+        }
+        const bpm = this.read_looper_uint()
+        const count = this.read_byte()
+        const bars = this.read_byte()
+        const free = this.read_onoff() == "On"
+        const click = this.read_onoff() == "On"
+        const unknownOnOff = this.read_onoff() == "On"
+        const maxDuration = this.has_remaining_bytes() ? this.read_looper_uint() : LOOPER_DEFAULT_MAX_DURATION
+
+        const settings: LooperSettings = { bpm, count, bars, free, click, unknownOnOff, maxDuration };
+        this.receivedMessageQueue.push(<LooperSettingsMessage>{ type: 'looper_settings', settings: settings });
+    }
+
+    read_looper_measure() {
+        if (!this.has_remaining_bytes(5)) {
+            this.log("Looper measure message too short")
+            return
+        }
+        const measure = this.read_float()
+        this.receivedMessageQueue.push(<LooperMeasureMessage>{ type: 'looper_measure', measure: measure });
+    }
+
+    read_looper_status() {
+        if (!this.has_remaining_bytes(4)) {
+            this.log("Looper status message too short")
+            return
+        }
+        const bpm = this.read_looper_uint()
+        const count = this.read_byte()
+        const bars = this.read_byte()
+        const loopCount = this.read_byte()
+        const unknown1 = this.has_remaining_bytes() ? this.read_byte() : 0
+        const unknown2 = this.has_remaining_bytes() ? this.read_byte() : 0
+
+        const status: LooperStatus = { bpm, count, bars, loopCount, unknown1, unknown2 };
+        this.receivedMessageQueue.push(<LooperStatusMessage>{ type: 'looper_status', status: status });
     }
 }

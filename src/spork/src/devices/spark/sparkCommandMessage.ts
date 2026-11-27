@@ -10,6 +10,9 @@
 
 import { Preset } from "../../interfaces/preset";
 
+// Spark 2 looper
+import { encodeLooperSettingsPayload, LooperCommand, LooperSettings } from "./sparkLooper";
+
 interface SparkCommandMessageOptions {
     spark2?: boolean;
 }
@@ -463,6 +466,34 @@ export class SparkCommandMessage {
         this.add_bytes(bytes([chkSum]));
 
         return this.end_message()
+    }
+
+    // // // // // // // //  Spark 2 looper (see sparkLooper.ts for the protocol notes)
+
+    looper_command(command: LooperCommand | number) {
+        this.start_message(0x01, 0x75)
+        this.add_bytes(bytes([command & 0xff]))
+        return this.end_message()
+    }
+
+    update_looper_settings(settings: Partial<LooperSettings>) {
+        this.start_message(0x01, 0x76)
+        this.add_bytes(bytes(encodeLooperSettingsPayload(settings)))
+        return this.end_message()
+    }
+
+    // The looper queries carry no data. end_message() emits nothing for an empty
+    // payload, so these are framed directly.
+    request_looper_record_status() {
+        return [this.build_raw_message(0x02, 0x75, bytes([]))]
+    }
+
+    request_looper_settings() {
+        return [this.build_raw_message(0x02, 0x76, bytes([]))]
+    }
+
+    request_looper_status() {
+        return [this.build_raw_message(0x02, 0x78, bytes([]))]
     }
 
     // utils

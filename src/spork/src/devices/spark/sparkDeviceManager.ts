@@ -8,6 +8,9 @@ import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { Utils } from "../../../../core/utils";
 import { isSpark2DeviceName } from "../../../../core/sparkModels";
 
+// Spark 2 looper
+import { LooperCommand, LooperSettings } from "./sparkLooper";
+
 export class SparkDeviceManager implements DeviceController {
 
     public onStateChanged;
@@ -372,5 +375,49 @@ export class SparkDeviceManager implements DeviceController {
     private log(msg) {
         console.info("[SparkDeviceManager]:");
         console.info(msg);
+    }
+
+    // // // // // // // //  Spark 2 looper (see sparkLooper.ts for the protocol notes)
+
+    /** Sends one looper transport command (0x01 0x75). */
+    public async sendLooperCommand(command: LooperCommand): Promise<void> {
+        this.log("Looper command 0x" + (command ?? 0).toString(16));
+        return this.sendLooperMessages(msg => msg.looper_command(command));
+    }
+
+    /** Writes looper settings (0x01 0x76). */
+    public async updateLooperSettings(settings: Partial<LooperSettings>): Promise<void> {
+        this.log("Updating looper settings " + JSON.stringify(settings));
+        return this.sendLooperMessages(msg => msg.update_looper_settings(settings));
+    }
+
+    /** Asks the amp for its looper settings, status and last record status (0x02 0x76/0x78/0x75). */
+    public async requestLooperState(): Promise<void> {
+        this.log("Requesting looper state");
+        return this.sendLooperMessages(msg => [
+            ...msg.request_looper_settings(),
+            ...msg.request_looper_status(),
+            ...msg.request_looper_record_status(),
+        ]);
+    }
+
+    // Shares the command chain with sendCommand() so looper writes never land in the
+    // middle of a chunked Spark 2 preset upload.
+    private sendLooperMessages(build: (msg: SparkCommandMessage) => Uint8Array[]): Promise<void> {
+        const send = async () => {
+            const msgArray = build(new SparkCommandMessage({ spark2: this.isSpark2 }));
+            for (const dat of msgArray) {
+                this.log("[SEND RAW]: " + this.buf2hex(dat));
+                if (typeof (Buffer) != "undefined") {
+                    await this.connection.write(Buffer.from(dat));
+                } else {
+                    await this.connection.write(dat);
+                }
+            }
+        };
+
+        const run = this.commandChain.then(send, send);
+        this.commandChain = run.then(() => { }, () => { });
+        return run;
     }
 }
