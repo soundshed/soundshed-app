@@ -328,6 +328,20 @@ export class SparkCommandMessage {
         return this.end_message();
     }
 
+    // ---- tuner ----
+
+    // Switches the amp's tuner on or off: 0x01 0x65 with a single msgpack bool.
+    // Mirrors Ignitron's SparkMessage::switchTuner, which sends no trailing 0x00
+    // even though its effect on/off command does, so no Spark 2 variant here.
+    switch_tuner(enabled: boolean) {
+        const cmd = 0x01;
+        const sub_cmd = 0x65;
+
+        this.start_message(cmd, sub_cmd);
+        this.add_onoff(enabled === true);
+        return this.end_message();
+    }
+
     create_preset(preset) {
 
 

@@ -225,6 +225,13 @@ export class SparkDeviceManager implements DeviceController {
         return run;
     }
 
+    // ---- tuner ----
+
+    // Switches the amp's tuner on or off (0x01 0x65).
+    public async setTunerEnabled(enabled: boolean) {
+        return this.sendCommand("set_tuner", enabled === true);
+    }
+
     private commandChain: Promise<any> = Promise.resolve();
 
     private async executeCommand(type, data) {
@@ -280,6 +287,11 @@ export class SparkDeviceManager implements DeviceController {
         if (type == "set_fx_onoff") {
             this.log("Toggling Effect " + JSON.stringify(data));
             msgArray = msg.turn_effect_onoff(data.dspId, data.value == 1 ? "On" : "Off");
+        }
+
+        if (type == "set_tuner") {
+            this.log("Switching tuner " + (data === true ? "on" : "off"));
+            msgArray = msg.switch_tuner(data === true);
         }
 
         if (type == "set_fx_param") {
