@@ -338,6 +338,11 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_info(0x23);
         }
 
+        if (type == "get_tuner_state") {
+            this.log("Getting tuner state");
+            msgArray = msg.request_tuner_state();
+        }
+
         if (type == "request_live_sync") {
             this.log("Requesting Spark 2 live sync");
             msgArray = msg.request_live_sync();

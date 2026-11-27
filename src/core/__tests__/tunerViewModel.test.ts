@@ -112,6 +112,15 @@ describe("describeTunerReading", () => {
     expect(sharp.centsLabel).toBe("+12");
   });
 
+  it("shows the amp's no-signal reading (note 0, offset -1.0) as no note", () => {
+    const r = describeTunerReading(0, -1);
+    expect(r.hasNote).toBe(false);
+    expect(r.noteName).toBeNull();
+    expect(r.cents).toBeNull();
+    expect(r.direction).toBeNull();
+    expect(r.needlePercent).toBe(50);
+  });
+
   it("shows no needle data when there is no note", () => {
     const r = describeTunerReading(0x0e, 0.9);
     expect(r.hasNote).toBe(false);

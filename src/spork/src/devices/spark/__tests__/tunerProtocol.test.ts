@@ -64,6 +64,21 @@ describe("switch_tuner (app -> amp 0x01 0x65)", () => {
   });
 });
 
+describe("request_tuner_state (app -> amp 0x02 0x65)", () => {
+  it("is a single block with no payload", () => {
+    const blocks = new SparkCommandMessage().request_tuner_state();
+
+    expect(blocks).toHaveLength(1);
+    const chunk = blocksToChunks(blocks)[0];
+    expect(Array.from(chunk.subarray(4))).toEqual([0x02, 0x65, 0xf7]);
+    expect(blocks[0][6]).toBe(blocks[0].length);
+  });
+
+  it("is answered with 0x03 0x65, read as a tuner_onoff message", () => {
+    expect(decodeBlocks(tunerOnOffFrame(true))).toEqual([{ type: "tuner_onoff", enabled: true }]);
+  });
+});
+
 describe("tuner output (amp -> app 0x03 0x64)", () => {
   it("decodes the note byte and offset float", () => {
     const messages = decodeBlocks(tunerOutputFrame(9, 0.5));
@@ -211,6 +226,14 @@ describe("SparkDeviceManager tuner support", () => {
       ...new SparkCommandMessage().request_info(0x23).map((b) => Array.from(b)),
       ...new SparkCommandMessage().switch_tuner(true).map((b) => Array.from(b)),
     ]);
+  });
+
+  it("get_tuner_state writes the 0x02 0x65 query", async () => {
+    await manager.sendCommand("get_tuner_state", {});
+
+    expect(connection.written.map((w) => Array.from(w))).toEqual(
+      new SparkCommandMessage().request_tuner_state().map((b) => Array.from(b))
+    );
   });
 
   it("reports tuner messages from the amp through onStateChanged", async () => {

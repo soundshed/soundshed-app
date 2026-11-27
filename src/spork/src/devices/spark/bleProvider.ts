@@ -4,6 +4,7 @@ import { Utils } from "../../../../core/utils";
 import { SparkMessageReader } from "./sparkMessageReader";
 import { bleTrace } from "./bleTrace";
 import { isSpark2DeviceName } from "../../../../core/sparkModels";
+import { isTunerReadingChunk, SparkReceiveQueue } from "./sparkReceiveQueue";
 
 export class BleProvider implements SerialCommsProvider {
 
@@ -43,16 +44,27 @@ export class BleProvider implements SerialCommsProvider {
     private isConnected: boolean;
     private isReceiving: boolean;
 
-    private receiveQueue: Array<Uint8Array>;
+    private receiveQueue: SparkReceiveQueue;
     private sendQueue: Array<Uint8Array>;
 
     private lastTimeStamp = null;
     private lastDataChunkRemainder: Uint8Array = new Uint8Array();
     private lastMsgReceivedTime: Date = null;
+    // Like lastMsgReceivedTime, but tuner readings (03 64) do not count: write() uses
+    // it to tell a reply still arriving from the tuner's steady stream of readings.
+    private lastNonTunerMsgReceivedTime: Date = null;
     private lastMsgSentTime: Date = null;
 
     private minWaitTimeMSBetweenCommands = 500;
     private minWaitTimeForMessageQueue = 300;
+
+    // write() waits until nothing but tuner readings has arrived for
+    // minWaitTimeForMessageQueue, so it does not talk over a reply that is still
+    // arriving. Tuner readings are ignored there: while the tuner is on the amp sends
+    // one about every 60 ms, and waiting for those to stop kept every command
+    // (including the one switching the tuner off) from being sent. This cap only
+    // guards against a line that never goes quiet for some other reason.
+    private maxWaitTimeForQuietBeforeSend = 2000;
 
     // Set true by disconnect() so handleUnexpectedDisconnect ignores the resulting event.
     private intentionalDisconnect = false;
@@ -66,7 +78,7 @@ export class BleProvider implements SerialCommsProvider {
     public onDisconnected: (() => void) | null = null;
 
     constructor() {
-        this.receiveQueue = [];
+        this.receiveQueue = new SparkReceiveQueue();
         this.sendQueue = [];
         this.isReceiving = false;
     }
@@ -231,6 +243,14 @@ export class BleProvider implements SerialCommsProvider {
         }
     }
 
+    /** Time since anything other than a tuner reading arrived; nothing yet counts as quiet. */
+    getTimeDeltaSinceLastNonTunerMsg(): number {
+        if (this.lastNonTunerMsgReceivedTime == null) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        return Math.abs(Date.now() - this.lastNonTunerMsgReceivedTime.getTime());
+    }
+
     getTimeDeltaSinceLastCmd(): number {
         if (this.lastMsgSentTime != null) {
             let current = new Date();
@@ -283,7 +303,7 @@ export class BleProvider implements SerialCommsProvider {
         for (const w of this.pendingAckWaiters) { clearTimeout(w.timeoutHandle); w.resolve(false); }
         this.pendingAckWaiters = [];
         this.recentAcks = [];
-        this.receiveQueue = [];
+        this.receiveQueue.clear();
         this.sendQueue = [];
         this.lastDataChunkRemainder = new Uint8Array();
     }
@@ -303,6 +323,9 @@ export class BleProvider implements SerialCommsProvider {
 
         this.lastMsgReceivedTime = new Date();
 
+        // Whether this notification carries anything other than tuner readings (see write()).
+        let sawNonTuner = false;
+
         dataChunk = this.trimHeader(dataChunk);
 
         // Each chunk runs from f0 to f7. When notifications go missing we see a new f0 while a chunk
@@ -312,6 +335,8 @@ export class BleProvider implements SerialCommsProvider {
             this.lastDataChunkRemainder = new Uint8Array();
         } else if (this.lastDataChunkRemainder.length == 0) {
             const end = dataChunk.indexOf(0xf7);
+            // a piece of a chunk whose start was lost: most likely part of a longer reply
+            sawNonTuner = dataChunk.length > 0;
             dataChunk = dataChunk.subarray(end < 0 ? dataChunk.length : end + 1);
         }
 
@@ -339,6 +364,9 @@ export class BleProvider implements SerialCommsProvider {
 
                 this.receiveQueue.push(merged);
                 this.notifyAckWaiters(merged);
+                if (!isTunerReadingChunk(merged)) {
+                    sawNonTuner = true;
+                }
 
                 currentTerminatorItemIdx++;
 
@@ -352,6 +380,17 @@ export class BleProvider implements SerialCommsProvider {
 
                 currentSliceStartIndex = i + 1;
             }
+        }
+
+        // A chunk still arriving counts once its header (cmd, sub) is in; until then the
+        // next notification will tell.
+        const pending = this.lastDataChunkRemainder;
+        if (pending.length >= 6 && !isTunerReadingChunk(pending)) {
+            sawNonTuner = true;
+        }
+
+        if (sawNonTuner) {
+            this.lastNonTunerMsgReceivedTime = this.lastMsgReceivedTime;
         }
     }
 
@@ -455,45 +494,21 @@ export class BleProvider implements SerialCommsProvider {
         return this.isReceiving;
     }
 
-    private isSingleChunkMessage(chunk: Uint8Array): boolean {
-        return ((chunk[4] == 4) || (chunk[4] == 3 && chunk[7] == 0));
-        // command type 4 is an ACK, which is only one chunk
-        // some command type 3 commands are only one chunk
-        // all other types of messages are multi-chunk
-    }
-
+    // Hands over the queued chunks that make up whole messages (see sparkReceiveQueue.ts).
+    // A multi-chunk message still arriving is held back until its last chunk is in, or
+    // until the line has been quiet for minWaitTimeForMessageQueue (the old rule, kept
+    // as a fallback for a message whose end never arrives).
     public readReceiveQueue(): Array<Uint8Array> {
 
         if (this.receiveQueue.length == 0) {
             return null;
         }
 
-        // wait a minimum amount of time (e.g. 200ms) before returning our message queue
-        if (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
-            return null;
-        }
-
-        let lastItem = this.receiveQueue[this.receiveQueue.length - 1];
-
-        // only return our queue if the last item ends in an f7 terminator
-        if (lastItem[lastItem.length - 1] == 0xf7) {
-            const received = [...this.receiveQueue];
-            this.receiveQueue = new Array<Uint8Array>;
-            return received;
-        } else {
-            return null;
-        }
+        return this.receiveQueue.take(this.getTimeDeltaSinceLastMsg() >= this.minWaitTimeForMessageQueue);
     }
 
     public peekReceiveQueueEnd(): Uint8Array {
-
-        // only return our queue end if the last item ends in an f7 terminator
-        let lastItem = this.receiveQueue[this.receiveQueue.length - 1];
-        if (lastItem[lastItem.length - 1] == 0xf7) {
-            return lastItem;
-        } else {
-            return null;
-        }
+        return this.receiveQueue.peekEnd();
     }
 
     isSendQueueProcessing = false;
@@ -549,9 +564,20 @@ export class BleProvider implements SerialCommsProvider {
                         await Utils.sleepAsync(this.minWaitTimeMSBetweenCommands);
                     }
 
-                    while (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
+                    // wait for a reply still arriving to finish; tuner readings do not count
+                    const quietWaitStarted = Date.now();
+                    let sinceReply: number;
+                    while ((sinceReply = this.getTimeDeltaSinceLastNonTunerMsg()) < this.minWaitTimeForMessageQueue) {
+                        const waited = Date.now() - quietWaitStarted;
+                        if (waited >= this.maxWaitTimeForQuietBeforeSend) {
+                            // the line never went quiet: send anyway rather than block every command
+                            this.log(`Line still busy after ${waited}ms, sending anyway`);
+                            bleTrace.record("event", `line busy for ${waited}ms, sending without waiting for quiet`);
+                            break;
+                        }
                         this.log("Pausing [again] for messages to be received before sending next command ");
-                        await Utils.sleepAsync(this.minWaitTimeForMessageQueue);
+                        // sleep until the line would be quiet, then check again
+                        await Utils.sleepAsync(Math.min(this.minWaitTimeForMessageQueue - sinceReply, this.maxWaitTimeForQuietBeforeSend - waited));
                     }
 
                     this.lastMsgSentTime = new Date();

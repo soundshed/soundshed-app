@@ -30,6 +30,13 @@ export const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A",
 /** Note byte Ignitron treats as "no note detected". */
 export const TUNER_NO_NOTE = 0x0e;
 
+/**
+ * Offset the amp sends while nothing is played (a Spark 2 sends note 0 with -1.0,
+ * per TominoCZ/Flint's TunerReading and its capture). Any negative offset is out of
+ * the 0..1 scale, so it is shown as "no note" rather than as 50 cents flat.
+ */
+export const TUNER_NO_SIGNAL_OFFSET = -1.0;
+
 /** Readings within this many cents of the note count as in tune. */
 export const IN_TUNE_TOLERANCE_CENTS = 5;
 
@@ -89,7 +96,8 @@ export interface TunerReadingView {
 
 /** Everything the UI needs to show for a raw reading. */
 export function describeTunerReading(note: number | null, offset: number | null): TunerReadingView {
-    const noteName = getNoteName(note);
+    const hasSignal = !(offset != null && offset < 0);
+    const noteName = hasSignal ? getNoteName(note) : null;
     const cents = noteName != null ? offsetToCents(offset) : null;
     const inTune = isInTune(cents);
 

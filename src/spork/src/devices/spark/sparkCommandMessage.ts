@@ -342,6 +342,13 @@ export class SparkCommandMessage {
         return this.end_message();
     }
 
+    // Asks whether the tuner is on: 0x02 0x65 with no payload, answered with 0x03 0x65
+    // and a msgpack bool (TominoCZ/Flint reads it this way when connecting, since a
+    // tuner left on makes the amp drop replies).
+    request_tuner_state() {
+        return [this.build_raw_message(0x02, 0x65, bytes([]))];
+    }
+
     create_preset(preset) {
 
 
