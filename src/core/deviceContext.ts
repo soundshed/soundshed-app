@@ -3,6 +3,7 @@ import { SparkDeviceManager } from "../spork/src/devices/spark/sparkDeviceManage
 import { SerialCommsProvider } from "../spork/src/interfaces/serialCommsProvider";
 import { VIRTUAL_CHANNEL } from "./sparkChannels";
 import { isTunerMessage } from "../spork/src/interfaces/tuner";
+import { isMixerMessage } from "../spork/src/interfaces/mixer";
 
 export class DeviceContext {
 
@@ -36,6 +37,9 @@ export class DeviceContext {
             // Tuner readings stream continuously while the tuner is on, so they get their own
             // event instead of churning the preset/device state handlers.
             if (isTunerMessage(s?.message)) { this.sendMessageToApp('tuner-message', s.message); return; }
+            // The experimental mixer's replies, acks and input volume notifications only
+            // concern the mixer panel.
+            if (isMixerMessage(s?.message)) { this.sendMessageToApp('mixer-message', s.message); return; }
             this.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
@@ -148,6 +152,15 @@ export class DeviceContext {
 
         if (args.action == 'setTuner') {
             return this.deviceManager.setTunerEnabled(args.data === true);
+        }
+
+        if (args.action == 'setMixerVolume') {
+            const d = args.data ?? {};
+            return this.deviceManager.setMixerVolume(d.channel, d.value, d.trailingZero ?? null);
+        }
+
+        if (args.action == 'getMixerVolume') {
+            return this.deviceManager.requestMixerVolume(typeof args.data == "number" ? args.data : args.data?.channel);
         }
 
         if (args.action == 'getPreset') {

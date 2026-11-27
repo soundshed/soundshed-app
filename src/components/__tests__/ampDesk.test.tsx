@@ -9,8 +9,8 @@ import { AppStateStore } from "../../stores/appstate";
 import { FxCatalogProvider } from "../../spork/src/devices/spark/sparkFxCatalog";
 import { VIRTUAL_CHANNEL } from "../../core/sparkChannels";
 
-// components/app would drag in the whole application on import, so it is mocked
-// in case anything under amp-desk.tsx reaches it. The tone chooser and tuner have their own
+// amp-desk.tsx pulls deviceViewModel from components/app, which would drag in the
+// whole application on import. The tone chooser, tuner and mixer have their own
 // tests; here they are stand-ins so only the screen's own behaviour is exercised.
 vi.mock("../app", () => ({
   deviceViewModel: {},
@@ -21,6 +21,9 @@ vi.mock("../soundshed/tone-chooser-modal", () => ({
   default: ({ show }: { show: boolean }) => (show ? <div data-testid="tone-chooser" /> : null),
 }));
 vi.mock("../device/tuner/tuner-panel", () => ({ default: () => <div data-testid="tuner-panel" /> }));
+vi.mock("../device/mixer/mixer-panel", () => ({
+  default: ({ isSpark2 }: { isSpark2?: boolean }) => <div data-testid="mixer-panel" data-spark2={String(!!isSpark2)} />,
+}));
 
 import AmpDesk, { AmpDeskProps } from "../device/desk/amp-desk";
 import { isTypingTarget } from "../device/desk/keyboard-targets";
@@ -539,6 +542,25 @@ describe("top bar", () => {
     expect(screen.queryByTestId("tuner-panel")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Tuner" }));
     expect(screen.getByTestId("tuner-panel")).toBeInTheDocument();
+  });
+
+  it("opens and closes the experimental mixer drawer from the top bar", async () => {
+    const user = userEvent.setup();
+    setDevice({ connectedDevice: { name: "Spark 2", address: "amp-1" } });
+    renderDesk();
+
+    const mixer = screen.getByRole("button", { name: "Mixer" });
+    expect(mixer).toHaveAttribute("aria-expanded", "false");
+    expect(mixer).toHaveAttribute("aria-controls", "amp-desk-mixer");
+    expect(screen.queryByTestId("mixer-panel")).toBeNull();
+
+    await user.click(mixer);
+    expect(mixer).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("mixer-panel")).toHaveAttribute("data-spark2", "true");
+    expect(document.getElementById("amp-desk-mixer")).toContainElement(screen.getByTestId("mixer-panel"));
+
+    await user.click(mixer);
+    expect(screen.queryByTestId("mixer-panel")).toBeNull();
   });
 });
 

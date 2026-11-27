@@ -2395,6 +2395,22 @@ select:focus {
     padding: 0.5rem 1rem;
 }
 
+/* experimental amp mixer drawer */
+.amp-desk-drawer--mixer {
+    max-height: 42vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--desk-panel);
+}
+.amp-mixer .form-range {
+    width: 100%;
+    accent-color: var(--accent);
+}
+.amp-mixer details > summary {
+    width: max-content;
+}
+
 /* signal chain strip */
 .amp-desk-chain {
     position: relative;
@@ -2962,6 +2978,10 @@ select:focus {
 }
 @media (max-width: 1100px) {
     .amp-desk { --desk-tile-img: 58px; --desk-hero-img: 160px; }
+    /* the actions move to a second row (right aligned) when the tone name needs the room */
+    .amp-desk-topbar { flex-wrap: wrap; row-gap: 6px; }
+    .amp-desk-topbar__tone { flex-basis: 160px; }
+    .amp-desk-topbar__actions { flex-wrap: wrap; margin-left: auto; }
     .amp-desk-topbar__device { max-width: 96px; }
     .amp-desk-action { padding: 0 8px; }
     .amp-desk-tile__name { font-size: 0.72rem; }

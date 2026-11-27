@@ -10,6 +10,9 @@
 
 import { Preset } from "../../interfaces/preset";
 
+// Experimental amp mixer
+import { clampMixerValue, isValidMixerChannel, MIXER_MAX_CHANNEL } from "../../interfaces/mixer";
+
 interface SparkCommandMessageOptions {
     spark2?: boolean;
 }
@@ -347,6 +350,37 @@ export class SparkCommandMessage {
     // tuner left on makes the amp drop replies).
     request_tuner_state() {
         return [this.build_raw_message(0x02, 0x65, bytes([]))];
+    }
+
+    // ---- mixer (experimental, see interfaces/mixer.ts) ----
+
+    // Sets a mixer channel's volume: 0x01 0x33, channel byte + msgpack float.
+    // Documented for the Spark LIVE only. The trailing 0x00 is the caller's choice
+    // because it is not known whether a Spark 2 wants one here as it does for 0x01 0x04.
+    set_mixer_volume(channel: number, value: number, trailingZero: boolean) {
+        if (!isValidMixerChannel(channel)) {
+            throw new RangeError(`Mixer channel must be an integer 0..${MIXER_MAX_CHANNEL}, got ${channel}`);
+        }
+
+        this.start_message(0x01, 0x33);
+        this.add_bytes(bytes(channel));
+        this.add_float(clampMixerValue(value));
+        if (trailingZero === true) {
+            this.add_bytes(bytes(0x00));
+        }
+        return this.end_message();
+    }
+
+    // Asks for a mixer channel's volume: 0x02 0x33 with the channel byte. The amp's
+    // 0x03 0x33 reply carries only the value.
+    request_mixer_volume(channel: number) {
+        if (!isValidMixerChannel(channel)) {
+            throw new RangeError(`Mixer channel must be an integer 0..${MIXER_MAX_CHANNEL}, got ${channel}`);
+        }
+
+        this.start_message(0x02, 0x33);
+        this.add_bytes(bytes(channel));
+        return this.end_message();
     }
 
     create_preset(preset) {

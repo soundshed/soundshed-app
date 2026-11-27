@@ -592,6 +592,40 @@ async function main() {
                 restoreConsole();
             }
         }, results);
+        await runStep("Read mixer defaults (02 33 -> 03 33)", async () => {
+            const expected: [number, number][] = [[0, 0.5], [5, 0.5], [9, 0.7]];
+            for (const [channel, value] of expected) {
+                const responses = await client.sendAndCollect(command.request_mixer_volume(channel));
+                ensure(countCmdSub(responses, 0x03, 0x33) > 0, `Expected response cmd=03 sub=33 for channel ${channel}`);
+
+                const messages = parseMessages(responses, SparkMessageReader);
+                const volume = messages.find((m) => m.type === "mixer_volume");
+                ensure(!!volume, `Expected mixer_volume parser message for channel ${channel}`);
+                ensure(Math.abs(volume.value - value) < 1e-6, `Expected channel ${channel} volume ${value}, got ${String(volume.value)}`);
+            }
+        }, results);
+
+        await runStep("Set mixer volume with and without trailing 00 (01 33 -> 04 33)", async () => {
+            const musicResponses = await client.sendAndCollect(command.set_mixer_volume(5, 0.25, false));
+            ensure(countCmdSub(musicResponses, 0x04, 0x33) > 0, "Expected ACK cmd=04 sub=33 for music volume");
+            ensure(countCmdSub(musicResponses, 0x03, 0x6b) === 0, "Did not expect 03 6b for a music volume change");
+            ensure(
+                parseMessages(musicResponses, SparkMessageReader).some((m) => m.type === "mixer_ack"),
+                "Expected mixer_ack parser message"
+            );
+            ensure(Math.abs((simulator.getMixerVolume(5) ?? -1) - 0.25) < 1e-6, "Simulator did not store music volume 0.25");
+
+            const readBack = await client.sendAndCollect(command.request_mixer_volume(5));
+            const readMsg = parseMessages(readBack, SparkMessageReader).find((m) => m.type === "mixer_volume");
+            ensure(!!readMsg && Math.abs(readMsg.value - 0.25) < 1e-6, "Expected to read back music volume 0.25");
+
+            const guitarResponses = await client.sendAndCollect(command.set_mixer_volume(0, 0.3, true));
+            ensure(countCmdSub(guitarResponses, 0x04, 0x33) > 0, "Expected ACK cmd=04 sub=33 for guitar volume");
+            ensure(countCmdSub(guitarResponses, 0x03, 0x6b) > 0, "Expected 03 6b input volume after a guitar change");
+            const input = parseMessages(guitarResponses, SparkMessageReader).find((m) => m.type === "input_volume");
+            ensure(!!input && Math.abs(input.value - 0.3) < 1e-6, "Expected input_volume 0.3 parser message");
+            ensure(Math.abs((simulator.getMixerVolume(0) ?? -1) - 0.3) < 1e-6, "Simulator did not store guitar volume 0.3");
+        }, results);
     } finally {
         simulator.dispose();
         await client.disconnect().catch(() => undefined);

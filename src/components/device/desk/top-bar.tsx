@@ -2,7 +2,7 @@ import React from "react";
 
 // One-row header of the amp screen: device, channel selector, tone name and the
 // tone/amp actions. Popovers (save picker, shortcut help) are passed in and drop
-// down under their buttons.
+// down under their buttons; the tuner and mixer open as drawers below the bar.
 
 export interface DeskNotice {
   text: string;
@@ -30,6 +30,9 @@ interface TopBarProps {
   onBrowseTones: () => void;
   tunerOpen: boolean;
   onToggleTuner: () => void;
+  /** The experimental amp mixer drawer */
+  mixerOpen: boolean;
+  onToggleMixer: () => void;
   helpOpen: boolean;
   onToggleHelp: () => void;
   helpPopover?: React.ReactNode;
@@ -133,6 +136,16 @@ const TopBar = (props: TopBarProps) => {
           title="Show the tuner"
         >
           Tuner
+        </button>
+        <button
+          type="button"
+          className={`amp-desk-action ${props.mixerOpen ? "is-active" : ""}`}
+          aria-expanded={props.mixerOpen}
+          aria-controls="amp-desk-mixer"
+          onClick={props.onToggleMixer}
+          title="Amp mixer: Guitar, Music and Master volume (experimental)"
+        >
+          Mixer
         </button>
         <div className="amp-desk-anchor">
           <button

@@ -38,6 +38,13 @@ export interface SparkAmpChainSlotSummary {
     paramValues: number[];
 }
 
+/** Mixer channel volumes (0x01 0x33) the simulator starts with: guitar, music, master. */
+export const SIM_DEFAULT_MIXER_VOLUMES: ReadonlyArray<[number, number]> = [
+    [0, 0.5],
+    [5, 0.5],
+    [9, 0.7]
+];
+
 export interface SparkAmpSimulatorOptions {
     logger?: (msg: string) => void;
     /**
@@ -88,6 +95,8 @@ export class SparkAmpSimulator {
     private tunerTimer: ReturnType<typeof setInterval> | null = null;
     private tunerReadingCount = 0;
     private unsolicitedListeners: Set<(frames: Uint8Array[]) => void> = new Set();
+    // Experimental mixer (0x01 0x33 / 0x02 0x33), see src/spork/src/interfaces/mixer.ts.
+    private mixerVolumes: Map<number, number> = new Map(SIM_DEFAULT_MIXER_VOLUMES);
 
     constructor(private profile: SparkModelProfile, private options: SparkAmpSimulatorOptions = {}) {
         this.serial = `${profile.id.replace(/[^a-z0-9]/gi, "").toUpperCase()}-SIM-0001`;
@@ -609,6 +618,44 @@ export class SparkAmpSimulator {
         }
     }
 
+    /** Current volume of a mixer channel (0..1), or undefined if it was never set. */
+    public getMixerVolume(channel: number): number | undefined {
+        return this.mixerVolumes.get(channel);
+    }
+
+    private floatPayload(value: number): Uint8Array {
+        const out: number[] = [];
+        this.appendFloat(out, value);
+        return Uint8Array.from(out);
+    }
+
+    // 0x01 0x33: channel byte + float (+ an optional trailing 0x00, Spark 2 style).
+    // Acked with 0x04 0x33; a guitar (channel 0) change is also reported as 0x03 0x6b,
+    // the way the amp reports its input volume.
+    private handleMixerSet(data8: Uint8Array): Uint8Array[] {
+        const ack = buildSparkFrames(0x04, 0x33, new Uint8Array());
+        if (data8.length < 6 || data8[0] > 0x7f) {
+            this.log("Mixer set too short or bad channel, acking without change");
+            return ack;
+        }
+
+        const channel = data8[0];
+        const parsed = this.readFloat(data8, 1);
+        if (!parsed || !Number.isFinite(parsed.value)) {
+            return ack;
+        }
+
+        const value = Math.min(1, Math.max(0, parsed.value));
+        const previous = this.mixerVolumes.get(channel);
+        this.mixerVolumes.set(channel, value);
+        this.log(`Mixer channel ${channel} set to ${value.toFixed(3)}${data8.length > 6 ? " (with trailing byte)" : ""}`);
+
+        if (channel === 0 && previous !== value) {
+            return [...ack, ...buildSparkFrames(0x03, 0x6b, this.floatPayload(value))];
+        }
+        return ack;
+    }
+
     public getStateSnapshot(): SparkAmpSimulatorStateSnapshot {
         const pendingUpload = this.pendingUpload
             ? `${this.pendingUpload.chunks.size}/${this.pendingUpload.expectedChunks}`
@@ -750,6 +797,16 @@ export class SparkAmpSimulator {
             case 0x65: {
                 return buildSparkFrames(0x03, 0x65, Uint8Array.from([this.tunerEnabled ? 0xc3 : 0xc2]));
             }
+            case 0x33: {
+                // the reply carries only the value, as documented for the Spark LIVE
+                const channel = data8.length > 0 ? data8[0] : 0;
+                const value = this.mixerVolumes.get(channel);
+                if (value == null) {
+                    // unknown channel: stay silent, like an amp that does not have it
+                    return [];
+                }
+                return buildSparkFrames(0x03, 0x33, this.floatPayload(value));
+            }
             case 0x1a: {
                 if (!this.profile.supportsLiveSync) {
                     return [];
@@ -817,6 +874,8 @@ export class SparkAmpSimulator {
                 }
                 return buildSparkFrames(0x04, 0x65, new Uint8Array());
             }
+            case 0x33:
+                return this.handleMixerSet(data8);
             case 0x38: {
                 if (data8.length > 1) {
                     this.selectedSlot = this.normalizeSlot(data8[1]);

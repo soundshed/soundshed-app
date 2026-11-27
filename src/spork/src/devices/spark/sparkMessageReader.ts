@@ -2,6 +2,7 @@
 
 import { BpmMessage, DeviceMessage, DeviceState, FxChangeMessage, FxParam, FxParamMessage, FxToggleMessage, Preset, PresetChangeMessage, SignalPath } from "../../interfaces/preset";
 import { TUNER_MESSAGE_ONOFF, TUNER_MESSAGE_OUTPUT, TunerOnOffMessage, TunerOutputMessage } from "../../interfaces/tuner";
+import { InputVolumeMessage, MIXER_MESSAGE_ACK, MIXER_MESSAGE_INPUT_VOLUME, MIXER_MESSAGE_VOLUME, MixerAckMessage, MixerVolumeMessage } from "../../interfaces/mixer";
 
 //
 //Spark Class
@@ -499,6 +500,56 @@ export class SparkMessageReader {
         this.receivedMessageQueue.push(<TunerOnOffMessage>{ type: TUNER_MESSAGE_ONOFF, enabled: onoff == "On" });
     }
 
+    // ---- mixer (experimental, see interfaces/mixer.ts) ----
+
+    // Reads a msgpack float32 if the next 5 bytes are one, otherwise null.
+    private read_checked_float(): number | null {
+        if (!this.has_remaining_bytes(5) || this.peek_byte() != 0xca) {
+            return null;
+        }
+        const value = this.read_float();
+        return Number.isFinite(value) ? value : null;
+    }
+
+    // 0x03 0x33: reply to a mixer volume request, a msgpack float. SparkBox documents it
+    // without a channel byte; a leading fixint channel is accepted in case an amp sends one.
+    read_mixer_volume() {
+        let channel: number | undefined = undefined;
+        if (this.has_remaining_bytes(6) && this.peek_byte() < 0x80 && this.peek_byte(1) == 0xca) {
+            channel = this.read_byte();
+        }
+
+        const value = this.read_checked_float();
+        if (value == null) {
+            this.log("Mixer volume reply is not a float, ignoring");
+            return;
+        }
+
+        this.start_str()
+        if (channel != null) this.add_int("Channel", channel)
+        this.add_float("Volume", value)
+        this.end_str()
+
+        const msg = <MixerVolumeMessage>{ type: MIXER_MESSAGE_VOLUME, value: value };
+        if (channel != null) msg.channel = channel;
+        this.receivedMessageQueue.push(msg);
+    }
+
+    // 0x03 0x6b: the amp's input 1 (guitar) volume, a msgpack float.
+    read_input_volume() {
+        const value = this.read_checked_float();
+        if (value == null) {
+            this.log("Input volume notification is not a float, ignoring");
+            return;
+        }
+
+        this.start_str()
+        this.add_float("InputVolume", value)
+        this.end_str()
+
+        this.receivedMessageQueue.push(<InputVolumeMessage>{ type: MIXER_MESSAGE_INPUT_VOLUME, value: value });
+    }
+
     read_preset() {
 
         let preset: Preset = {};
@@ -683,6 +734,12 @@ export class SparkMessageReader {
             else if (sub_cmd == 0x65) {
                 this.read_tuner_onoff()
             }
+            else if (sub_cmd == 0x33) {
+                this.read_mixer_volume()
+            }
+            else if (sub_cmd == 0x6b) {
+                this.read_input_volume()
+            }
             else if (sub_cmd == 0x1a) {
                 this.receivedMessageQueue.push({ type: 'spark2_live_sync', value: true });
             }
@@ -698,6 +755,10 @@ export class SparkMessageReader {
         }
         else if (cmd == 0x04 || cmd == 0x05) {
             this.log(SparkMessageReader.getAckMessage(sub_cmd));
+            if (sub_cmd == 0x33) {
+                // the mixer panel counts these to show whether the amp reacted at all
+                this.receivedMessageQueue.push(<MixerAckMessage>{ type: MIXER_MESSAGE_ACK, value: true });
+            }
         }
         else {
             this.log("Unprocessed")
@@ -717,6 +778,8 @@ export class SparkMessageReader {
             case 0x06: ackMsg += "Changed Amp Model";
                 break;
             case 0x15: ackMsg += "Turn FX On/Off";
+                break;
+            case 0x33: ackMsg += "Mixer Volume";
                 break;
             case 0x38: ackMsg += "Changed Preset Number";
                 break;

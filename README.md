@@ -21,10 +21,11 @@ Windows 10 or later, macOS 13 (Ventura) or later, and supported Linux distributi
 ### Amp screen
 The amp screen is laid out for a desktop window (with the tuner closed it fits 1280×860 without scrolling, and it works down to about 1024 px wide):
 
-- **Top bar**: the connected amp, channels 1–8 on a Spark 2 (1–4 on other models), a *Live* marker while an applied tone is not stored yet, Refresh, **Save to Amp** (pick a channel, confirm before overwriting), Favourite, Browse Tones and the tuner.
+- **Top bar**: the connected amp, channels 1–8 on a Spark 2 (1–4 on other models), a *Live* marker while an applied tone is not stored yet, Refresh, **Save to Amp** (pick a channel, confirm before overwriting), Favourite, Browse Tones, the tuner and the experimental mixer.
 - **Signal chain**: the 7 blocks (Gate, Comp, Drive, Amp, Mod, Delay, Reverb) as tiles with their on/off switch. Selecting a block opens it below with large knobs that always show their value (0–10).
 - **Model browser**: *Change model…* shows the models for that block with pictures. Search by model name, the gear that inspired it or category (e.g. "marshall", "fuzz").
 - **Tuner** drawer under the top bar, showing the note and how far it is off.
+- **Amp mixer (experimental)**: the *Mixer* button opens Guitar, Music and Master volume sliders that send the Spark mixer message (`01 33`, channel 0 / 5 / 9). It is documented for the Spark LIVE only; **whether it does anything on a Spark 2 (or 40 / MINI) is unverified**, so turn the amp's volume down before trying. No mixer value is ever sent until you move a slider (values are not saved or sent on connect). Opening the panel (or an amp connecting while it is open) reads the current values with `02 33` requests for channels 0, 5 and 9 (read only); *Read from amp* reads them again and shows each value or "no reply". The status line tells you whether the amp reacted: the count of mixer acks (`04 33`) and the last input volume the amp reported (`03 6B`). *Advanced* has a switch for the Spark 2 style trailing `00` byte and a custom channel to probe. See [the protocol notes](docs/spark-amp-protocol.md#mixer-0x33--experimental-unverified-on-spark-2).
 
 ![Model browser](docs/screens/amp-desk-model-browser.jpg)
 ![Tuner](docs/screens/amp-desk-tuner.jpg)
