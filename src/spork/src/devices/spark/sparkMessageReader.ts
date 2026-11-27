@@ -1,6 +1,7 @@
 // port of https://github.com/paulhamsh/Spark-Parser/blob/main/SparkClassNew/SparkReaderClass.py
 
 import { BpmMessage, DeviceMessage, DeviceState, FxChangeMessage, FxParam, FxParamMessage, FxToggleMessage, Preset, PresetChangeMessage, SignalPath } from "../../interfaces/preset";
+import { TUNER_MESSAGE_ONOFF, TUNER_MESSAGE_OUTPUT, TunerOnOffMessage, TunerOutputMessage } from "../../interfaces/tuner";
 
 //
 //Spark Class
@@ -459,6 +460,45 @@ export class SparkMessageReader {
         this.receivedMessageQueue.push(<BpmMessage>{ type: 'hardware_bpm', bpm: bpm });
     }
 
+    // ---- tuner ----
+
+    // 0x03 0x64: raw note byte followed by a msgpack float offset (Ignitron readTuner).
+    read_tuner_output() {
+        // 1 note byte + 0xca prefix + 4 float bytes
+        if (!this.has_remaining_bytes(6)) {
+            this.log("Tuner output too short, ignoring");
+            return;
+        }
+
+        this.start_str()
+        const note = this.read_byte()
+        const offset = this.read_float()
+        this.add_int("Note", note)
+        this.add_float("Offset", offset)
+        this.end_str()
+
+        this.receivedMessageQueue.push(<TunerOutputMessage>{ type: TUNER_MESSAGE_OUTPUT, note: note, offset: offset });
+    }
+
+    // 0x03 0x65: msgpack bool, the tuner was switched on/off (Ignitron readTunerOnOff).
+    read_tuner_onoff() {
+        if (!this.has_remaining_bytes(1)) {
+            this.log("Tuner on/off message is empty, ignoring");
+            return;
+        }
+
+        this.start_str()
+        const onoff = this.read_onoff()
+        this.add_str("Tuner", onoff)
+        this.end_str()
+
+        if (onoff == "?") {
+            return;
+        }
+
+        this.receivedMessageQueue.push(<TunerOnOffMessage>{ type: TUNER_MESSAGE_ONOFF, enabled: onoff == "On" });
+    }
+
     read_preset() {
 
         let preset: Preset = {};
@@ -636,6 +676,12 @@ export class SparkMessageReader {
             }
             else if (sub_cmd == 0x38) {
                 this.read_hardware_preset()
+            }
+            else if (sub_cmd == 0x64) {
+                this.read_tuner_output()
+            }
+            else if (sub_cmd == 0x65) {
+                this.read_tuner_onoff()
             }
             else if (sub_cmd == 0x1a) {
                 this.receivedMessageQueue.push({ type: 'spark2_live_sync', value: true });
