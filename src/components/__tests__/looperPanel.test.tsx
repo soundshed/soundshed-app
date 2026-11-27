@@ -2,7 +2,7 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../testing/componentTestSetup";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { initialLooperState, LooperStateStore } from "../../stores/looperstate";
@@ -35,6 +35,7 @@ vi.mock("../app", () => ({
 }));
 
 import LooperPanel from "../device/looper/looper-panel";
+import { looperViewModel } from "../../core/looperViewModel";
 
 const setDevice = (patch: Record<string, any>) =>
   act(() => DeviceStateStore.update((s) => Object.assign(s, patch)));
@@ -52,6 +53,10 @@ describe("LooperPanel", () => {
     fakeDevice.stateRequests = 0;
     LooperStateStore.update((s) => Object.assign(s, initialLooperState()));
     DeviceStateStore.update((s) => Object.assign(s, { isConnected: false, connectedDevice: null }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("asks for a Spark 2 while disconnected", () => {
@@ -130,5 +135,56 @@ describe("LooperPanel", () => {
     expect(fakeDevice.settingsSent).toEqual([
       { ...DEFAULT_LOOPER_SETTINGS, bpm: 132, bars: 8, click: false },
     ]);
+  });
+
+  it("keeps unapplied edits when the amp sends its settings", async () => {
+    const user = userEvent.setup();
+    setDevice({ isConnected: true, connectedDevice: { name: "Spark 2", address: "a" } });
+    setLooper({ settings: DEFAULT_LOOPER_SETTINGS });
+    render(<LooperPanel />);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: /bars/i }), "8");
+    setLooper({ settings: { ...DEFAULT_LOOPER_SETTINGS, bpm: 99 } });
+
+    expect(screen.getByRole("combobox", { name: /bars/i })).toHaveValue("8");
+    expect(screen.getByRole("spinbutton", { name: /bpm/i })).toHaveValue(DEFAULT_LOOPER_SETTINGS.bpm);
+    expect(screen.getByTestId("looper-unsaved")).toBeInTheDocument();
+
+    await user.click(button("Revert"));
+    expect(screen.getByRole("spinbutton", { name: /bpm/i })).toHaveValue(99);
+    expect(screen.queryByTestId("looper-unsaved")).toBeNull();
+  });
+
+  it("follows the amp's settings again after Apply", async () => {
+    const user = userEvent.setup();
+    setDevice({ isConnected: true, connectedDevice: { name: "Spark 2", address: "a" } });
+    setLooper({ settings: DEFAULT_LOOPER_SETTINGS });
+    render(<LooperPanel />);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: /bars/i }), "8");
+    await user.click(button("Apply"));
+    setLooper({ settings: { ...DEFAULT_LOOPER_SETTINGS, bars: 2 } });
+
+    expect(screen.getByRole("combobox", { name: /bars/i })).toHaveValue("2");
+  });
+
+  it("resets the looper and drops a pending count-in when the amp disconnects after the panel unmounted", async () => {
+    setDevice({ isConnected: true, connectedDevice: { name: "Spark 2", address: "a" } });
+    setLooper({ settings: { ...DEFAULT_LOOPER_SETTINGS, click: true, bpm: 120 } });
+    const { unmount } = render(<LooperPanel />);
+    await act(async () => {});
+
+    vi.useFakeTimers();
+    await act(async () => { await looperViewModel.recDub(); });
+    expect(LooperStateStore.getRawState().isCountingIn).toBe(true);
+
+    // the app swaps the amp page for the device selector as soon as the link drops
+    unmount();
+    setDevice({ isConnected: false });
+    expect(LooperStateStore.getRawState()).toMatchObject({ isCountingIn: false, isRecording: false });
+
+    setDevice({ isConnected: true });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fakeDevice.sent).toEqual([LooperCommand.CountIn]);
   });
 });

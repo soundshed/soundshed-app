@@ -60,22 +60,25 @@ const LooperPanel = () => {
   const [form, setForm] = React.useState<LooperSettings>(
     looper.settings ?? DEFAULT_LOOPER_SETTINGS
   );
+  // true while the form holds edits that were not applied yet
+  const [dirty, setDirty] = React.useState(false);
 
   React.useEffect(() => {
     looperViewModel.attach(getDeviceManager());
   }, []);
 
+  // Transport state is reset by the view model itself when the amp disconnects.
   React.useEffect(() => {
     if (enabled) {
       void looperViewModel.refresh();
-    } else if (support === "disconnected") {
-      looperViewModel.reset();
     }
   }, [support]);
 
+  // Follow the amp's settings, but never overwrite edits the user has not applied
+  // (transport actions refresh the settings from the amp).
   React.useEffect(() => {
-    if (looper.settings) setForm(looper.settings);
-  }, [looper.settings]);
+    if (!dirty && looper.settings) setForm(looper.settings);
+  }, [looper.settings, dirty]);
 
   if (support === "disconnected" || support === "other") {
     return (
@@ -108,7 +111,18 @@ const LooperPanel = () => {
       : 0;
   const canPlay = looper.hasLoop || looper.isPlaying || looper.isRecording || looper.isCountingIn;
 
-  const setField = (patch: Partial<LooperSettings>) => setForm((f) => ({ ...f, ...patch }));
+  const setField = (patch: Partial<LooperSettings>) => {
+    setDirty(true);
+    setForm((f) => ({ ...f, ...patch }));
+  };
+
+  const revertForm = () => {
+    setDirty(false);
+    setForm(looper.settings ?? DEFAULT_LOOPER_SETTINGS);
+  };
+
+  const ampSettingsDiffer =
+    dirty && looper.settings != null && JSON.stringify(looper.settings) !== JSON.stringify(form);
 
   const onBarsChange = (value: string) => {
     if (value === FREE_BARS) {
@@ -207,7 +221,11 @@ const LooperPanel = () => {
         style={rowStyle}
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => looperViewModel.applySettings(form));
+          void run(async () => {
+            const ok = await looperViewModel.applySettings(form);
+            if (ok) setDirty(false);
+            return ok;
+          });
         }}
       >
         <label style={fieldStyle}>
@@ -278,6 +296,22 @@ const LooperPanel = () => {
         <button type="submit" className="btn btn-sm btn-secondary" disabled={busy}>
           Apply
         </button>
+        {dirty && (
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            title="Discard the edits and show the amp's settings"
+            disabled={busy}
+            onClick={revertForm}
+          >
+            Revert
+          </button>
+        )}
+        {ampSettingsDiffer && (
+          <span className="control-strip-label" data-testid="looper-unsaved">
+            Unsaved edits (amp settings differ)
+          </span>
+        )}
       </form>
 
       {looper.lastError && (

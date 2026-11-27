@@ -5,9 +5,8 @@
 // sparkLooperUndoRedo, updateLooperCommand). State lives in LooperStateStore so the
 // looper never touches DeviceStateStore or DeviceViewModel.
 //
-// For input mappings (MIDI / keyboard): target either the raw transport with
-// looperCommand(LooperCommand.X) or one of the LOOPER_ACTIONS through
-// performLooperAction(id), e.g. an EventTargetMapping of { type: "looper", value: "rec-dub" }.
+// looperCommand(LooperCommand.X) and performLooperAction(id) with the LOOPER_ACTIONS
+// list are there so input mappings (MIDI / keyboard) can drive the looper later.
 
 import { DeviceMessage, BpmMessage } from "../spork/src/interfaces/preset";
 import {
@@ -18,6 +17,7 @@ import {
     LooperSettings,
     normaliseLooperSettings,
 } from "../spork/src/devices/spark/sparkLooper";
+import { DeviceStateStore } from "../stores/devicestate";
 import { ILooperState, initialLooperState, LooperStateStore } from "../stores/looperstate";
 import { isSpark2DeviceName } from "./sparkModels";
 
@@ -29,6 +29,14 @@ export interface LooperDevice {
     requestLooperState(): Promise<void>;
     isSpark2Device(): boolean;
 }
+
+/** Where the view model learns that the amp connection went away (DeviceStateStore in the app). */
+export interface LooperConnectionSource {
+    getRawState(): { isConnected: boolean };
+    subscribe(getSubState: (state: any) => boolean, onChange: (isConnected: boolean) => void): () => void;
+}
+
+const NO_DEVICE_ERROR = "The looper is not linked to an amp connection yet.";
 
 export type LooperSupport = "spark2" | "other" | "unknown" | "disconnected";
 
@@ -143,7 +151,27 @@ export class LooperViewModel {
     private device: LooperDevice | null = null;
     private countInTimer: ReturnType<typeof setTimeout> | null = null;
 
-    constructor(private store = LooperStateStore) { }
+    constructor(private store = LooperStateStore, private connection: LooperConnectionSource | null = DeviceStateStore) {
+        // Clear transport state (and any pending count-in) as soon as the amp goes away,
+        // whatever UI happens to be mounted: the amp's looper is gone with the link, and
+        // a count-in timer must not send Record to a reconnected amp.
+        this.connection?.subscribe(s => !!s.isConnected, isConnected => {
+            if (!isConnected) this.reset();
+        });
+    }
+
+    private isConnected(): boolean {
+        return this.connection ? !!this.connection.getRawState().isConnected : true;
+    }
+
+    /** Returns the device, or records a visible error when there is none. */
+    private requireDevice(): LooperDevice | null {
+        if (!this.device) {
+            this.log("No device attached");
+            this.update({ lastError: NO_DEVICE_ERROR });
+        }
+        return this.device;
+    }
 
     private get state(): ILooperState {
         return this.store.getRawState();
@@ -204,8 +232,11 @@ export class LooperViewModel {
             case "looper_status": {
                 const status = (message as any).status;
                 const patch: Partial<ILooperState> = { status, loopCount: status.loopCount };
-                if (!this.state.isRecording) {
-                    patch.hasLoop = status.loopCount > 0;
+                // As in Ignitron, a status message can only reveal a loop. What its loop
+                // count byte means is not known for sure (Ignitron's sample status has 0),
+                // so only Delete or a reset clears hasLoop.
+                if (status.loopCount > 0) {
+                    patch.hasLoop = true;
                 }
                 this.update(patch);
                 return true;
@@ -229,12 +260,10 @@ export class LooperViewModel {
 
     /** Sends one raw transport command and applies its state change once written. */
     async looperCommand(command: LooperCommand): Promise<boolean> {
-        if (!this.device) {
-            this.log("No device attached, cannot send looper command");
-            return false;
-        }
+        const device = this.requireDevice();
+        if (!device) return false;
         try {
-            await this.device.sendLooperCommand(command);
+            await device.sendLooperCommand(command);
             this.update({ ...applyLooperCommand(this.state, command), lastCommand: command, lastError: null });
             return true;
         } catch (err) {
@@ -246,18 +275,22 @@ export class LooperViewModel {
 
     /** Asks the amp for its looper settings and status. */
     async refresh(): Promise<boolean> {
-        if (!this.device) return false;
+        const device = this.requireDevice();
+        if (!device) return false;
         try {
-            await this.device.requestLooperState();
+            await device.requestLooperState();
+            if (this.state.lastError) this.update({ lastError: null });
             return true;
         } catch (err) {
             this.log("Looper state request failed: " + err);
+            this.update({ lastError: "Could not read the looper state from the amp." });
             return false;
         }
     }
 
     async applySettings(changes: Partial<LooperSettings>): Promise<boolean> {
-        if (!this.device) return false;
+        const device = this.requireDevice();
+        if (!device) return false;
 
         // keep fields the UI does not edit (unknown switch, max duration) as the amp sent them
         const merged = normaliseLooperSettings({ ...(this.state.settings ?? DEFAULT_LOOPER_SETTINGS), ...changes });
@@ -267,7 +300,7 @@ export class LooperViewModel {
         }
 
         try {
-            await this.device.updateLooperSettings(merged);
+            await device.updateLooperSettings(merged);
             this.update({ settings: merged, lastError: null });
             return true;
         } catch (err) {
@@ -355,7 +388,7 @@ export class LooperViewModel {
         this.cancelCountInTimer();
         this.countInTimer = setTimeout(() => {
             this.countInTimer = null;
-            if (this.state.isCountingIn) {
+            if (this.state.isCountingIn && this.device && this.isConnected()) {
                 void this.looperCommand(LooperCommand.Record);
             }
         }, countInDurationMs(settings.bpm));

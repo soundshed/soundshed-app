@@ -44,6 +44,7 @@ class FakeLooperDevice implements LooperDevice {
 const state = (patch: Partial<ILooperState> = {}): ILooperState => ({ ...initialLooperState(), ...patch });
 
 let store: Store<ILooperState>;
+let connection: Store<{ isConnected: boolean }>;
 let device: FakeLooperDevice;
 let vm: LooperViewModel;
 
@@ -52,8 +53,9 @@ const current = () => store.getRawState();
 
 beforeEach(() => {
   store = new Store<ILooperState>(initialLooperState());
+  connection = new Store({ isConnected: true });
   device = new FakeLooperDevice();
-  vm = new LooperViewModel(store);
+  vm = new LooperViewModel(store, connection);
   vm.attach(device);
 });
 
@@ -145,7 +147,7 @@ describe("device messages", () => {
     const forwarded: any[] = [];
     const dev = new FakeLooperDevice();
     dev.onStateChanged = (s: any) => forwarded.push(s.message.type);
-    vm = new LooperViewModel(store);
+    vm = new LooperViewModel(store, connection);
     vm.attach(dev);
 
     dev.onStateChanged({ message: { type: "looper_measure", measure: 0.25 } });
@@ -161,7 +163,7 @@ describe("device messages", () => {
     const dev = new FakeLooperDevice();
     const original = vi.fn();
     dev.onStateChanged = original;
-    vm = new LooperViewModel(store);
+    vm = new LooperViewModel(store, connection);
     vm.attach(dev);
     vm.attach(dev);
 
@@ -175,7 +177,7 @@ describe("device messages", () => {
     expect(current()).toMatchObject({ isRecording: true, lastCommand: LooperCommand.Record });
   });
 
-  it("stores settings and uses the status loop count", () => {
+  it("stores settings and raises hasLoop from the status loop count", () => {
     const settings = { ...DEFAULT_LOOPER_SETTINGS, bpm: 140 };
     vm.handleDeviceMessage({ type: "looper_settings", settings } as any);
     vm.handleDeviceMessage({ type: "looper_status", status: { bpm: 140, count: 4, bars: 4, loopCount: 2, unknown1: 0, unknown2: 0 } } as any);
@@ -183,8 +185,20 @@ describe("device messages", () => {
     expect(current().settings).toEqual(settings);
     expect(current()).toMatchObject({ loopCount: 2, hasLoop: true });
 
+    // like Ignitron, a status with no loops never hides a loop we know about
     vm.handleDeviceMessage({ type: "looper_status", status: { bpm: 140, count: 4, bars: 4, loopCount: 0, unknown1: 0, unknown2: 0 } } as any);
-    expect(current().hasLoop).toBe(false);
+    expect(current()).toMatchObject({ loopCount: 0, hasLoop: true });
+  });
+
+  it("keeps the first loop when the refresh after recording reports no loops", async () => {
+    setState({ isRecording: true });
+    await vm.recDub();
+    expect(current().hasLoop).toBe(true);
+
+    vm.handleDeviceMessage({ type: "looper_status", status: { bpm: 120, count: 4, bars: 4, loopCount: 0, unknown1: 0, unknown2: 0 } } as any);
+
+    expect(current().hasLoop).toBe(true);
+    expect(getLooperButtonLabels(current()).recDub).toBe("Dub");
   });
 });
 
@@ -216,6 +230,30 @@ describe("transport actions", () => {
 
     expect(device.sent).toEqual([LooperCommand.CountIn, LooperCommand.Record]);
     expect(current()).toMatchObject({ isCountingIn: false, isRecording: true });
+  });
+
+  it("drops the count-in and transport state when the amp disconnects", async () => {
+    vi.useFakeTimers();
+    setState({ settings: { ...DEFAULT_LOOPER_SETTINGS, click: true, bpm: 120 } });
+    await vm.recDub();
+    expect(current().isCountingIn).toBe(true);
+
+    connection.update((s) => { s.isConnected = false; });
+    expect(current()).toMatchObject({ isCountingIn: false, isRecording: false });
+    expect(current().settings?.bpm).toBe(120);
+
+    // a quick reconnect inside the count-in bar must not start a recording
+    connection.update((s) => { s.isConnected = true; });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(device.sent).toEqual([LooperCommand.CountIn]);
+  });
+
+  it("clears stale transport state on disconnect", () => {
+    setState({ isRecording: true, isPlaying: true, hasLoop: true, loopCount: 3 });
+
+    connection.update((s) => { s.isConnected = false; });
+
+    expect(current()).toMatchObject({ isRecording: false, isPlaying: false, hasLoop: false, loopCount: 0 });
   });
 
   it("cancels a count-in without starting the recording", async () => {
@@ -301,10 +339,28 @@ describe("transport actions", () => {
     expect(current().lastError).toMatch(/could not send/i);
   });
 
-  it("refuses to act before a device is attached", async () => {
-    const detached = new LooperViewModel(store);
+  it("refuses to act before a device is attached and says so", async () => {
+    const detached = new LooperViewModel(store, connection);
     expect(await detached.looperCommand(LooperCommand.Play)).toBe(false);
+    expect(current().lastError).toMatch(/not linked/i);
+
+    setState({ lastError: null });
     expect(await detached.refresh()).toBe(false);
+    expect(current().lastError).toMatch(/not linked/i);
+
+    setState({ lastError: null });
+    expect(await detached.applySettings({ bpm: 100 })).toBe(false);
+    expect(current().lastError).toMatch(/not linked/i);
+  });
+
+  it("reports a failed refresh and clears the error once a refresh succeeds", async () => {
+    device.requestLooperState = async () => { throw new Error("write failed"); };
+    expect(await vm.refresh()).toBe(false);
+    expect(current().lastError).toMatch(/could not read the looper state/i);
+
+    device.requestLooperState = async () => {};
+    expect(await vm.refresh()).toBe(true);
+    expect(current().lastError).toBeNull();
   });
 });
 

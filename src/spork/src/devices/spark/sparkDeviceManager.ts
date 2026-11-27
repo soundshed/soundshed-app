@@ -377,7 +377,7 @@ export class SparkDeviceManager implements DeviceController {
         console.info(msg);
     }
 
-    // // // // // // // //  Spark 2 looper (see sparkLooper.ts for the protocol notes)
+    // Spark 2 looper (see sparkLooper.ts for the protocol notes)
 
     /** Sends one looper transport command (0x01 0x75). */
     public async sendLooperCommand(command: LooperCommand): Promise<void> {
