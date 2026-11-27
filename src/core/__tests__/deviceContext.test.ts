@@ -235,6 +235,35 @@ describe("re-reading the preset after an unexpected disconnect", () => {
   });
 });
 
+describe("the amp's tuner state", () => {
+  async function connectAndRecord(action: () => Promise<any>) {
+    const recorded: { type: string; data: any }[] = [];
+    const original = context.deviceManager.sendCommand.bind(context.deviceManager);
+    context.deviceManager.sendCommand = async (type, data) => {
+      recorded.push({ type, data });
+      return original(type, data);
+    };
+    await action();
+    await new Promise((r) => setTimeout(r, 0));
+    return recorded.map((c) => c.type);
+  }
+
+  it("is asked for after connecting, after the preset", async () => {
+    const types = await connectAndRecord(() => context.performAction({ action: "connect", data: DEVICE }));
+
+    expect(types).toEqual(["get_preset", "get_tuner_state"]);
+  });
+
+  it("is asked for after a reconnect", async () => {
+    const types = await connectAndRecord(async () => {
+      provider.onDisconnected?.();
+      await new Promise((r) => setTimeout(r, 1700)); // attemptReconnect waits 1500ms
+    });
+
+    expect(types).toEqual(["get_preset", "get_tuner_state"]);
+  });
+});
+
 describe("action results", () => {
   it("returns a promise for queries so callers can await them", async () => {
     await expect(

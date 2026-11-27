@@ -292,10 +292,57 @@ After most SET commands, the amp sends back an ACK with the same sequence number
 | `05` | Preset final chunk received |
 | `06` | Effect / amp model swap |
 | `15` | Effect on/off toggle |
+| `33` | Mixer volume set (experimental, see [Mixer](#mixer-0x33--experimental)) |
 | `38` | Preset switch |
 | `70` | License key |
 
 > **Note:** Changing a knob value (sub-command `04`) does NOT produce an ACK.
+
+### Tuner
+
+The amp's built-in tuner (the amp is muted while it runs). The messages follow Ignitron ([stangreg/Ignitron](https://github.com/stangreg/Ignitron)); see `src/core/tunerViewModel.ts`. The note and offset interpretation below is taken from Ignitron and not yet confirmed on hardware (including whether the Spark 2 differs).
+
+| Direction | cmd / sub | Payload |
+|-----------|-----------|---------|
+| App → Amp | `01 65` | msgpack bool: `c3` on, `c2` off |
+| Amp → App | `03 64` | 1 raw byte note, then msgpack float32 (`ca` + 4 bytes big endian) offset |
+| Amp → App | `03 65` | msgpack bool: tuner switched on/off, also when done on the amp itself |
+
+- **note**: pitch class `C = 0 … B = 11` (taken `% 12`); `0e` means no note.
+- **offset**: `0.0 … 1.0` across one semitone, `cents = offset × 100 − 50`, clamped to ±50. The app treats ±5 cents as in tune.
+
+### Mixer (0x33) — experimental
+
+Channel volumes of the amp's mixer (guitar input, music/Bluetooth playback, master). Documented for the **Spark LIVE** in paulhamsh/SparkBox [`SparkIO.ino`](https://github.com/paulhamsh/SparkBox) (L1078–1098, commit 91f5608), and reported (unverified) to change the guitar volume on a **Spark GO** on channel 0 by [lucanenni/spark-go-utils](https://github.com/lucanenni/spark-go-utils). See `src/spork/src/interfaces/mixer.ts` and `src/core/mixerViewModel.ts`.
+
+**Hardware result (Spark 2, 2026-11-27)**: in one user's test with the app, setting channel `0` (Guitar) and channel `5` (Music) changed the amp's guitar and music volume as expected. Channel `9` (Master) was not tested, and the test did not record whether the trailing `00` (on by default for a Spark 2) is needed. Spark 40, MINI and GO remain untested with this app. (Captures in TominoCZ/Flint suggest the Spark 2's GUITAR and MUSIC knobs send nothing when turned; this result is about the amp accepting `01 33`, not about its knobs reporting.)
+
+| Direction | cmd / sub | Payload |
+|-----------|-----------|---------|
+| App → Amp | `01 33` | channel (msgpack positive fixint, 1 byte), then msgpack float32 (`ca` + 4 bytes big endian) volume `0 … 1`. Optionally a trailing `00` (see below) |
+| App → Amp | `02 33` | channel byte: request that channel's volume |
+| Amp → App | `03 33` | msgpack float32 volume. **Does not carry the channel**, so the app serialises requests and gives the reply to the oldest one outstanding |
+| Amp → App | `03 6b` | msgpack float32: "LIVE INPUT 1 Guitar Volume" (Ignitron calls it "Input Volume"), sent when the amp's input volume changes |
+| Amp → App | `04 33` | ack of a mixer set |
+
+Channels (Spark LIVE):
+
+| Channel | Meaning |
+|---------|---------|
+| `0` | Input 1 (guitar) |
+| `1` | Input 2, 1/4" |
+| `2` | Input 2, XLR |
+| `3` | Input 3 |
+| `4` | Input 4 |
+| `5` | Music |
+| `9` | Master |
+
+Example: `01 33 05 ca 3e 80 00 00` sets channel 5 (music) to 0.25.
+
+- **Trailing `00`**: the Spark 2 wants a trailing `00` on `01 04` (see *Param/toggle/swap payload suffix* below). Whether it wants one on `01 33` is unknown, so the app makes it switchable (default: on for a Spark 2, off otherwise).
+- The app never sends a mixer value by itself (not on connect, not on channel change, values are not saved); only turning a knob, moving a slider or pressing mute sends. Reading (`02 33`) of channels 0 and 5 is done once when the amp connects and again when the mixer drawer opens.
+- There is no mute message: the app mutes by sending `0` and unmutes by sending the level it remembered. If that write fails, the app shows the mute state the amp still has. A `03 6b` or a `03 33` reply above 0 ends a mute, except a `03 33` that may be an earlier timed-out read's late reply.
+- The bundled simulator stores the values, acks `01 33` with `04 33`, reports a channel 0 change as `03 6b` and answers `02 33` (defaults: guitar 0.5, music 0.5, master 0.7). That shows the app's side works, not that an amp does.
 
 ### Spark 2 Tone Upload Protocol
 
@@ -549,6 +596,17 @@ Additional bass-specific amps: `SVT`, `PowerAmp`, `LaneyDH50`, `Hiwatt103`, `Red
 | App Name | Protocol Name |
 |----------|--------------|
 | All reverb types | `bias.reverb` |
+
+#### Jimi Hendrix expansion (paid)
+
+These models are paid content: they reportedly only produce sound on amps where the expansion was purchased (and, per the Known Issues in the README, after the official Spark app has connected once since power-on). Their protocol names include the `JH.` part (e.g. `JH.JTM45`) and are sent as-is, as ordinary prefixed strings like any other effect name. Amps have the usual Gain/Treble/Middle/Bass/Master parameters at indexes 0–4; the fuzzes have two parameters.
+
+| Slot | Protocol Name |
+|------|--------------|
+| Amp | `JH.JTM45`, `JH.SuperLead100`, `JH.DualShowman`, `JH.Sunn100`, `JH.Bassman50Silver`, `JH.SoundCity100` |
+| Comp (wah) | `JH.Vox846` |
+| Drive | `JH.AxisFuzz`, `JH.SupaFuzz`, `JH.Octavia`, `JH.FuzzTone` |
+| Mod | `JH.VoodooVibeJr` |
 
 > **Reverb note:** Reverb always uses the name `bias.reverb`. The specific reverb *type* (hall, plate, spring, etc.) is encoded as a float value in **parameter index 6**. Software maps this float to the reverb type.
 

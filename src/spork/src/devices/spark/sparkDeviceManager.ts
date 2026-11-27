@@ -225,6 +225,75 @@ export class SparkDeviceManager implements DeviceController {
         return run;
     }
 
+    // ---- tuner ----
+
+    // Switches the amp's tuner on or off (0x01 0x65). Resolves true once the frame has
+    // been written, false if writing it failed. It is queued on the same commandChain
+    // as sendCommand, but uses its own write loop because executeCommand swallows
+    // write errors and the tuner UI needs to know when the switch did not reach the amp.
+    public async setTunerEnabled(enabled: boolean): Promise<boolean> {
+        const run = this.commandChain.then(
+            () => this.writeTunerSwitch(enabled === true),
+            () => this.writeTunerSwitch(enabled === true));
+
+        this.commandChain = run.then(() => { }, () => { });
+
+        return run;
+    }
+
+    private async writeTunerSwitch(enabled: boolean): Promise<boolean> {
+        this.log("Switching tuner " + (enabled ? "on" : "off"));
+        const msgArray = new SparkCommandMessage({ spark2: this.isSpark2 }).switch_tuner(enabled);
+        try {
+            for (let dat of msgArray) {
+                this.log("[SEND RAW]: " + this.buf2hex(dat));
+                await this.connection.write(typeof (Buffer) != "undefined" ? Buffer.from(dat) : dat);
+            }
+            return true;
+        } catch (err) {
+            console.warn("Caught err writing tuner switch", err);
+            return false;
+        }
+    }
+
+    // ---- mixer (experimental, see interfaces/mixer.ts) ----
+
+    // Sets a mixer channel's volume (0x01 0x33). trailingZero null/undefined follows the
+    // model, like 0x01 0x04: a 0x00 is appended on a Spark 2. Resolves false if the
+    // frame could not be built or written, so the mixer panel can show it.
+    public async setMixerVolume(channel: number, value: number, trailingZero: boolean | null = null): Promise<boolean> {
+        return this.sendCheckedMessages("mixer volume set", msg =>
+            msg.set_mixer_volume(channel, value, trailingZero ?? this.isSpark2));
+    }
+
+    // Asks for a mixer channel's volume (0x02 0x33). The reply arrives later as a
+    // mixer_volume message through onStateChanged; this only reports the write.
+    public async requestMixerVolume(channel: number): Promise<boolean> {
+        return this.sendCheckedMessages("mixer volume request", msg => msg.request_mixer_volume(channel));
+    }
+
+    // Queued on the same commandChain as sendCommand (so it waits for e.g. a Spark 2
+    // preset upload), but reports failures instead of swallowing them.
+    private sendCheckedMessages(label: string, build: (msg: SparkCommandMessage) => Uint8Array[]): Promise<boolean> {
+        const send = async () => {
+            try {
+                const msgArray = build(new SparkCommandMessage({ spark2: this.isSpark2 }));
+                for (const dat of msgArray) {
+                    this.log("[SEND RAW]: " + this.buf2hex(dat));
+                    await this.connection.write(typeof (Buffer) != "undefined" ? Buffer.from(dat) : dat);
+                }
+                return true;
+            } catch (err) {
+                console.warn("Caught err sending " + label, err);
+                return false;
+            }
+        };
+
+        const run = this.commandChain.then(send, send);
+        this.commandChain = run.then(() => { }, () => { });
+        return run;
+    }
+
     private commandChain: Promise<any> = Promise.resolve();
 
     private async executeCommand(type, data) {
@@ -307,9 +376,24 @@ export class SparkDeviceManager implements DeviceController {
             msgArray = msg.request_info(0x23);
         }
 
+        if (type == "get_tuner_state") {
+            this.log("Getting tuner state");
+            msgArray = msg.request_tuner_state();
+        }
+
         if (type == "request_live_sync") {
             this.log("Requesting Spark 2 live sync");
             msgArray = msg.request_live_sync();
+        }
+
+        if (type == "set_mixer_volume") {
+            this.log("Setting mixer volume " + JSON.stringify(data));
+            msgArray = msg.set_mixer_volume(data.channel, data.value, data.trailingZero ?? this.isSpark2);
+        }
+
+        if (type == "get_mixer_volume") {
+            this.log("Getting mixer volume " + JSON.stringify(data));
+            msgArray = msg.request_mixer_volume(typeof data == "number" ? data : data?.channel);
         }
 
         if (this.isSpark2 && (type == "set_preset" || type == "set_preset_from_model") && msgArray.length > 0) {

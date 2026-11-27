@@ -2,7 +2,9 @@
 
 Desktop and Web UI which can be used to:
 - manage tone library and browse tone communities
-- connect to supported amp via bluetooth, manage basic settings and set presets.
+- connect to supported amp via bluetooth, edit the signal chain, store presets to the amp's channels
+- use the amp's tuner
+- drive effect parameters, on/off switches and channels from MIDI controllers and expression pedals
 - browse and favourite video backing tracks
 
 See https://soundshed.com for info.
@@ -12,19 +14,48 @@ Windows 10 or later, macOS 13 (Ventura) or later, and supported Linux distributi
 
 *Supported amps:*
 - Positive Grid Spark 40, Spark Mini (Spark 2, Spark GO are experimentally supported): https://www.positivegrid.com/spark/
+- All amps and effects of the paid Jimi Hendrix expansion are recognised and selectable.
 
-![](https://github.com/soundshed/soundshed-app/raw/main/docs/screens/ui.png)
+![Amp screen](docs/screens/amp-desk.jpg)
 
+### Amp screen
+The amp screen is laid out for a desktop window (with the tuner closed it fits 1280×860 without scrolling, and it works down to about 1024 px wide):
+
+- **Top bar**: the connected amp, channels 1–8 on a Spark 2 (1–4 on other models), a *Live* marker while an applied tone is not stored yet, Refresh, **Save to Amp** (pick a channel, confirm before overwriting), Favourite, Browse Tones, the tuner and the mixer diagnostics drawer.
+- **Signal chain**: the 7 blocks (Gate, Comp, Drive, Amp, Mod, Delay, Reverb) as tiles with their on/off switch. Selecting a block opens it below with large knobs that always show their value (0–10).
+- **Model browser**: *Change model…* shows the models for that block with pictures. Search by model name, the gear that inspired it or category (e.g. "marshall", "fuzz").
+- **Tuner** drawer under the top bar, showing the note and how far it is off.
+- **Guitar / Music volume (experimental)**: while an amp is connected, the right end of the navigation bar (on every page) has a small knob and a mute button for **Guitar** and **Music**, showing each level as a percentage ("—" until the amp has reported it). They send the Spark mixer message (`01 33`, channel 0 for Guitar, 5 for Music). A user's hardware test confirmed both channels on a Spark 2 (whether the trailing `00` byte mattered was not recorded); other models are untested. When the amp connects the app reads both levels once (`02 33`, read only); no level is ever sent until you turn a knob or press mute. The amp has no mute command, so **mute** sets the level to 0 and remembers it, and unmute restores it (if the level was unknown, unmute leaves it at 0). Turning a muted knob unmutes at the new level, and a level above 0 reported by the amp (a `03 6B` guitar input volume, or a read reply) ends the mute; whether a Spark 2 reports its own GUITAR / MUSIC knobs at all is unknown. If a mute or unmute does not reach the amp, the button goes back to what the amp has and the channel is marked (hover it for the message). A mute survives a reconnect of the same amp in the same session; levels and mutes are not saved. The knobs work like the amp screen's (drag, wheel, arrow keys, PageUp/PageDown, Home), except that End does nothing, so a stray key can never jump to full volume, and that dragging right raises the level as well as dragging up (100 px for the full range), as there is little room above the navigation bar.
+- **Mixer diagnostics**: the *Mixer* button opens a drawer with Guitar and Music sliders (kept in sync with the nav-bar knobs), *Read from amp* (shows each value or "no reply"), the count of mixer acks (`04 33`) and the last input volume the amp reported (`03 6B`). *Advanced* has a switch for the Spark 2 style trailing `00` byte and a custom channel to probe (e.g. 9, Master on the Spark LIVE, which was not tested). See [the protocol notes](docs/spark-amp-protocol.md#mixer-0x33--experimental).
+
+![Model browser](docs/screens/amp-desk-model-browser.jpg)
+![Tuner](docs/screens/amp-desk-tuner.jpg)
+
+Knobs: drag up/down (hold Shift, Cmd or Ctrl for fine steps), use the mouse wheel (Shift for fine steps) or the arrow keys (Shift ×10), PageUp/PageDown, Home/End. Double-click resets to the model default; double-click the value or press Enter to type one.
+
+| Keys | Action |
+| --- | --- |
+| 1 – 8 | Select channel (configurable in Settings; 5–8 only on a Spark 2) |
+| ← / → or [ / ] | Previous / next block |
+| Space | Switch the selected block on/off |
+| M, or Enter on a block | Change model |
+| / or Cmd/Ctrl+F | Search models |
+| Cmd/Ctrl+S | Save to amp |
+| Esc | Close popovers |
+| ? | Show the shortcut help |
+
+The model pictures are original illustrations without brand names or logos (see [images/fx/README.md](images/fx/README.md)). The gear that inspired a model is only named as text; product names are trademarks of their respective owners and are used only to identify that gear.
 
 ### Known Issues
 - Invalid settings may crash amp, requiring amp to be switched off and on again.
+- Jimi Hendrix expansion models are reported to stay silent until the official Spark app has connected to the amp once after it was switched on. The presumed reason is that the official app unlocks the purchased content with a licence-key exchange (the amp acknowledges it as `0x70`). Soundshed does not send this unlock, and the mechanism has not been verified.
 
 ## Roadmap
 
 Possible future features include:
 
 - More reliable amp communication
-- UI refinements
+- Amp screen: undo/redo, A/B compare, a docked tone library, channel names for all 8 channels, MIDI learn from a knob
 - More tone community features
 - Lessons (community supplied links to video lessons etc)
 - artist and song metadata for correct cross reference of tones, backing tracks and lessons.
@@ -37,7 +68,12 @@ Possible future features include:
     - Example Target devices: Line 6 Pod Go, Boss Katana MK II
 
 #### Event Mapping
-Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 1-4). The app can currently learn some midi control inputs (note-on and program-change) and assign them to amp channel selections.
+Keyboard keys and MIDI notes or program changes can be mapped to amp channels (Settings > Input Event Mappings). With fresh settings, keys 1–8 and the white keys C3, D3 … B3, C4 on MIDI channel 1 select channels 1–8; channels 5–8 only exist on a Spark 2. Settings saved by older versions keep their own table.
+
+#### MIDI Learn & Continuous Control
+Settings > *MIDI Learn & Continuous Control* maps expression pedals, knobs and footswitches (CC, notes or program changes) on any MIDI controller to effect parameters, effect on/off switches and amp channels. Add a mapping, press *Learn* and move the control. Each mapping has its own input and channel plus a live value meter; parameter mappings also have range, invert and curve, and on/off mappings a toggle, momentary or threshold mode. *Expression pedal → Wah sensitivity* maps a pedal to the Sensitivity of the wah in the current preset in one step (optionally switching the wah on once the pedal leaves heel position) and starts Learn. Choose a MIDI input under *MIDI Input* or tick *Listen to all MIDI inputs* first. The knobs on the amp screen follow the pedal.
+
+![MIDI learn](docs/screens/midi-learn.jpg)
 
 #### Default FX
 - default slot settings (fx type, parameter settings) can be applied, e.g a default Noise Gate configuration which can either be applied all the time or on demand.
@@ -55,6 +91,7 @@ Input event from keyboard or midi can be mapped to a preset slot (e.g. channels 
 
 - Clone this repository
 - run `npm ci` on the repo path. Commit `package-lock.json` alongside dependency changes so local and CI builds use the same versions.
+- Electron 45 no longer downloads its binary during install, so there is no `node_modules/electron/dist` after `npm ci`. It is fetched the first time Electron starts (e.g. `npm run start-electron`); run `npx install-electron` beforehand if you need to work offline.
 - Dependency install scripts are explicitly approved in `package.json` under `allowScripts`; `.npmrc` fails installations with unreviewed scripts instead of silently skipping them. Review new scripts before approving them with `npm install-scripts approve <package>`.
 - Run `npm run typecheck` to check the app and simulator tools, and `npm test` for the Vitest unit tests followed by the headless TCP integration test.
 - TypeScript emits JavaScript into `build/`; webpack bundles the emitted renderer entry. `build-tools/` holds simulator output. Both directories are ignored.
@@ -117,9 +154,12 @@ inputs.soundshed.packages.${pkgs.stdenv.hostPlatform.system}.default
 5. Start the app and run device scan/connect as normal. The app will show a virtual TCP simulator device instead of opening the BLE chooser.
 6. To switch back to real hardware BLE, set `SparkTransport: "ble"`.
 
+The simulator covers presets, channels, model changes, parameters and on/off switches. While its tuner is on it streams a tuner reading (`03 64`) every 60 ms, like the real amp, with a "no signal" reading (note 0, offset -1.0) now and then, and it answers the tuner state query (`02 65`). Over TCP the app spaces commands only 50 ms apart, while its BLE provider waits at least 500 ms between writes (`minWaitTimeMSBetweenCommands` in `bleProvider.ts`), so check timing-sensitive changes on hardware.
+
 ### Headless TCP Comms Test
 - Run `npm run sim:spark:test` to start a temporary TCP simulator and exercise spork comms encode/decode flows without launching the app UI.
 - Use `npm run sim:spark:test:quick -- --port 9124` for faster reruns after app TS is already built.
+- Both use port 9124 by default; add `-- --port <n>` if a simulator is already running there.
 
 ## Unit Tests
 
@@ -148,7 +188,13 @@ assert the values survive. A regression in either the bit packing or the chunk
 reassembly fails the round trip rather than silently corrupting amp state.
 
 The rest are regression tests for specific fixes, such as Spark 2 detection,
-reconnecting, applying tones, and the Jam and ToneCloud searches.
+reconnecting, applying tones, and the Jam and ToneCloud searches. The tuner
+has its own protocol, view model and panel tests; MIDI mapping has
+mapping-logic, controller and panel tests.
+The amp screen has component tests in `src/components/__tests__/` (knob
+input, signal chain, model browser, save picker, keyboard guards), and
+`src/core/__tests__/fxModelInfo.test.ts` checks that every current (non-removed)
+catalog model has metadata and a bundled picture.
 
 CI runs `npm test` before the web build, on pushes to `main` and on pull requests.
 
@@ -183,6 +229,10 @@ The signing identity/team in `forge.config.js` is Webprofusion (`2L7LP952XY`). T
 The app is built using TypeScript. For the electron version, electron/node is the host process, talking to the electron renderer and back again (the standard electron way of working). Both web and electron versions now use Web Bluetooth (BLE).
 
 The UI is React (TypeScript variant) with bootstrap for UI css. The Pullstate library is use for app state management and a couple of view model classes exist to centralise common points of interaction with APIs, the devices and state.
+
+The amp screen lives in `src/components/device/desk/` (`amp-desk.tsx` is the root). The amp effect catalog in `src/spork/src/devices/spark/sparkFxCatalog.ts` defines models and their parameters. `src/core/fxModelInfo.ts` adds what the UI shows on top of that: category, the gear that inspired the model, the picture in `images/fx/` and switch-type parameters. A new model needs an entry in both, plus a picture; the fxModelInfo test fails until all three exist.
+
+Knob changes go through `DeviceViewModel.requestFxParamChange`, which keeps at most one send per parameter in flight and always delivers the latest value, so a knob drag cannot queue a backlog behind the BLE pacing.
 
 Original template is loosely based on https://www.sitepen.com/blog/getting-started-with-electron-typescript-react-and-webpack
 

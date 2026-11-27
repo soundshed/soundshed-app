@@ -19,6 +19,14 @@ Node.js protocol-level Spark simulator that can emulate multiple Spark amp model
   - `01 01` upload preset (chunked)
   - `01 38` switch preset
   - basic ACK behavior for effect/amp swaps and toggle commands
+  - tuner: `01 65 [bool]` switches it and is acked with `04 65`; while it is on the
+    simulator streams a `03 64` reading (note + float offset, sometimes note 0 with -1.0
+    for "no signal") every 60 ms to every client, like the real amp, until it is switched
+    off. `02 65` replies `03 65 [bool]`.
+  - experimental mixer: `01 33` (channel + float, optional trailing `00`) stores the
+    channel volume and is acked with `04 33`; a change on channel 0 (guitar) is also
+    reported as `03 6b`. `02 33 [channel]` replies `03 33 [float]` (defaults: guitar 0.5,
+    music 0.5, master 0.7; unknown channels get no reply)
 - Spark 2 specific behavior:
   - chunk ACK `cmd 05` for non-final preset chunks
   - final chunk ACK `cmd 04`
@@ -116,6 +124,10 @@ This tool:
 - connects over TCP as a client
 - uses app communication modules (`SparkCommandMessage` + `SparkMessageReader`) from built spork output
 - exercises a broad command flow (get channel/name/serial/preset, channel switch, preset upload chunk ACK flow, live sync, preset store, amp/fx/toggle/param ACK paths)
+- switches the tuner on and drives the app's own `TcpProvider` + `SparkDeviceManager` (from `build/`) while
+  readings stream every 60 ms: readings and a preset reply must be delivered and the tuner must switch off again.
+  For the preset reply the server spaces the reply's frames 90 ms apart (`setReplyFrameIntervalMs`, test only),
+  so readings arrive between the preset's chunks and the app must still deliver exactly one whole preset
 - logs JSON snapshots for simulated amp presets and received/uploaded preset payloads
 
 Run full test (rebuild app TS + tools first):

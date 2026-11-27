@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons/faUser";
+import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons/faVolumeHigh";
+import { faVolumeXmark } from "@fortawesome/free-solid-svg-icons/faVolumeXmark";
 import { faWindowMaximize } from "@fortawesome/free-solid-svg-icons/faWindowMaximize";
 import { faWindowMinimize } from "@fortawesome/free-solid-svg-icons/faWindowMinimize";
 import { faWindowRestore } from "@fortawesome/free-solid-svg-icons/faWindowRestore";
@@ -33,6 +35,8 @@ function collectSourceFiles(dir: string, found: string[] = []): string[] {
 describe("FontAwesome icon imports", () => {
   it.each([
     ["faUser", faUser, "user"],
+    ["faVolumeHigh", faVolumeHigh, "volume-high"],
+    ["faVolumeXmark", faVolumeXmark, "volume-xmark"],
     ["faWindowMaximize", faWindowMaximize, "window-maximize"],
     ["faWindowMinimize", faWindowMinimize, "window-minimize"],
     ["faWindowRestore", faWindowRestore, "window-restore"],
@@ -62,6 +66,8 @@ describe("FontAwesome icon imports", () => {
 
   it.each([
     ["faUser", faUser],
+    ["faVolumeHigh", faVolumeHigh],
+    ["faVolumeXmark", faVolumeXmark],
     ["faWindowMaximize", faWindowMaximize],
     ["faWindowMinimize", faWindowMinimize],
     ["faWindowRestore", faWindowRestore],
