@@ -14,15 +14,6 @@ import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import { TcpProvider } from '../spork/src/devices/spark/tcpProvider';
 import envSettings from '../env';
 
-const debounce = (func, delay) => {
-    let timerId;
-    return (...args) => {
-        const boundFunc = func.bind(this, ...args);
-        clearTimeout(timerId);
-        timerId = setTimeout(boundFunc, delay);
-    }
-}
-
 export class DeviceViewModel {
 
     public statusMessage = "";
@@ -34,7 +25,13 @@ export class DeviceViewModel {
     // attached handler to be called by app model state changes and UI may have to react
     private onStateChangeHandler;
 
-    private debouncedFXUpdate;
+    // Param changes are coalesced per (dspId, param index) while a send for that param
+    // is in flight. A single shared debounce used to drop all but the last change when
+    // two knobs moved together, and a fixed-interval throttle queued far more sends than
+    // BLE can deliver (about 2 commands/s), so every later command waited seconds behind
+    // a knob drag. Here at most one send per param is in flight and at most one more is
+    // waiting (only the latest value), and the final value is always sent.
+    private fxParamSends = new Map<string, { pending: any }>();
 
     private lastCommandType = "";
 
@@ -51,6 +48,21 @@ export class DeviceViewModel {
     }
 
     private lastChannelChange = null;
+
+    private isHardwareSlot(channel: number): boolean {
+        return Number.isInteger(channel) && channel >= 0 && channel < AppStateStore.getRawState().numPresetSlots;
+    }
+
+    // Sets the selected channel and, for a real hardware slot, remembers it as the last
+    // hardware channel. The virtual channel (0x7f) never replaces that.
+    private setSelectedChannel(channel: number) {
+        DeviceStateStore.update(s => {
+            s.selectedChannel = channel;
+            if (this.isHardwareSlot(channel)) {
+                s.lastHardwareChannel = channel;
+            }
+        });
+    }
 
     // if working in web mode the device context is held here, otherwise the device context is held in the main process
     deviceContext: DeviceContext
@@ -163,7 +175,7 @@ export class DeviceViewModel {
                             return;
                         }
 
-                        DeviceStateStore.update(s => { s.selectedChannel = presetChange.presetNumber });
+                        this.setSelectedChannel(presetChange.presetNumber);
 
                         // preset number has changed, refresh the details
                         this.requestPresetConfig(presetChange.presetNumber);
@@ -220,7 +232,8 @@ export class DeviceViewModel {
 
                             fx.type = this.expandedDspId(msg.dspIdNew);
                             let catalog: FxCatalogItem[] = DeviceStateStore.getRawState().fxCatalog.catalog;
-                            fx.name = catalog.find(c => c.dspId == fx.type).name;
+                            // the amp may switch to a model the catalog doesn't know yet
+                            fx.name = catalog.find(c => c.dspId == fx.type)?.name ?? msg.dspIdNew;
                             DeviceStateStore.update(s => { s.presetTone = presetState });
                         }
 
@@ -499,6 +512,13 @@ export class DeviceViewModel {
 
     async requestFxChange(args: FxChangeMessage) {
 
+        // Nothing reports a failed write back to us, so without a connection the change
+        // would look applied while the amp never got it.
+        if (!DeviceStateStore.getRawState().isConnected) {
+            this.log("Cannot change fx, no amp connected");
+            return false;
+        }
+
         this.lastCommandType = "requestFxChange";
 
         if (!this.isDspIdAllowed(args.dspIdNew)) {
@@ -518,11 +538,26 @@ export class DeviceViewModel {
         let newFx = (<FxCatalog>DeviceStateStore.getRawState().fxCatalog).catalog.find(f => f.dspId == args.dspIdNew);
 
         var fx = currentTone.fx.find(f => f.type == args.dspIdOld);
+
+        if (!newFx || !fx) {
+            this.log("Cannot change fx, unknown fx id or fx not in current preset: " + args.dspIdOld + " -> " + args.dspIdNew);
+            return false;
+        }
+
         fx.type = args.dspIdNew;
         fx.name = newFx.name;
 
-        // repopulate fx params with defaults from fx catalog: pedal could have different parameters
-        fx.params = newFx.params.map(p => <ToneFxParam>{ paramId: p.index.toString(), value: p.value, name: p.name, enabled: true })
+        // repopulate fx params with defaults from fx catalog: pedal could have different parameters.
+        // Some catalog models have no known defaults (null); keep the current value at that
+        // index so the knob doesn't jump, or fall back to the middle of the range.
+        const previousParams = fx.params ?? [];
+        fx.params = newFx.params.map(p => {
+            let value = p.value;
+            if (value == null) {
+                value = previousParams.find(c => c.paramId == p.index.toString())?.value ?? 0.5;
+            }
+            return <ToneFxParam>{ paramId: p.index.toString(), value: value, name: p.name, enabled: true };
+        })
         // TODO: also copy default params for new fx?
 
         DeviceStateStore.update(s => { s.presetTone = currentTone });
@@ -536,7 +571,7 @@ export class DeviceViewModel {
             });
     }
 
-    private async requestFxParamChangeImmediate(args) {
+    async requestFxParamChangeImmediate(args) {
         this.lastCommandType = "requestFxParamChange";
         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
 
@@ -562,15 +597,42 @@ export class DeviceViewModel {
 
     }
 
+    // Coalesced param change for continuous controls (knob drags, wheel, key repeat).
+    // Resolves once the change is queued, not when the amp has received it. The store
+    // is updated when a value is actually sent (by requestFxParamChangeImmediate).
     async requestFxParamChange(args): Promise<boolean> {
 
-        if (this.debouncedFXUpdate == null) {
-            this.debouncedFXUpdate = debounce((args) => this.requestFxParamChangeImmediate(args), 50);
+        const key = this.normalizeDspId(args.dspId) + ":" + args.index;
+        const inFlight = this.fxParamSends.get(key);
+
+        if (inFlight) {
+            // a send for this param is still in flight: keep only the latest value
+            inFlight.pending = { ...args };
+            return true;
         }
 
-        this.debouncedFXUpdate(args);
+        this.sendCoalescedFxParam(key, { ...args });
 
         return true;
+    }
+
+    private sendCoalescedFxParam(key: string, args) {
+        const entry = { pending: null };
+        this.fxParamSends.set(key, entry);
+
+        // not awaited by the caller, so failures are logged rather than left as unhandled rejections
+        this.requestFxParamChangeImmediate(args)
+            .catch(err => {
+                this.log("Failed to send fx param change: " + err);
+            })
+            .then(() => {
+                // the previous send settled: send the latest value that arrived meanwhile, if any
+                if (entry.pending != null) {
+                    this.sendCoalescedFxParam(key, entry.pending);
+                } else {
+                    this.fxParamSends.delete(key);
+                }
+            });
     }
 
     async requestFxToggle(args): Promise<boolean> {
@@ -617,7 +679,7 @@ export class DeviceViewModel {
             // wait then perform preset query, this is because the above channel change is not completed immediately on calling and will still get an ack
             await Utils.sleepAsync(100);
 
-            DeviceStateStore.update(s => { s.selectedChannel = channelNum });
+            this.setSelectedChannel(channelNum);
 
             this.log("...Performing follow up preset query after channel change");
 
@@ -646,15 +708,31 @@ export class DeviceViewModel {
 
     async storeCurrentPreset(presetNum: number): Promise<boolean> {
 
+        // A write with no amp connected is swallowed further down and would be reported
+        // as a successful save.
+        if (!DeviceStateStore.getRawState().isConnected) {
+            this.log("Cannot store preset, no amp connected");
+            return false;
+        }
+
+        // Only real hardware slots can be written. The virtual channel (0x7f) is where an
+        // applied, unsaved tone lives, and storing to it is not a save the user can get back.
+        if (!this.isHardwareSlot(presetNum)) {
+            this.log("Cannot store preset, not a hardware slot: " + presetNum);
+            return false;
+        }
+
         this.lastCommandType = "requestPresetChange";
         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
         let p = new FxMappingToneToSpark().mapFrom(presetState);
 
-        await platformEvents.invoke('perform-action', { action: 'storePreset', data: [p, presetNum] }).then(
-            () => {
-
-            });
-        return true;
+        try {
+            const result = await platformEvents.invoke('perform-action', { action: 'storePreset', data: [p, presetNum] });
+            return result !== false;
+        } catch (err) {
+            this.log("Failed to store preset: " + err);
+            return false;
+        }
     }
 }
 
