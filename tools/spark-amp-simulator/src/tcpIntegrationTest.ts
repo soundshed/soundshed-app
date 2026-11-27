@@ -236,6 +236,58 @@ function loadSporkModules() {
     };
 }
 
+// The app's own TCP transport and device manager, so a step can drive the same receive
+// path the app uses (receive queue, 50 ms read loop, SparkMessageReader).
+function loadAppTransportModules() {
+    const sporkDir = path.resolve(process.cwd(), "build/spork/src/devices/spark");
+    const tcpPath = path.join(sporkDir, "tcpProvider.js");
+    const managerPath = path.join(sporkDir, "sparkDeviceManager.js");
+
+    if (!fs.existsSync(tcpPath) || !fs.existsSync(managerPath)) {
+        throw new Error("Missing compiled TcpProvider/SparkDeviceManager under build/. Run 'npx tsc' before sim:spark:test.");
+    }
+
+    // TcpProvider gets 'net' through window.require, as in the Electron renderer.
+    const g = globalThis as any;
+    if (g.window == null) {
+        g.window = { require };
+    }
+
+    return {
+        TcpProvider: require(tcpPath).TcpProvider,
+        SparkDeviceManager: require(managerPath).SparkDeviceManager
+    };
+}
+
+// The app modules log every message they handle; keep the test output readable.
+function silenceConsole(): () => void {
+    const saved = { log: console.log, info: console.info, debug: console.debug };
+    console.log = () => undefined;
+    console.info = () => undefined;
+    console.debug = () => undefined;
+    return () => {
+        console.log = saved.log;
+        console.info = saved.info;
+        console.debug = saved.debug;
+    };
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitFor<T>(check: () => T | undefined, timeoutMs: number): Promise<T | undefined> {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+        const value = check();
+        if (value) {
+            return value;
+        }
+        await sleep(20);
+    }
+    return check();
+}
+
 function normalizeFramesForReader(frames: Uint8Array[]): Uint8Array[] {
     return frames.map((frame) => {
         if (frame.length > 16 && frame[0] === 0x01 && frame[1] === 0xfe) {
@@ -426,6 +478,53 @@ async function main() {
             ensure(countCmdSub(responses, 0x03, 0x27) > 0, "Expected response cmd=03 sub=27");
         }, results);
 
+        // There is no rename command: a rename is the whole preset sent again with 01 01
+        // to the slot, same UUID, with no 01 38 (select) and no 27 (store) involved.
+        await runStep("Rename a hardware slot by re-upload", async () => {
+            const slot = 2;
+
+            const selectedChannel = async () => {
+                const responses = await client.sendAndCollect(command.request_info(0x10));
+                const msg = parseMessages(responses, SparkMessageReader).find((m) => m.type === "hardware_channel_current");
+                ensure(!!msg, "Expected hardware_channel_current");
+                return msg.presetNumber as number;
+            };
+
+            const before = await readPresetFromSlot(client, command, SparkMessageReader, slot);
+            const uuid = before?.meta?.id;
+            ensure(!!uuid, `Slot ${slot} preset has no UUID`);
+            const channelBefore = await selectedChannel();
+
+            // 40 characters needs msgpack str8; 31 is the last fixstr length
+            for (const name of ["Renamed by integration test (str8) 40 ch", "Renamed fixstr boundary 31 char"]) {
+                ensure(name.length === 40 || name.length === 31, `Test name has unexpected length ${name.length}`);
+
+                const preset = JSON.parse(JSON.stringify(before));
+                preset.meta.name = name;
+
+                const uploadFrames: Uint8Array[] = command.create_preset_from_model(preset, slot);
+                const responses = await client.sendAndCollect(uploadFrames, 120, 3500);
+
+                if (uploadFrames.length > 1) {
+                    ensure(countCmdSub(responses, 0x05, 0x01) > 0, "Expected at least one chunk ACK cmd=05 sub=01");
+                }
+                ensure(countCmdSub(responses, 0x04, 0x01) > 0, "Expected final ACK cmd=04 sub=01");
+                ensure(countCmdSub(responses, 0x03, 0x38) === 0, "Did not expect 03 38 (channel change) for a rename");
+                ensure(countCmdSub(responses, 0x03, 0x27) === 0, "Did not expect 03 27 (store) for a rename");
+
+                const after = await readPresetFromSlot(client, command, SparkMessageReader, slot);
+                ensure(after?.meta?.name === name, `Expected slot ${slot} name '${name}', got '${String(after?.meta?.name)}'`);
+                ensure(after?.meta?.id === uuid, `Expected slot ${slot} UUID ${uuid} unchanged, got ${String(after?.meta?.id)}`);
+                ensure(after?.sigpath?.length === before.sigpath.length, "Expected the signal path to be unchanged");
+
+                const snapshotName = simulator.getStateSnapshot().slots[slot]?.name;
+                ensure(snapshotName === name, `Expected simulator snapshot to list '${name}' on CH${slot + 1}, got '${String(snapshotName)}'`);
+
+                const channelAfter = await selectedChannel();
+                ensure(channelAfter === channelBefore, `Expected selected channel ${channelBefore} unchanged, got ${channelAfter}`);
+            }
+        }, results);
+
         await runStep("Exercise amp/effect/toggle/param ACK commands", async () => {
             const ampResponses = await client.sendAndCollect(command.change_amp("Twin", "Twin"));
             ensure(countCmdSub(ampResponses, 0x04, 0x06) > 0, "Expected ACK cmd=04 sub=06 for amp change");
@@ -439,7 +538,109 @@ async function main() {
             const toggleResponses = await client.sendAndCollect(command.turn_effect_onoff("Compressor", "On"));
             ensure(countCmdSub(toggleResponses, 0x04, 0x15) > 0, "Expected ACK cmd=04 sub=15 for fx toggle");
         }, results);
+
+        await runStep("Tuner streams 03 64 every ~60 ms until switched off (01 65 / 02 65)", async () => {
+            // the stream never goes quiet, so this collects until the 1 s timeout
+            const onResponses = await client.sendAndCollect(command.switch_tuner(true), 100, 1000);
+            ensure(countCmdSub(onResponses, 0x04, 0x65) > 0, "Expected ACK cmd=04 sub=65 for tuner on");
+            const readings = countCmdSub(onResponses, 0x03, 0x64);
+            ensure(readings >= 10, `Expected a reading about every 60 ms, got ${readings} in 1 s`);
+            const parsedReadings = parseMessages(onResponses, SparkMessageReader).filter((m) => m.type === "tuner_output");
+            ensure(parsedReadings.length === readings, `Expected ${readings} tuner_output messages, got ${parsedReadings.length}`);
+
+            const stateResponses = await client.sendAndCollect(command.request_tuner_state(), 100, 300);
+            const state = parseMessages(stateResponses, SparkMessageReader).find((m) => m.type === "tuner_onoff");
+            ensure(!!state && state.enabled === true, "Expected 02 65 to report the tuner as on");
+
+            const offResponses = await client.sendAndCollect(command.switch_tuner(false), 100, 1000);
+            ensure(countCmdSub(offResponses, 0x04, 0x65) > 0, "Expected ACK cmd=04 sub=65 for tuner off");
+            ensure(!simulator.isTunerEnabled(), "Simulator tuner should be off");
+
+            const silence = await client.sendAndCollect([], 100, 400);
+            ensure(countCmdSub(silence, 0x03, 0x64) === 0, "Expected no readings once the tuner is off");
+        }, results);
+
+        await runStep("App TCP receive path keeps up with a streaming tuner", async () => {
+            const restoreConsole = opts.verbose ? () => undefined : silenceConsole();
+            const { TcpProvider, SparkDeviceManager } = loadAppTransportModules();
+            const provider = new TcpProvider({ host: opts.host, port: opts.port, model: opts.model });
+            const manager = new SparkDeviceManager(provider);
+
+            const received: any[] = [];
+            let incompleteMessages = 0;
+            manager.onStateChanged = (s: any) => {
+                if (s?.message) {
+                    received.push(s.message);
+                }
+            };
+            manager.onIncompleteMessage = () => {
+                incompleteMessages++;
+            };
+            const readingCount = () => received.filter((m) => m.type === "tuner_output").length;
+
+            // Every chunk the app's receive queue is given, in arrival order, to check that
+            // readings really did arrive between the chunks of the preset reply.
+            const arrivals: Uint8Array[] = [];
+            const receiveQueue = provider.receiveQueue;
+            const queuePush = receiveQueue.push.bind(receiveQueue);
+            receiveQueue.push = (chunk: Uint8Array) => {
+                arrivals.push(chunk);
+                queuePush(chunk);
+            };
+            const isPresetChunk = (c: Uint8Array) => c[0] === 0xf0 && c[4] === 0x03 && c[5] === 0x01;
+            const isReading = (c: Uint8Array) => c[0] === 0xf0 && c[4] === 0x03 && c[5] === 0x64;
+
+            try {
+                const [device] = await provider.scanForDevices();
+                ensure(await manager.connect(device), "App transport could not connect to the simulator");
+
+                ensure(await manager.setTunerEnabled(true), "setTunerEnabled(true) failed");
+                await sleep(1000);
+                const readingsWhileOn = readingCount();
+                ensure(readingsWhileOn >= 8, `Expected the app to receive tuner readings while they stream, got ${readingsWhileOn} in 1 s`);
+
+                // A multi-chunk preset reply in the middle of the stream. The simulator
+                // normally writes a reply's frames in one go, so space them out by more
+                // than a tuner interval: readings then arrive between the preset's chunks,
+                // as they can on the real amp, and the receive queue has to hold the
+                // unfinished preset back while it keeps delivering the readings.
+                server.setReplyFrameIntervalMs(90);
+                try {
+                    await manager.sendCommand("get_tuner_state", {});
+                    await manager.sendCommand("get_preset", 0);
+                    const preset = await waitFor(() => received.find((m) => m.type === "preset"), 4000);
+                    ensure(!!preset, "Expected the preset reply to be delivered while the tuner streams");
+                } finally {
+                    server.setReplyFrameIntervalMs(0);
+                }
+                await sleep(200);
+
+                const presetIdx = arrivals.map((c, i) => (isPresetChunk(c) ? i : -1)).filter((i) => i >= 0);
+                ensure(presetIdx.length > 1, `Expected a multi-chunk preset reply, got ${presetIdx.length} chunk(s)`);
+                const between = arrivals.slice(presetIdx[0], presetIdx[presetIdx.length - 1]).filter(isReading).length;
+                ensure(between > 0, "Expected tuner readings to arrive between the preset's chunks");
+                const presets = received.filter((m) => m.type === "preset").length;
+                ensure(presets === 1, `Expected exactly one preset, got ${presets}`);
+                ensure(incompleteMessages === 0, `Expected the preset in one piece, ${incompleteMessages} incomplete message(s)`);
+                ensure(received.some((m) => m.type === "tuner_onoff" && m.enabled === true), "Expected 03 65 on for the tuner state query");
+
+                const beforePause = readingCount();
+                await sleep(300);
+                ensure(readingCount() > beforePause, "Readings stopped arriving after the preset reply");
+
+                ensure(await manager.setTunerEnabled(false), "setTunerEnabled(false) failed");
+                await sleep(300);
+                ensure(!simulator.isTunerEnabled(), "The tuner-off command did not reach the simulator");
+                const afterOff = readingCount();
+                await sleep(400);
+                ensure(readingCount() === afterOff, "Readings kept arriving after the tuner was switched off");
+            } finally {
+                await manager.disconnect().catch(() => undefined);
+                restoreConsole();
+            }
+        }, results);
     } finally {
+        simulator.dispose();
         await client.disconnect().catch(() => undefined);
         await server.stop().catch(() => undefined);
     }

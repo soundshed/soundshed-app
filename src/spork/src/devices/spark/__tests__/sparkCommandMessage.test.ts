@@ -119,6 +119,38 @@ describe("msgpack value packing", () => {
     expect(packed).toHaveLength(42);
   });
 
+  it("packs a string of 31 bytes as fixstr and 32 bytes as str8", () => {
+    expect(rawDataFor((m) => m.add_string("x".repeat(31)))[0]).toBe(0xbf);
+
+    const packed = rawDataFor((m) => m.add_string("x".repeat(32)));
+    expect(packed.slice(0, 2)).toEqual([0xd9, 32]);
+    expect(packed).toHaveLength(34);
+  });
+
+  it("counts UTF-8 bytes, not characters, when choosing the string form", () => {
+    // 16 characters, 32 bytes
+    const packed = rawDataFor((m) => m.add_string("é".repeat(16)));
+    expect(packed.slice(0, 2)).toEqual([0xd9, 32]);
+  });
+
+  it("refuses a string longer than 255 bytes", () => {
+    expect(() => rawDataFor((m) => m.add_string("x".repeat(256)))).toThrow(/too long/);
+    expect(() => rawDataFor((m) => m.add_string("x".repeat(255)))).not.toThrow();
+  });
+
+  it("uses str8 for a description over 31 bytes even when it has fewer characters", () => {
+    const msg = new SparkCommandMessage();
+    const descr = "é".repeat(20); // 20 characters, 40 bytes
+    msg.create_preset_from_model({
+      meta: { id: "uuid", name: "N", version: "0.7", description: descr, icon: "icon.png" },
+      sigpath: [],
+    } as any);
+    const raw = Array.from(msg.get_raw_msg()).slice(2);
+    // 2 header bytes, str8 uuid (2 + 4), fixstr name (2), fixstr version (4)
+    const at = 2 + 6 + 2 + 4;
+    expect(raw.slice(at, at + 2)).toEqual([0xd9, 40]);
+  });
+
   it("packs a prefixed string as a bare length followed by a fixstr", () => {
     expect(rawDataFor((m) => m.add_prefixed_string("Amp"))).toEqual([
       0x03, 0xa3, 0x41, 0x6d, 0x70,

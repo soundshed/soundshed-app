@@ -19,6 +19,10 @@ Node.js protocol-level Spark simulator that can emulate multiple Spark amp model
   - `01 01` upload preset (chunked)
   - `01 38` switch preset
   - basic ACK behavior for effect/amp swaps and toggle commands
+  - tuner: `01 65 [bool]` switches it and is acked with `04 65`; while it is on the
+    simulator streams a `03 64` reading (note + float offset, sometimes note 0 with -1.0
+    for "no signal") every 60 ms to every client, like the real amp, until it is switched
+    off. `02 65` replies `03 65 [bool]`.
 - Spark 2 specific behavior:
   - chunk ACK `cmd 05` for non-final preset chunks
   - final chunk ACK `cmd 04`
@@ -78,6 +82,7 @@ When running in an interactive terminal, the simulator now shows a live TUI dash
 - decorative boxed console panels
 - selected slot and preset-bank counts
 - current channel preset summary (name/UUID/BPM/FX chain)
+- a **Channels** box listing every hardware slot as `CHn  name` (`>` marks the selected one), so a rename from the app shows up straight away
 - upload state and last command/sub-command
 - TCP endpoint, connected clients, RX/TX frame counters
 - recent simulator/server logs
@@ -87,6 +92,14 @@ Disable TUI if needed:
 ```bash
 npm run sim:spark -- --model spark-2 --transport tcp --port 9124 --host 127.0.0.1 --verbose --no-tui
 ```
+
+Test the app's rename check against an amp that ignores the write:
+
+```bash
+npm run sim:spark -- --model spark-2 --port 9124 --drop-slot-uploads
+```
+
+With `--drop-slot-uploads` (or `npm_config_drop_slot_uploads=true`) preset uploads to a hardware slot are still acked but not stored; uploads to the virtual channel (`0x7f`) still apply. Renaming a channel in the app then ends with "Saved, but the amp reports “…” on channel N.", and the Channels box keeps the old name.
 
 Use with app TCP mode:
 
@@ -116,6 +129,10 @@ This tool:
 - connects over TCP as a client
 - uses app communication modules (`SparkCommandMessage` + `SparkMessageReader`) from built spork output
 - exercises a broad command flow (get channel/name/serial/preset, channel switch, preset upload chunk ACK flow, live sync, preset store, amp/fx/toggle/param ACK paths)
+- switches the tuner on and drives the app's own `TcpProvider` + `SparkDeviceManager` (from `build/`) while
+  readings stream every 60 ms: readings and a preset reply must be delivered and the tuner must switch off again.
+  For the preset reply the server spaces the reply's frames 90 ms apart (`setReplyFrameIntervalMs`, test only),
+  so readings arrive between the preset's chunks and the app must still deliver exactly one whole preset
 - logs JSON snapshots for simulated amp presets and received/uploaded preset payloads
 
 Run full test (rebuild app TS + tools first):

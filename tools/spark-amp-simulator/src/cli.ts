@@ -13,6 +13,7 @@ interface CliOptions {
     verbose: boolean;
     transport: SimulatorTransport;
     tui: boolean;
+    dropSlotUploads: boolean;
 }
 
 interface TuiController {
@@ -39,13 +40,18 @@ function printHelp() {
     console.log("Spark Amp Simulator");
     console.log("");
     console.log("Usage:");
-    console.log("  node cli.js [--model <id>] [--port <n>] [--host <addr>] [--transport tcp|ble|both] [--verbose] [--no-tui]");
+    console.log("  node cli.js [--model <id>] [--port <n>] [--host <addr>] [--transport tcp|ble|both] [--verbose] [--no-tui] [--drop-slot-uploads]");
     console.log("  node cli.js --models");
     console.log("  node cli.js --help");
     console.log("");
     console.log("Positional shorthand:");
     console.log("  node cli.js <model> [port] [host]");
     console.log("  node cli.js <model> <transport> <host> <port>");
+    console.log("");
+    console.log("Options:");
+    console.log("  --drop-slot-uploads  Ack preset uploads to a hardware slot but don't store them, so the");
+    console.log("                       app's rename read-back sees the old name (tests \"the amp reports ...\").");
+    console.log("                       Uploads to the virtual channel (0x7f) still apply.");
     console.log("");
     console.log(`Models: ${models}`);
 }
@@ -62,7 +68,8 @@ function createTui(
     simulator: SparkAmpSimulator,
     server: SparkAmpSimulatorServer | null,
     profileName: string,
-    transport: SimulatorTransport
+    transport: SimulatorTransport,
+    dropSlotUploads = false
 ): TuiController {
     const logs: string[] = [];
     const maxLogs = 12;
@@ -146,6 +153,7 @@ function createTui(
             fmt("Stored Presets", String(state.storedPresets)),
             fmt("Pending Upload", state.pendingUpload),
             fmt("Upload Complete", String(state.uploadCompleted)),
+            fmt("Tuner", state.tunerEnabled ? "on (streaming 03 64)" : "off"),
             fmt("Last Command", `${formatCmd(state.lastCmd)} / ${formatCmd(state.lastSubCmd)}`),
             fmt("Response Count", String(state.lastResponses))
         ];
@@ -168,6 +176,12 @@ function createTui(
 
         const chainColumnBody = renderChainColumns(preset, width - 2);
         lines.push(...makeBox("Chain Slots (Active Param Values)", chainColumnBody, width));
+        lines.push("");
+
+        const channelsBody = state.slots.map((slot) =>
+            `${slot.slot === state.selectedSlot ? ">" : " "} CH${slot.slot + 1}  ${slot.name}`
+        );
+        lines.push(...makeBox(dropSlotUploads ? "Channels (dropping slot uploads)" : "Channels", channelsBody, width));
         lines.push("");
 
         if (serverStats) {
@@ -254,6 +268,10 @@ function readNpmConfigArgs(): string[] {
         args.push("--verbose");
     }
 
+    if (process.env.npm_config_drop_slot_uploads === "true") {
+        args.push("--drop-slot-uploads");
+    }
+
     return args;
 }
 
@@ -264,7 +282,8 @@ function parseArgs(argv: string[]): CliOptions {
         port: 9124,
         verbose: false,
         transport: "tcp",
-        tui: true
+        tui: true,
+        dropSlotUploads: false
     };
 
     const positional: string[] = [];
@@ -301,6 +320,11 @@ function parseArgs(argv: string[]): CliOptions {
 
         if (arg === "--no-tui") {
             options.tui = false;
+            continue;
+        }
+
+        if (arg === "--drop-slot-uploads") {
+            options.dropSlotUploads = true;
             continue;
         }
 
@@ -416,6 +440,7 @@ async function main() {
     let tui: TuiController | null = null;
 
     const simulator = new SparkAmpSimulator(profile, {
+        dropSlotUploads: options.dropSlotUploads,
         logger: (msg) => {
             if (tui) {
                 tui.pushLog(msg);
@@ -461,13 +486,16 @@ async function main() {
     }
 
     if (tuiEnabled) {
-        tui = createTui(simulator, server, profile.displayName, options.transport);
+        tui = createTui(simulator, server, profile.displayName, options.transport, options.dropSlotUploads);
         tui.pushLog(`Simulator started with ${profile.presetSlots} preset slots`);
         tui.pushLog(`Transport mode: ${options.transport}`);
     } else {
         console.log(`Spark simulator model: ${profile.displayName}`);
         console.log(`Preset slots: ${profile.presetSlots}`);
         console.log(`Transport: ${options.transport}`);
+        if (options.dropSlotUploads) {
+            console.log("Dropping preset uploads to hardware slots (--drop-slot-uploads)");
+        }
         console.log("Press Ctrl+C to stop.");
     }
 
@@ -484,6 +512,7 @@ async function main() {
         } else {
             console.log("Shutting down simulator...");
         }
+        simulator.dispose();
         if (server) {
             await server.stop();
         }

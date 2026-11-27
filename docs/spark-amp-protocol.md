@@ -206,7 +206,7 @@ Once you've decoded the 7-bit encoding back to 8-bit, the payload contains these
 | **Float** | `ca` + 4 bytes (big-endian IEEE 754) | `ca 3f 00 00 00` = 0.5 |
 | **Short string** | `(0xa0 + length)` + string bytes | `a5 54 77 69 6e` = "Twin" |
 | **Prefixed string** | `length byte` + `(0xa0 + length)` + string bytes | `04 a4 46 75 7a 7a` = "Fuzz" |
-| **Long string** | `d9` + `length byte` + string bytes | For strings longer than 31 bytes |
+| **Long string** | `d9` + `length byte` + string bytes | For strings of 32–255 bytes (msgpack `str8`) |
 | **Small number** | Just the byte value | Parameter index, preset number |
 | **Array marker** | `(0x90 + count)` | `97` = array of 7 items (the pedal chain) |
 
@@ -296,6 +296,19 @@ After most SET commands, the amp sends back an ACK with the same sequence number
 | `70` | License key |
 
 > **Note:** Changing a knob value (sub-command `04`) does NOT produce an ACK.
+
+### Tuner
+
+The amp's built-in tuner (the amp is muted while it runs). The messages follow Ignitron ([stangreg/Ignitron](https://github.com/stangreg/Ignitron)); see `src/core/tunerViewModel.ts`. The note and offset interpretation below is taken from Ignitron and not yet confirmed on hardware (including whether the Spark 2 differs).
+
+| Direction | cmd / sub | Payload |
+|-----------|-----------|---------|
+| App → Amp | `01 65` | msgpack bool: `c3` on, `c2` off |
+| Amp → App | `03 64` | 1 raw byte note, then msgpack float32 (`ca` + 4 bytes big endian) offset |
+| Amp → App | `03 65` | msgpack bool: tuner switched on/off, also when done on the amp itself |
+
+- **note**: pitch class `C = 0 … B = 11` (taken `% 12`); `0e` means no note.
+- **offset**: `0.0 … 1.0` across one semitone, `cents = offset × 100 − 50`, clamped to ±50. The app treats ±5 cents as in tune.
 
 ### Spark 2 Tone Upload Protocol
 
@@ -403,6 +416,16 @@ Checksum                    ← 1 byte (see below)
 | `02` | Hardware preset 3 |
 | `03` | Hardware preset 4 |
 | `7f` | Temporary / software preset (not saved to amp) |
+
+### Renaming a Preset
+
+There is **no command that renames a preset**. None of the open-source implementations (paulhamsh Spark Protocol v3.2, SparkBox/SparkIO, Spark-Parser, Ignitron, Flint) has one; the only command that carries just a name is the amp's own name (`01 11` set, `02 11` get, `03 11` reply).
+
+A rename is the whole preset sent again with `01 01`, with the **same UUID**, the new name, and the hardware slot in the channel byte. Flint's `AmpController.RenameAsync` does this, and so does Soundshed. It sends no `01 38` (select) and no `27`: `03 27` is the amp telling the app it stored its current tone (e.g. after a held preset button), not a store command the app sends.
+
+Name encoding: up to 31 bytes the name is a fixstr (`a0 + length`, at most `bf`); 32–255 bytes need `str8` (`d9 length …`). The official app limits names to **40 characters** (`Preset.MaxNameLength = 40` in Flint, from the app's `popup_edit_preset`; SparkBox's `STR_LEN` is also 40), so names of 32–40 bytes must use `str8`. Readers commonly replace bytes outside printable ASCII (`0x20`–`0x7E`) with spaces, and how the amp handles UTF-8 is undocumented, so Soundshed only accepts printable ASCII names.
+
+> **Hardware result:** renaming this way was reported working on a Spark 2. Whether the slot survives a power cycle was not recorded. After a rename, Soundshed reads the slot back and shows a notice if the amp reports a different name.
 
 ### Preset Checksum
 
@@ -549,6 +572,17 @@ Additional bass-specific amps: `SVT`, `PowerAmp`, `LaneyDH50`, `Hiwatt103`, `Red
 | App Name | Protocol Name |
 |----------|--------------|
 | All reverb types | `bias.reverb` |
+
+#### Jimi Hendrix expansion (paid)
+
+These models are paid content: they reportedly only produce sound on amps where the expansion was purchased (and, per the Known Issues in the README, after the official Spark app has connected once since power-on). Their protocol names include the `JH.` part (e.g. `JH.JTM45`) and are sent as-is, as ordinary prefixed strings like any other effect name. Amps have the usual Gain/Treble/Middle/Bass/Master parameters at indexes 0–4; the fuzzes have two parameters.
+
+| Slot | Protocol Name |
+|------|--------------|
+| Amp | `JH.JTM45`, `JH.SuperLead100`, `JH.DualShowman`, `JH.Sunn100`, `JH.Bassman50Silver`, `JH.SoundCity100` |
+| Comp (wah) | `JH.Vox846` |
+| Drive | `JH.AxisFuzz`, `JH.SupaFuzz`, `JH.Octavia`, `JH.FuzzTone` |
+| Mod | `JH.VoodooVibeJr` |
 
 > **Reverb note:** Reverb always uses the name `bias.reverb`. The specific reverb *type* (hall, plate, spring, etc.) is encoded as a float value in **parameter index 6**. Software maps this float to the reverb type.
 

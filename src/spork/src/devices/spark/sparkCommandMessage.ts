@@ -172,8 +172,19 @@ export class SparkCommandMessage {
         this.add_bytes(this.mergeBytes(bytes(len(pack_str) + 0xa0), bytes(pack_str)))
     }
 
+    // msgpack string: fixstr (0xa0 + length) up to 31 UTF-8 bytes, str8 (0xd9, length)
+    // up to 255. Preset names may be 40 characters, so they need str8 past 31 bytes;
+    // a fixstr prefix past 0xbf would be another msgpack type altogether.
     add_string(pack_str) {
-        this.add_bytes(this.mergeBytes(bytes(len(pack_str) + 0xa0), bytes(pack_str)))
+        const length = len(pack_str);
+        if (length > 255) {
+            throw new Error(`String too long for the amp (${length} bytes, 255 max)`);
+        }
+        if (length > 31) {
+            this.add_long_string(pack_str);
+            return;
+        }
+        this.add_bytes(this.mergeBytes(bytes(length + 0xa0), bytes(pack_str)))
     }
 
     add_long_string(pack_str) {
@@ -328,6 +339,27 @@ export class SparkCommandMessage {
         return this.end_message();
     }
 
+    // ---- tuner ----
+
+    // Switches the amp's tuner on or off: 0x01 0x65 with a single msgpack bool.
+    // Mirrors Ignitron's SparkMessage::switchTuner, which sends no trailing 0x00
+    // even though its effect on/off command does, so no Spark 2 variant here.
+    switch_tuner(enabled: boolean) {
+        const cmd = 0x01;
+        const sub_cmd = 0x65;
+
+        this.start_message(cmd, sub_cmd);
+        this.add_onoff(enabled === true);
+        return this.end_message();
+    }
+
+    // Asks whether the tuner is on: 0x02 0x65 with no payload, answered with 0x03 0x65
+    // and a msgpack bool (TominoCZ/Flint reads it this way when connecting, since a
+    // tuner left on makes the amp drop replies).
+    request_tuner_state() {
+        return [this.build_raw_message(0x02, 0x65, bytes([]))];
+    }
+
     create_preset(preset) {
 
 
@@ -346,7 +378,7 @@ export class SparkCommandMessage {
         this.add_string(preset["Version"])
 
         let descr = preset["Description"]
-        if (descr.length > 31) {
+        if (len(descr) > 31) {
             this.add_long_string(descr)
         }
         else {
@@ -421,7 +453,7 @@ export class SparkCommandMessage {
 
         let descr = meta.description;
 
-        if (descr.length > 31) {
+        if (len(descr) > 31) {
             this.add_long_string(descr)
         }
         else {

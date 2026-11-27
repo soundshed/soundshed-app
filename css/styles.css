@@ -2015,3 +2015,1077 @@ select:focus {
     background: rgba(245,158,11,0.14);
     box-shadow: 0 0 10px var(--accent-glow);
 }
+
+/* amp-desk knob ---------------------------------------------------------
+   SVG rotary control from src/components/device/desk/amp-knob.tsx.
+   Everything is scoped to .amp-knob so it cannot affect other pages. */
+.amp-knob {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.amp-knob__dial {
+    position: relative;
+    border-radius: 50%;
+    cursor: ns-resize;
+    touch-action: none;
+    outline: none;
+}
+.amp-knob__dial svg {
+    display: block;
+    overflow: visible;
+}
+.amp-knob__dial:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+.amp-knob__track {
+    fill: none;
+    stroke: var(--border-hover);
+    stroke-width: 6;
+    stroke-linecap: round;
+}
+.amp-knob__arc {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 6;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 3px var(--accent-glow));
+}
+.amp-knob__body {
+    fill: var(--bg-elevated);
+    stroke: var(--border-hover);
+    stroke-width: 1;
+}
+.amp-knob__cap {
+    fill: var(--bg-surface);
+    stroke: var(--border);
+    stroke-width: 1;
+}
+.amp-knob__pointer {
+    stroke: var(--text);
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+.amp-knob__dial:hover .amp-knob__body,
+.amp-knob--dragging .amp-knob__body {
+    stroke: var(--accent);
+}
+.amp-knob__value,
+.amp-knob__input {
+    min-width: 3.2em;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--accent);
+    line-height: 1.4;
+}
+.amp-knob__value {
+    cursor: text;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+.amp-knob__value:hover {
+    background: var(--accent-dim);
+}
+.amp-knob__input {
+    width: 4.2em;
+    padding: 0 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    outline: none;
+}
+.amp-knob__label {
+    max-width: 100%;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--desk-text-muted, var(--text-muted));
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.amp-knob--disabled {
+    opacity: 0.4;
+}
+.amp-knob--disabled .amp-knob__dial,
+.amp-knob--disabled .amp-knob__value {
+    cursor: not-allowed;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .amp-knob__body,
+    .amp-knob__value {
+        transition: stroke var(--transition), background var(--transition);
+    }
+}
+/* end amp-desk knob */
+
+/* amp-desk screen ------------------------------------------------------
+   Desktop amp screen from src/components/device/desk/ (top bar, chain strip,
+   inspector, model browser, popovers). Everything is scoped
+   under .amp-desk so .fx, .preset-name, .control-strip etc. keep their look
+   elsewhere. Sized so 1280x860 needs no vertical scroll (tuner closed)
+   and still fits down to ~1024 px wide. */
+.amp-desk {
+    --desk-panel:      rgba(17,17,17,0.92);
+    --desk-panel-2:    rgba(24,24,24,0.95);
+    --desk-gap:        10px;
+    --desk-tile-img:   68px;
+    --desk-hero-img:   190px;
+    /* The app's muted greys are below 4.5:1 on the desk panels at the small sizes
+       used here (captions, footer), so the desk uses lighter ones (~7.5:1 / ~6:1). */
+    --desk-text-muted: #9ca3af;
+    --text-muted:      var(--desk-text-muted);
+    --text-faint:      #8b919a;
+
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--desk-gap);
+    width: 100%;
+    max-width: 1440px;
+    height: calc(100vh - 50px);
+    min-height: 540px;
+    margin: 0 auto;
+    padding: 12px 0 10px;
+}
+.amp-desk *,
+.amp-desk *::before,
+.amp-desk *::after {
+    box-sizing: border-box;
+}
+/* zero specificity, so the component classes below still set sizes */
+:where(.amp-desk) button {
+    font-family: inherit;
+}
+
+/* top bar */
+.amp-desk-topbar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 48px;
+    padding: 6px 10px 6px 14px;
+    background: var(--desk-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.amp-desk-topbar__device {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    max-width: 150px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+}
+.amp-desk-topbar__device-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.amp-desk-topbar__channels {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+}
+.amp-desk-topbar__label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+.amp-desk-channels {
+    display: inline-flex;
+    gap: 4px;
+}
+.amp-desk-channel {
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.amp-desk-channel:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+}
+.amp-desk-channel.is-active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-dim);
+}
+.amp-desk-live {
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.amp-desk-topbar__tone {
+    /* the rename popover is positioned from here (see .amp-desk-anchor--rename) */
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.amp-desk-topbar__tone-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-digital);
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent-glow);
+}
+.amp-desk-notice {
+    /* shrinks (with an ellipsis, the full text is in its title) long before the tone
+       name does, and never runs under the action buttons */
+    flex: 0 1000 auto;
+    min-width: 5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+.amp-desk-notice--ok { color: var(--green); }
+.amp-desk-notice--error { color: var(--red); }
+.amp-desk-topbar__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+}
+.amp-desk-anchor {
+    position: relative;
+}
+.amp-desk-action {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 0.76rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.amp-desk-action:hover {
+    border-color: rgba(245,158,11,0.35);
+}
+.amp-desk-action.is-active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+.amp-desk-action--icon {
+    width: 30px;
+    padding: 0;
+    font-weight: 700;
+}
+
+/* popovers (save to amp, shortcuts) */
+.amp-desk-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    width: max-content;
+    min-width: 260px;
+    max-width: 380px;
+    padding: 12px 14px;
+    background: #151515;
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    text-align: left;
+}
+.amp-desk-popover__title {
+    margin: 0 0 10px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+.amp-desk-popover__note {
+    margin: -4px 0 10px;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+}
+.amp-desk-popover__ok { color: var(--green); }
+.amp-desk-popover__error { color: var(--red); }
+.amp-desk-popover__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+/* a button label never breaks inside the button; the row wraps instead */
+.amp-desk-popover__actions .btn {
+    white-space: nowrap;
+}
+.amp-desk-save__slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.amp-desk-save__slot {
+    width: 36px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 700;
+    cursor: pointer;
+}
+.amp-desk-save__slot.is-active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+.amp-desk-help {
+    max-width: 420px;
+}
+/* rename tone: drops down from the left edge of the tone area, not from the ✎. The ✎
+   follows the tone name, so with a long name (and the actions wrapped to a second row
+   below 1100 px) it sits near the right edge and a popover pinned to it ran past the
+   window. The tone area always starts left of the middle of the bar. */
+.amp-desk-anchor--rename {
+    position: static;
+}
+.amp-desk-rename {
+    left: 0;
+    right: auto;
+    min-width: min(280px, calc(100vw - 32px));
+    max-width: min(380px, calc(100vw - 32px));
+}
+.amp-desk-action--rename {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 0.86rem;
+    line-height: 1;
+    color: var(--text-muted);
+}
+.amp-desk-action--rename:hover:not(:disabled),
+.amp-desk-action--rename.is-active {
+    color: var(--accent);
+}
+.amp-desk-action--rename:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+/* name field shared by the rename and Save to Amp popovers */
+.amp-desk-popover__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+.amp-desk-popover__field label {
+    margin: 0;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+.amp-desk-popover__field input {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 0.84rem;
+}
+.amp-desk-popover__field input:hover {
+    border-color: var(--border-hover);
+}
+/* the global :focus-visible ring (amber outline) applies; this adds the border */
+.amp-desk-popover__field input:focus {
+    border-color: var(--accent);
+}
+.amp-desk-popover__field input[aria-invalid="true"] {
+    border-color: var(--red);
+}
+.amp-desk-popover__field-hint,
+.amp-desk-popover__field-error {
+    margin: 0;
+    font-size: 0.72rem;
+}
+.amp-desk-popover__field-hint {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-muted);
+}
+.amp-desk-popover__field-count {
+    font-variant-numeric: tabular-nums;
+}
+.amp-desk-popover__field-error {
+    color: var(--red);
+}
+.amp-desk-popover__warn {
+    margin: -4px 0 10px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--accent);
+    background: var(--accent-dim);
+    border-radius: 4px;
+    font-size: 0.76rem;
+    color: var(--text);
+}
+.amp-desk-help__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.amp-desk-help__list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    margin: 0;
+    font-size: 0.78rem;
+}
+.amp-desk-help__list dt {
+    white-space: nowrap;
+}
+.amp-desk-help__list dd {
+    margin: 0;
+    color: var(--text-muted);
+}
+.amp-desk-help__list kbd {
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-hover);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.74rem;
+}
+
+/* tuner drawer */
+.amp-desk-drawer {
+    flex: none;
+}
+.amp-desk-drawer .control-strip {
+    margin: 0;
+    padding: 0.5rem 1rem;
+}
+
+/* signal chain strip */
+.amp-desk-chain {
+    position: relative;
+    flex: none;
+}
+.amp-desk-chain__cable {
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    top: calc(8px + var(--desk-tile-img) / 2);
+    height: 2px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.45), rgba(245,158,11,0.15));
+    pointer-events: none;
+}
+.amp-desk-chain__tiles,
+.amp-desk-chain__leds {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+    gap: var(--desk-gap);
+}
+.amp-desk-chain__tiles {
+    position: relative;
+}
+/* LEDs sit outside the tablist in the DOM; this overlay repeats the tile grid so
+   each one lands on its tile's top-right corner. */
+.amp-desk-chain__leds {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.amp-desk-chain__led-cell {
+    position: relative;
+    min-width: 0;
+}
+.amp-desk-chain__led-cell .amp-desk-tile__led {
+    pointer-events: auto;
+}
+.amp-desk-tile {
+    position: relative;
+    min-width: 0;
+    background: var(--desk-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.amp-desk-tile:hover {
+    border-color: var(--border-hover);
+}
+.amp-desk-tile__select {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 8px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    outline: none;
+}
+.amp-desk-tile__select:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+.amp-desk-tile__image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: var(--desk-tile-img);
+    margin-bottom: 4px;
+}
+.amp-desk-tile__slot {
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+.amp-desk-tile__name {
+    max-width: 100%;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.amp-desk-tile--selected {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(245,158,11,0.10), var(--desk-panel) 70%);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 16px var(--accent-dim);
+}
+.amp-desk-tile--selected .amp-desk-tile__slot {
+    color: var(--accent);
+}
+.amp-desk-tile--off .amp-desk-tile__image,
+.amp-desk-tile--empty .amp-desk-tile__image {
+    opacity: 0.35;
+    filter: grayscale(0.8);
+}
+.amp-desk-tile--off .amp-desk-tile__name,
+.amp-desk-tile--empty .amp-desk-tile__name {
+    color: var(--text-muted);
+}
+.amp-desk-tile__led {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+}
+.amp-desk-tile__led::after {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 1px solid var(--border-hover);
+    background: #2a2a2a;
+}
+.amp-desk-tile__led.is-on::after {
+    border-color: var(--green);
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green-glow);
+}
+.amp-desk-tile__led:hover::after {
+    border-color: var(--text);
+}
+.amp-desk-tile__led:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* images */
+.amp-desk-img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.amp-desk-img--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64%;
+    height: 100%;
+    border: 1px dashed var(--border-hover);
+    border-radius: 8px;
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 6px, transparent 6px 12px);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.amp-desk-img--placeholder.amp-desk-img--amp {
+    width: 92%;
+}
+
+/* inspector */
+.amp-desk-inspector {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 20px;
+    padding: 16px 20px;
+    background: var(--desk-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+.amp-desk-inspector--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.amp-desk-inspector__empty {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.amp-desk-inspector__model {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow: hidden;
+}
+.amp-desk-inspector__image {
+    flex: 0 1 var(--desk-hero-img);
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: var(--radius);
+    background: radial-gradient(ellipse at 50% 60%, rgba(245,158,11,0.10), transparent 70%);
+}
+.amp-desk-inspector__details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+.amp-desk-inspector__slot {
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+}
+.amp-desk-inspector__name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+.amp-desk-inspector__hint {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    cursor: help;
+}
+.amp-desk-inspector__inspired {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.amp-desk-inspector__badge {
+    font-size: 0.7rem;
+    color: var(--accent);
+}
+.amp-desk-inspector__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+.amp-desk-inspector__reference {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+.amp-desk-inspector__reference:hover {
+    color: var(--accent);
+}
+.amp-desk-power {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.amp-desk-power.is-on {
+    border-color: rgba(34,197,94,0.5);
+    color: var(--green);
+}
+.amp-desk-power__led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #333;
+}
+.amp-desk-power.is-on .amp-desk-power__led {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green-glow);
+}
+.amp-desk-inspector__params {
+    min-height: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: 16px 26px;
+    padding: 8px 4px;
+    overflow: auto;
+}
+/* Off blocks dim the artwork only; labels and values stay readable since the
+   controls still work (and are sent) while the block is off. */
+.amp-desk-inspector--off .amp-desk-inspector__params .amp-knob__dial svg,
+.amp-desk-inspector--off .amp-desk-inspector__params .amp-desk-switch__track,
+.amp-desk-inspector--off .amp-desk-inspector__image {
+    opacity: 0.55;
+}
+
+/* switch params */
+.amp-desk-switch {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 96px;
+}
+.amp-desk-switch__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+.amp-desk-switch__button:hover {
+    border-color: var(--border-hover);
+}
+.amp-desk-switch__pos.is-active {
+    color: var(--accent);
+    font-weight: 700;
+}
+.amp-desk-switch__track {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    border-radius: 9px;
+    background: #2a2a2a;
+    border: 1px solid var(--border-hover);
+}
+.amp-desk-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text);
+}
+.amp-desk-switch__button.is-on .amp-desk-switch__track {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+}
+.amp-desk-switch__button.is-on .amp-desk-switch__thumb {
+    left: 18px;
+    background: var(--accent);
+}
+.amp-desk-switch__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+/* model browser (overlays the inspector) */
+.amp-desk-browser {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 10px;
+    background: #0c0c0c;
+    border-radius: var(--radius-lg);
+}
+.amp-desk-browser__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.amp-desk .amp-desk-browser__search {
+    flex: 0 1 300px;
+    min-width: 180px;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-hover);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.84rem;
+}
+.amp-desk .amp-desk-browser__search:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+.amp-desk-browser__chips {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.amp-desk-chip {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+.amp-desk-chip:hover {
+    color: var(--text);
+    border-color: var(--border-hover);
+}
+.amp-desk-chip.is-active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+.amp-desk-browser__close {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.amp-desk-browser__error {
+    margin: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.35);
+    background: rgba(239,68,68,0.08);
+    color: var(--red);
+    font-size: 0.8rem;
+}
+.amp-desk-browser__grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    grid-auto-rows: max-content;
+    gap: 10px;
+    padding: 3px;
+    overflow: auto;
+    outline: none;
+}
+.amp-desk-browser__grid:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: 8px;
+}
+.amp-desk-browser__none {
+    grid-column: 1 / -1;
+    margin: 12px 0;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+.amp-desk-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--desk-panel-2);
+    cursor: pointer;
+    user-select: none;
+}
+.amp-desk-card:hover {
+    border-color: var(--border-hover);
+}
+.amp-desk-card.is-active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--accent-dim);
+}
+.amp-desk-card__image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 64px;
+    margin-bottom: 4px;
+}
+.amp-desk-card__name {
+    max-width: 100%;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.amp-desk-card__inspired {
+    max-width: 100%;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.amp-desk-card__badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.amp-desk-card__badge--warn {
+    left: auto;
+    right: 6px;
+    background: var(--red);
+    color: #fff;
+}
+.amp-desk-browser__footer {
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+.amp-desk-browser__disclaimer {
+    text-align: right;
+    color: var(--text-faint);
+}
+
+/* no preset */
+.amp-desk-nopreset {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.amp-desk-nopreset p {
+    max-width: 520px;
+    margin: 0;
+}
+
+/* narrower windows (down to ~1024 px) */
+@media (max-width: 1200px) {
+    .amp-desk-topbar { gap: 10px; }
+    .amp-desk-topbar__label { display: none; }
+    .amp-desk-topbar__tone-name { font-size: 1.15rem; }
+    .amp-desk-inspector { grid-template-columns: minmax(200px, 250px) minmax(0, 1fr); gap: 16px; }
+    .amp-desk-inspector__params { gap: 14px 18px; }
+}
+@media (max-width: 1100px) {
+    .amp-desk { --desk-tile-img: 58px; --desk-hero-img: 160px; }
+    .amp-desk-topbar__device { max-width: 96px; }
+    .amp-desk-action { padding: 0 8px; }
+    .amp-desk-tile__name { font-size: 0.72rem; }
+    .amp-desk-chain__tiles,
+    .amp-desk-chain__leds { gap: 8px; }
+}
+@media (max-height: 800px) {
+    .amp-desk { --desk-tile-img: 54px; --desk-hero-img: 150px; --desk-gap: 8px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .amp-desk-tile,
+    .amp-desk-card,
+    .amp-desk-chip,
+    .amp-desk-channel,
+    .amp-desk-action,
+    .amp-desk-tile__led::after,
+    .amp-desk-switch__thumb {
+        transition: border-color var(--transition), background var(--transition), box-shadow var(--transition), left 0.15s ease;
+    }
+    .amp-desk-browser {
+        animation: fade-in-up 0.16s ease both;
+    }
+}
+/* end amp-desk screen */

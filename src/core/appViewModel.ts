@@ -9,6 +9,7 @@ import { AppStateStore } from '../stores/appstate';
 import { TonesStateStore } from '../stores/tonestate';
 import { InputEventMapping } from '../spork/src/interfaces/inputEventMapping';
 import { getAppVersion } from './platformUtils';
+import { isControlMapping } from './midiMapping';
 
 // ToneCloud results are cached already mapped to Tones. Change the key when that mapping
 // changes, so tones cached by an older version aren't shown again.
@@ -96,6 +97,8 @@ export class AppViewModel {
             { id: "16", name: "Key 8 to CH8", source: { type: "keyboard", code: "8" }, target: { type: "amp-channel", value: "7" } }
         ];
         let selectedMidiInput = null;
+        let midiListenAllInputs = false;
+        let midiControlMappings: InputEventMapping[] = [];
         let numPresetSlots = 4;
         let settings = localStorage.getItem("settings");
         if (settings != null) {
@@ -109,15 +112,32 @@ export class AppViewModel {
                 selectedMidiInput = settingsParsed.selectedMidiInput;
             }
 
+            if (Array.isArray(settingsParsed.midiControlMappings)) {
+                midiControlMappings = settingsParsed.midiControlMappings;
+            }
+
+            if (settingsParsed.midiListenAllInputs != null) {
+                midiListenAllInputs = settingsParsed.midiListenAllInputs == true;
+            }
+
             if (settingsParsed.numPresetSlots != null) {
                 numPresetSlots = settingsParsed.numPresetSlots;
             }
 
         }
 
+        // CC / effect mappings live in their own list so the legacy table never edits them
+        const misplaced = (mappings ?? []).filter(isControlMapping);
+        if (misplaced.length > 0) {
+            mappings = mappings.filter((m) => !isControlMapping(m));
+            midiControlMappings = [...midiControlMappings, ...misplaced.filter((m) => !midiControlMappings.some((c) => c.id === m.id))];
+        }
+
         AppStateStore.update(s => {
             s.inputEventMappings = mappings;
+            s.midiControlMappings = midiControlMappings;
             s.selectedMidiInput = selectedMidiInput;
+            s.midiListenAllInputs = midiListenAllInputs;
             s.numPresetSlots = numPresetSlots;
         });
 
@@ -129,7 +149,9 @@ export class AppViewModel {
 
         let settings = {
             selectedMidiInput: allSettings.selectedMidiInput,
+            midiListenAllInputs: allSettings.midiListenAllInputs,
             inputEventMappings: allSettings.inputEventMappings,
+            midiControlMappings: allSettings.midiControlMappings,
             numPresetSlots: allSettings.numPresetSlots
         };
 

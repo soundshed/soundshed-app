@@ -84,6 +84,16 @@ describe("round-trip: effect changes", () => {
     expect(msg.dspIdNew).toBe("Twin");
   });
 
+  it("preserves a Jimi Hendrix expansion amp picked from the model list", () => {
+    // the amp select goes through change_effect, not change_amp
+    const messages = decodeBlocks(
+      new SparkCommandMessage().change_effect("Twin", "JH.Sunn100")
+    );
+
+    expect((messages[0] as FxChangeMessage).dspIdOld).toBe("Twin");
+    expect((messages[0] as FxChangeMessage).dspIdNew).toBe("JH.Sunn100");
+  });
+
   it("preserves dotted effect ids", () => {
     const messages = decodeBlocks(
       new SparkCommandMessage().change_effect("bias.reverb", "bias.noisegate")
@@ -324,5 +334,96 @@ describe("batched reads", () => {
       "fx_toggled",
       "fx_param_msg",
     ]);
+  });
+});
+
+// There is no rename command: a rename sends the whole preset again with 01 01 to the
+// slot, keeping the UUID. Names may be 40 characters (the official app's limit), so
+// names past 31 bytes need msgpack str8 (0xd9 len) rather than fixstr.
+describe("round-trip: preset names up to 40 characters (rename)", () => {
+  const UUID = "F39EE160-DE10-4646-8257-79178B688B62";
+
+  const modelPreset = (name: string): Preset => ({
+    meta: { id: UUID, name, version: "0.7", description: "", icon: "icon.png" },
+    bpm: 120,
+    sigpath: [
+      { dspId: "bias.noisegate", active: true, params: [{ index: 0, value: 0.5 }] },
+      { dspId: "Compressor", active: false, params: [{ index: 0, value: 0.25 }] },
+      { dspId: "Booster", active: true, params: [{ index: 0, value: 0.5 }] },
+      { dspId: "Twin", active: true, params: [{ index: 0, value: 0.75 }] },
+      { dspId: "Cloner", active: false, params: [{ index: 0, value: 0.5 }] },
+      { dspId: "VintageDelay", active: true, params: [{ index: 0, value: 0.25 }] },
+      { dspId: "bias.reverb", active: true, params: [{ index: 0, value: 0.5 }] },
+    ],
+  });
+
+  /** The 7-bit-decoded payload of a (multi-chunk) command, after cmd/sub_cmd. */
+  const rawPresetBytes = (preset: Preset, slot: number) => {
+    const msg = new SparkCommandMessage();
+    msg.create_preset_from_model(preset, slot);
+    return Array.from(msg.get_raw_msg()).slice(2);
+  };
+
+  /** Where the name starts: after the 2 header bytes and the str8 UUID. */
+  const nameOffset = 2 + 2 + UUID.length;
+
+  it.each([31, 32, 40])("reads back a %i-byte name unchanged, with the same UUID and slot", (length) => {
+    const name = "N".repeat(length - 2) + "()";
+    const { messages, reader } = decodeWithReader(
+      new SparkCommandMessage().create_preset_from_model(modelPreset(name), 2)
+    );
+    const preset = messages.find((m) => m.type === "preset")?.value as Preset;
+
+    expect(preset.meta.name).toBe(name);
+    expect(preset.meta.id).toBe(UUID);
+    expect(preset.sigpath).toHaveLength(7);
+    expect(reader.deviceState.selectedPresetNumber).toBe(2);
+  });
+
+  it("writes a 31-byte name as fixstr 0xbf and a 32-byte name as str8 0xd9 0x20", () => {
+    const at31 = rawPresetBytes(modelPreset("a".repeat(31)), 1);
+    expect(at31[nameOffset]).toBe(0xbf);
+
+    const at32 = rawPresetBytes(modelPreset("a".repeat(32)), 1);
+    expect(at32.slice(nameOffset, nameOffset + 2)).toEqual([0xd9, 0x20]);
+
+    const at40 = rawPresetBytes(modelPreset("a".repeat(40)), 1);
+    expect(at40.slice(nameOffset, nameOffset + 2)).toEqual([0xd9, 0x28]);
+  });
+
+  it("puts the hardware slot in the channel byte", () => {
+    const bytes = rawPresetBytes(modelPreset("Slot test"), 3);
+    expect(bytes.slice(0, 2)).toEqual([0x00, 0x03]);
+  });
+
+  it("reads a 40-character str8 name in the Spark 2 compact layout", () => {
+    const name = "Compact name that is forty characters ok";
+    expect(name).toHaveLength(40);
+    const reader = new SparkMessageReader();
+    reader.set_interpreter(
+      new Uint8Array([
+        0x00,
+        0x02,
+        ...encodeShortString("uuid-1"),
+        0xd9,
+        name.length,
+        ...Array.from(new TextEncoder().encode(name)),
+        ...encodeShortString("desc"),
+        ...encodeShortString("icon.png"),
+        0x91,
+        ...encodeShortString("Booster"),
+        0xc3,
+        0x91,
+        0x00,
+        0x91,
+        ...encodeFloat(0.5),
+      ])
+    );
+    reader.read_preset();
+
+    const preset = reader.readMessageQueue()[0].value as Preset;
+    expect(preset.meta.name).toBe(name);
+    expect(preset.meta.description).toBe("desc");
+    expect(preset.sigpath[0].params[0].value).toBe(0.5);
   });
 });
