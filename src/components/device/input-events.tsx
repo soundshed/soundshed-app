@@ -4,37 +4,138 @@ import { WebMidi } from "webmidi";
 import { InputEventMapping } from "../../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../../stores/appstate";
 import { appViewModel, deviceViewModel } from "../app";
-const InputEventsControl = () => {
-  const inputEventMappings: InputEventMapping[] = AppStateStore.useState(
-    (s) => s.inputEventMappings
-  );
+import { midiMappingController } from "../../core/midiMappingController";
+import { isTypingEvent } from "./desk/keyboard-targets";
 
+const MIDI_EVENTS = ["noteon", "noteoff", "pitchbend", "programchange", "controlchange"] as const;
+
+// inputs we are currently listening to, so listeners can be removed again
+const attachedInputs = new Set<any>();
+
+const midiEventListener = (e) => {
+  console.debug(e);
+
+  // matching, rate limiting and duplicate suppression happen in the mapping controller
+  midiMappingController.handleMidiEvent(e);
+
+  // record this event in case we are learning new control messages in the settings
+  // mapping table, which only understands notes and program changes (CC learn is
+  // handled by the MIDI mapping panel). Skipping CC also avoids a store update per
+  // message while a pedal is being swept.
+  if (e.type == "noteon" || e.type == "programchange") {
+    AppStateStore.update((s) => {
+      s.lastMidiEvent = e;
+    });
+  }
+};
+
+// Keys pressed in a popover or dialog (Save to Amp, the model browser, shortcut help,
+// a modal) belong to it: a digit there picks a save slot and must not switch the amp
+// away from the tone being saved.
+const OWNED_KEYS_SELECTOR = '[role="dialog"], [role="alertdialog"], .amp-desk-save, .amp-desk-browser';
+
+const isInsidePopover = (target: EventTarget | Element | null | undefined) => {
+  const el = target as Element | null;
+  return !!el && typeof (el as any).closest == "function" && el.closest(OWNED_KEYS_SELECTOR) != null;
+};
+
+/**
+ * Capture-phase keydown listener for keyboard -> amp channel mappings. Runs before
+ * any component handler, so it has to skip keys that belong to something else.
+ */
+export const keyboardChannelListener = (event: KeyboardEvent) => {
+  if (isTypingEvent(event)) {
+    // typing in a field (search box, select, typed knob value...): not a shortcut
+    return;
+  }
+
+  if (isInsidePopover(event.target) || isInsidePopover(document.activeElement)) {
+    return;
+  }
+
+  if (event.defaultPrevented) {
+    return; // Do nothing if the event was already processed
+  }
+
+  if (event.repeat) {
+    return; // discard repeated key events
+  }
+
+  const state = AppStateStore.getRawState();
+  const inputEventMappings: InputEventMapping[] = state.inputEventMappings;
+  const numPresetSlots: number = state.numPresetSlots;
+  if (inputEventMappings == null || inputEventMappings.length == 0) return;
+
+  for (const mapping of inputEventMappings) {
+    if (mapping.source.type !== "keyboard" || mapping.target.type !== "amp-channel") continue;
+    if (mapping.source.code != event.key) continue;
+
+    // the default mappings cover keys 1-8; a 4-slot amp has no channels 5-8
+    const channel = parseInt(mapping.target.value);
+    if (!Number.isInteger(channel) || channel < 0 || channel >= numPresetSlots) continue;
+
+    deviceViewModel.setChannel(channel).then(() => {
+      console.log("Keyboard input event channel selection:" + mapping.target.value);
+    });
+  }
+};
+
+const InputEventsControl = () => {
   const selectedMidiInput: string = AppStateStore.useState(
     (s) => s.selectedMidiInput
   );
 
-  const lastMidiEvent: object = AppStateStore.useState((s) => s.lastMidiEvent);
+  const midiListenAllInputs: boolean = AppStateStore.useState(
+    (s) => s.midiListenAllInputs
+  );
 
   // one time midi setup
   useEffect(() => {
-    initMidi().catch(console.error);
+    midiMappingController.attach(deviceViewModel, () => appViewModel.saveSettings());
+    // initMidi is async: once unmounted it must not add listeners after this cleanup ran
+    let disposed = false;
+    initMidi(() => disposed).catch(console.error);
+
+    return () => {
+      disposed = true;
+      WebMidi.removeListener("connected", onMidiPortsChanged);
+      WebMidi.removeListener("disconnected", onMidiPortsChanged);
+      detachAllInputs();
+    };
   }, []);
 
-  // when selected midi input or event mappings change, update event mappings
+  // when the selected midi input changes, update which inputs we listen to
   useEffect(() => {
-    if (selectedMidiInput != null) {
-      setupMidiEvents(selectedMidiInput);
-    }
+    setupMidiEvents();
+  }, [selectedMidiInput, midiListenAllInputs]);
 
-    if (inputEventMappings != null && inputEventMappings.length > 0) {
-      setupKeyboardEvents();
-    }
-  }, [selectedMidiInput, inputEventMappings]);
+  // keyboard -> channel mappings (the listener reads the current mappings itself)
+  useEffect(() => {
+    window.addEventListener("keydown", keyboardChannelListener, true);
+    return () => window.removeEventListener("keydown", keyboardChannelListener, true);
+  }, []);
 
-  let midiAvailable = false;
-  let keyboardInitialized = false;
+  const refreshMidiInputList = () => {
+    AppStateStore.update((s) => {
+      s.midiInputs = WebMidi.inputs.map((input) => {
+        return {
+          input: input,
+          name: input.name,
+          type: "midi",
+        };
+      });
+    });
+  };
 
-  const initMidi = async () => {
+  const onMidiPortsChanged = (e) => {
+    if (e?.port?.type != null && e.port.type != "input") return;
+
+    console.log("MIDI input " + e?.type + ": " + e?.port?.name);
+    refreshMidiInputList();
+    setupMidiEvents();
+  };
+
+  const initMidi = async (isDisposed: () => boolean) => {
     console.log("Setting up WebMidi.");
 
     try {
@@ -42,177 +143,89 @@ const InputEventsControl = () => {
       navigator.requestMIDIAccess().catch(console.error)
 
       await WebMidi.enable();
+      if (isDisposed()) return;
 
-      if (WebMidi.inputs.length > 0) {
-        AppStateStore.update((s) => {
-          s.midiInputs = WebMidi.inputs.map((input) => {
-            return {
-              input: input,
-              name: input.name,
-              type: "midi",
-            };
-          });
-        });
+      refreshMidiInputList();
 
-        console.debug(WebMidi.inputs);
-        console.debug(WebMidi.outputs);
+      console.debug(WebMidi.inputs);
+      console.debug(WebMidi.outputs);
 
-      
-      }
+      // hot-plug: keep the input list and listeners in step with connected devices
+      WebMidi.addListener("connected", onMidiPortsChanged);
+      WebMidi.addListener("disconnected", onMidiPortsChanged);
 
-      midiAvailable = true;
       console.log("WebMidi enabled.");
 
       Utils.sleepAsync(1000).then(() => {
+        if (isDisposed()) return;
         if (AppStateStore.getRawState().selectedMidiInput != null) {
           console.log(
             "Selecting input " + AppStateStore.getRawState().selectedMidiInput
           );
-          // preferred input exists, set that up
-          setupMidiEvents(AppStateStore.getRawState().selectedMidiInput);
         } else {
           console.log("No selected input" + selectedMidiInput);
         }
+        // preferred input (or all inputs) may exist now, set that up
+        setupMidiEvents();
       });
     } catch (err) {
       console.log("Web Midi unavailable:" + err);
     }
   };
 
-  const setupMidiEvents = (midiDeviceName?: string) => {
-    if (midiAvailable) {
-      console.log("Midi/input events changed : " + midiDeviceName);
-      if (midiDeviceName != null) {
-        let input = WebMidi.inputs.find((i) => i.name == midiDeviceName);
-
-        if (input != null) {
-          console.debug("midi input mapped: " + midiDeviceName);
-
-          // listen for midi inputs and match inputs to mapping
-
-          //remove old listeners
-          input.removeListener();
-
-          let eventListener = (e) => {
-            if (
-              lastMidiEvent != null &&
-              (lastMidiEvent as any).value == e.value
-            ) {
-              console.debug("skipping duplicate midi event ");
-              return;
-            } else {
-              console.debug(e);
-            }
-
-            for (let mapping of inputEventMappings) {
-              if (mapping.source.type === "midi") {
-                try {
-                  if (
-                    mapping.source.code == e.note?.number.toString() ||
-                    mapping.source.code == e.value?.toString()
-                  ) {
-                    deviceViewModel
-                      .setChannel(parseInt(mapping.target.value))
-                      .catch((err) => {
-                        console.log(
-                          "Failed to set channel. Device may not be connected " +
-                            err
-                        );
-                      })
-                      .then(() => {
-                        console.log(
-                          "Midi input event channel selection:" +
-                            mapping.target.value
-                        );
-                      });
-                  }
-                } catch (err) {
-                  console.log("Error trying to map midi event:" + err);
-                }
-              }
-            }
-
-            // record this event in case we are learning new control messages
-            AppStateStore.update((s) => {
-              s.lastMidiEvent = e;
-            });
-          };
-
-          input.addListener("noteon", eventListener);
-          input.addListener("pitchbend", eventListener);
-          input.addListener("programchange", eventListener);
-          input.addListener("controlchange", eventListener);
-
-          AppStateStore.update((s) => {
-            s.isMidiInputAvailable = true;
-          });
-        } else {
-          // preferred midi device not connected
-          AppStateStore.update((s) => {
-            s.isMidiInputAvailable = false;
-          });
-
-          console.log("midi input could not be mapped: " + midiDeviceName);
+  const detachAllInputs = () => {
+    for (const input of attachedInputs) {
+      for (const evt of MIDI_EVENTS) {
+        try {
+          input.removeListener(evt, midiEventListener);
+        } catch {
+          // input may have gone away
         }
+      }
+    }
+    attachedInputs.clear();
+  };
+
+  const setupMidiEvents = () => {
+    if (!WebMidi.enabled) {
+      console.log("Midi/input events changed but midi not yet available");
+      return;
+    }
+
+    const state = AppStateStore.getRawState();
+    const midiDeviceName: string = state.selectedMidiInput;
+    const listenAll: boolean = state.midiListenAllInputs == true;
+
+    console.log("Midi/input events changed : " + (listenAll ? "all inputs" : midiDeviceName));
+
+    //remove old listeners
+    detachAllInputs();
+
+    const inputs = WebMidi.inputs.filter(
+      (i) => listenAll || (midiDeviceName != null && i.name == midiDeviceName)
+    );
+
+    // listen for midi inputs and match inputs to mapping
+    for (const input of inputs) {
+      for (const evt of MIDI_EVENTS) {
+        input.addListener(evt, midiEventListener);
+      }
+      attachedInputs.add(input);
+      console.debug("midi input mapped: " + input.name);
+    }
+
+    AppStateStore.update((s) => {
+      s.isMidiInputAvailable = inputs.length > 0;
+    });
+
+    if (inputs.length == 0) {
+      if (midiDeviceName != null) {
+        // preferred midi device not connected
+        console.log("midi input could not be mapped: " + midiDeviceName);
       } else {
         console.log("No midi input selected, skipping midi input mappings");
       }
-    } else {
-      console.log(
-        "Midi/input events changed but midi not yet available : " +
-          midiDeviceName
-      );
     }
-  };
-
-  const setupKeyboardEvents = () => {
-    if (keyboardInitialized) return;
-
-    keyboardInitialized = true;
-
-    // listen for keyboard inputs and match inputs to mapping
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        if (
-          document.activeElement != null &&
-          (document.activeElement.tagName === "INPUT" ||
-            document.activeElement.tagName === "TEXTAREA")
-        ) {
-          // if focus is on an input UI element ignore key events
-          return;
-        }
-
-        if (event.defaultPrevented) {
-          return; // Do nothing if the event was already processed
-        }
-
-        if (event.repeat) {
-          return; // discard repeated key events
-        }
-
-        if (inputEventMappings != null && inputEventMappings.length > 0) {
-          for (let mapping of inputEventMappings) {
-            if (mapping.source.type === "keyboard") {
-              if (mapping.source.code == event.key) {
-                // key handled, cancel the default action to avoid it being handled twice
-                //event.preventDefault();
-
-                deviceViewModel
-                  .setChannel(parseInt(mapping.target.value))
-                  .then(() => {
-                    console.log(
-                      "Keyboard input event channel selection:" +
-                        mapping.target.value
-                    );
-                  });
-              }
-            }
-          }
-        }
-      },
-      true
-    );
   };
 
   return <div></div>;

@@ -23,11 +23,20 @@ export class SparkAmpBlePeripheral {
     private maxNotifySize = 20;
     private rxRemainder = Buffer.alloc(0);
 
+    private unsubscribeUnsolicited: () => void;
+
     constructor(
         private simulator: SparkAmpSimulator,
         private profile: SparkModelProfile,
         private options: SparkAmpBlePeripheralOptions
-    ) {}
+    ) {
+        // e.g. tuner readings, notified without a request like the real amp does
+        this.unsubscribeUnsolicited = this.simulator.onUnsolicited((frames) => {
+            for (const frame of frames) {
+                this.sendBleNotifications(frame);
+            }
+        });
+    }
 
     private log(msg: string) {
         const logFn = this.options.logger ?? console.log;
@@ -195,6 +204,8 @@ export class SparkAmpBlePeripheral {
     }
 
     public async stop(): Promise<void> {
+        this.unsubscribeUnsolicited();
+
         if (!this.bleno) {
             return;
         }

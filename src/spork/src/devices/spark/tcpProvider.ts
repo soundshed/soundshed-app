@@ -2,6 +2,7 @@ import { SerialCommsProvider } from "../../interfaces/serialCommsProvider";
 import { BluetoothDeviceInfo } from "../../interfaces/deviceController";
 import { SparkMessageReader } from "./sparkMessageReader";
 import { isSpark2DeviceName } from "../../../../core/sparkModels";
+import { SparkReceiveQueue } from "./sparkReceiveQueue";
 
 interface TcpProviderOptions {
     host?: string;
@@ -14,7 +15,7 @@ export class TcpProvider implements SerialCommsProvider {
     private socket: any = null;
     private isConnected = false;
     private isReceiving = false;
-    private receiveQueue: Array<Uint8Array> = [];
+    private receiveQueue = new SparkReceiveQueue();
     private remainder: Uint8Array = new Uint8Array();
     private lastMsgReceivedTime: Date = null;
     private lastMsgSentTime: Date = null;
@@ -247,7 +248,7 @@ export class TcpProvider implements SerialCommsProvider {
         this.isConnected = false;
         this.isReceiving = false;
         this.remainder = new Uint8Array();
-        this.receiveQueue = [];
+        this.receiveQueue.clear();
 
         for (const waiter of this.pendingAckWaiters) {
             clearTimeout(waiter.timeoutHandle);
@@ -262,36 +263,19 @@ export class TcpProvider implements SerialCommsProvider {
         return this.isConnected;
     }
 
+    // Same delivery rule as the BLE provider (see sparkReceiveQueue.ts): whole messages
+    // are handed over as they arrive, so a stream of tuner readings (one every ~60 ms,
+    // shorter than the quiet period) cannot hold everything back.
     public readReceiveQueue(): Array<Uint8Array> {
         if (this.receiveQueue.length === 0) {
             return null;
         }
 
-        if (this.getTimeDeltaSinceLastMsg() < this.minWaitTimeForMessageQueue) {
-            return null;
-        }
-
-        const lastItem = this.receiveQueue[this.receiveQueue.length - 1];
-        if (lastItem[lastItem.length - 1] !== 0xf7) {
-            return null;
-        }
-
-        const received = [...this.receiveQueue];
-        this.receiveQueue = [];
-        return received;
+        return this.receiveQueue.take(this.getTimeDeltaSinceLastMsg() >= this.minWaitTimeForMessageQueue);
     }
 
     public peekReceiveQueueEnd(): Uint8Array {
-        if (this.receiveQueue.length === 0) {
-            return null;
-        }
-
-        const lastItem = this.receiveQueue[this.receiveQueue.length - 1];
-        if (lastItem[lastItem.length - 1] === 0xf7) {
-            return lastItem;
-        }
-
-        return null;
+        return this.receiveQueue.peekEnd();
     }
 
     public async write(msg: any): Promise<void> {
