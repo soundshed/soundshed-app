@@ -5,6 +5,13 @@ import { updateElectronApp } from 'update-electron-app';
 let win: BrowserWindow;
 let callbackForDeviceSelection = null;
 
+// the macOS app menu items (About, Hide, Quit) use app.name, which otherwise comes from
+// package.json "name" ("soundshed"). Renaming would also move the userData folder that
+// holds the saved settings, so keep it where it was.
+const userDataPath = app.getPath('userData');
+app.setName('Soundshed');
+app.setPath('userData', userDataPath);
+
 const sendMessageToApp = (type: string, msg: any) => {
     if (win) {
         // send message to be handled by the UI/app (appViewModel)
