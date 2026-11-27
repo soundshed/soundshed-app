@@ -5,6 +5,7 @@ import {
   combine14BitCC,
   describeSource,
   findWahTarget,
+  isControlMapping,
   isLearnableEvent,
   KeyedThrottle,
   matchesSource,
@@ -332,6 +333,25 @@ describe("MidiMappingEngine", () => {
     expect(calls).toEqual([["onoff", "fx", true], ["onoff", "fx", false]]);
   });
 
+  it("does not toggle when a continuous controller resting above the switch point is nudged", () => {
+    const { sink, calls } = makeSink({ fx: false });
+    let now = 0;
+    const engine = new MidiMappingEngine(sink, { now: () => now });
+    const m: InputEventMapping = {
+      id: "t", name: "t", source: { type: "midi", kind: "cc", code: "11", channel: "any" },
+      target: { type: "fx-onoff", dspId: "fx", mode: "toggle" },
+    };
+    for (const v of [0, 40, 70, 80, 90, 100]) {
+      engine.handleEvent(cc(11, v), [m]);
+      now += 5;
+    }
+    now += 300;
+    engine.handleEvent(cc(11, 101), [m]);
+    now += 300;
+    engine.handleEvent(cc(11, 99), [m]);
+    expect(calls).toEqual([["onoff", "fx", true]]);
+  });
+
   it("momentary mode follows the switch", () => {
     const { sink, calls } = makeSink({ fx: false });
     const engine = new MidiMappingEngine(sink);
@@ -381,6 +401,15 @@ describe("MidiMappingEngine", () => {
   });
 });
 
+describe("isControlMapping", () => {
+  it("separates control mappings from legacy note -> amp channel mappings", () => {
+    expect(isControlMapping(legacyNoteMapping)).toBe(false);
+    expect(isControlMapping({ id: "k", name: "k", source: { type: "keyboard", code: "1" }, target: { type: "amp-channel", value: "0" } })).toBe(false);
+    expect(isControlMapping({ id: "c", name: "c", source: { type: "midi", kind: "cc", code: "1", channel: "any" }, target: { type: "amp-channel", value: "0" } })).toBe(true);
+    expect(isControlMapping({ id: "f", name: "f", source: { type: "midi", code: "1", channel: "1" }, target: { type: "fx-onoff", dspId: "x" } })).toBe(true);
+  });
+});
+
 describe("learn helpers", () => {
   it("builds a source from a captured event", () => {
     expect(sourceFromEvent(cc(11, 33, 4, "Pedal"))).toEqual({ type: "midi", kind: "cc", code: "11", channel: "4", deviceId: "Pedal" });
@@ -414,10 +443,17 @@ describe("expression pedal -> wah preset", () => {
     ],
   };
 
-  it("finds the wah in the current preset via the fx catalog", () => {
+  it("maps the wah's continuous Sensitivity, never its stepped Wah Shape / auto-wah mode selector", () => {
     expect(findWahTarget(tone, catalog)).toEqual({
-      dspId: "pg.spark40.JH.Vox846", name: "Vox 846 Wah", paramIndex: 0, paramName: "Wah Shape",
+      dspId: "pg.spark40.JH.Vox846", name: "Vox 846 Wah", paramIndex: 4, paramName: "Sensitivity",
     });
+  });
+
+  it("returns null for a wah that only has stepped parameters", () => {
+    const steppedOnly = {
+      fx: [{ type: "pg.spark40.SomeWah", name: "Some Wah", params: [{ paramId: "0", name: "Wah Shape" }, { paramId: "1", name: "BPM" }] }],
+    };
+    expect(findWahTarget(steppedOnly, { catalog: [] })).toBeNull();
   });
 
   it("returns null when the preset has no wah", () => {
@@ -425,12 +461,12 @@ describe("expression pedal -> wah preset", () => {
     expect(findWahTarget(null, catalog)).toBeNull();
   });
 
-  it("builds a CC 11 position mapping and an optional heel switch mapping", () => {
+  it("builds a CC 11 parameter mapping and an optional heel switch mapping", () => {
     let n = 0;
     const wah = findWahTarget(tone, catalog);
     const [pos, onoff] = buildExpressionWahMappings(wah, { autoEnable: true, makeId: () => "id" + n++ });
     expect(pos.source).toEqual({ type: "midi", kind: "cc", code: "11", channel: "any" });
-    expect(pos.target).toMatchObject({ type: "fx-param", dspId: "pg.spark40.JH.Vox846", paramIndex: 0 });
+    expect(pos.target).toMatchObject({ type: "fx-param", dspId: "pg.spark40.JH.Vox846", paramIndex: 4 });
     expect(onoff.target).toMatchObject({ type: "fx-onoff", dspId: "pg.spark40.JH.Vox846", mode: "threshold" });
     expect(buildExpressionWahMappings(wah, { autoEnable: false })).toHaveLength(1);
   });
@@ -443,6 +479,6 @@ describe("expression pedal -> wah preset", () => {
     engine.handleEvent(cc(11, 127, 5), mappings);
     engine.flush();
     expect(calls).toContainEqual(["onoff", "pg.spark40.JH.Vox846", true]);
-    expect(calls).toContainEqual(["param", "pg.spark40.JH.Vox846", 0, 1]);
+    expect(calls).toContainEqual(["param", "pg.spark40.JH.Vox846", 4, 1]);
   });
 });

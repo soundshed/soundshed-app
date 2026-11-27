@@ -8,6 +8,8 @@ export const AppStateStore = new Store({
     userInfo: null,
     appInfo: null,
     inputEventMappings: [],
+    /** MIDI control mappings (CC learn panel), kept apart from the legacy table above */
+    midiControlMappings: [],
     midiInputs: [],
     isMidiInputAvailable: false,
     selectedMidiInput: null,

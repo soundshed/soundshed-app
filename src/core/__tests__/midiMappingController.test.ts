@@ -61,7 +61,9 @@ describe("MidiMappingController", () => {
     });
     AppStateStore.update((s) => {
       s.inputEventMappings = [];
+      s.midiControlMappings = [];
       s.midiListenAllInputs = false;
+      s.isMidiInputAvailable = true;
     });
     MidiStateStore.update((s) => {
       s.lastEvent = null;
@@ -90,18 +92,34 @@ describe("MidiMappingController", () => {
     expect(device.setChannel).toHaveBeenCalledWith(1);
   });
 
+  it("matches both the legacy list and the control mapping list, but only edits the control list", () => {
+    const legacy: InputEventMapping = { id: "1", name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" } };
+    AppStateStore.update((s) => {
+      s.inputEventMappings = [legacy];
+    });
+    controller.addMappings([
+      { id: "c", name: "CC to CH3", source: { type: "midi", kind: "cc", code: "20", channel: "any" }, target: { type: "amp-channel", value: "2" } },
+    ]);
+    expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
+    expect(controller.getMappings().map((m) => m.id)).toEqual(["c"]);
+
+    controller.handleMidiEvent(noteOnEvent(48));
+    controller.handleMidiEvent(ccEvent(20, 127));
+    expect(device.setChannel.mock.calls).toEqual([[0], [2]]);
+  });
+
   it("adds the expression -> wah preset and learns the pedal actually moved", () => {
     const result = controller.addExpressionWahPreset(true);
     expect(result.ok).toBe(true);
 
-    const added = AppStateStore.getRawState().inputEventMappings as InputEventMapping[];
+    const added = AppStateStore.getRawState().midiControlMappings as InputEventMapping[];
     expect(added).toHaveLength(2);
     expect(MidiStateStore.getRawState().learningMappingIds).toEqual(added.map((m) => m.id));
     expect(persist).toHaveBeenCalled();
 
     // the pedal sends CC 7 on channel 2: learn both mappings from it
     controller.handleMidiEvent(ccEvent(7, 40, 2));
-    const learned = AppStateStore.getRawState().inputEventMappings as InputEventMapping[];
+    const learned = AppStateStore.getRawState().midiControlMappings as InputEventMapping[];
     for (const m of learned) {
       expect(m.source).toEqual({ type: "midi", kind: "cc", code: "7", channel: "2", deviceId: "Pedal" });
     }
@@ -111,7 +129,8 @@ describe("MidiMappingController", () => {
     // now moving the pedal drives the wah and switches it on off the heel
     controller.handleMidiEvent(ccEvent(7, 127, 2));
     expect(device.requestFxToggle).toHaveBeenCalledWith({ dspId: WAH, value: 1 });
-    expect(device.requestFxParamChangeImmediate).toHaveBeenCalledWith({ dspId: WAH, index: 0, value: 1 });
+    // Sensitivity (4): the Vox 846 has no pedal-position parameter and 0 is a stepped mode selector
+    expect(device.requestFxParamChangeImmediate).toHaveBeenCalledWith({ dspId: WAH, index: 4, value: 1 });
 
     // other controllers / channels don't
     device.requestFxParamChangeImmediate.mockClear();
@@ -126,12 +145,12 @@ describe("MidiMappingController", () => {
       s.presetTone = { name: "x", fx: [tone().fx[0]] };
     });
     expect(controller.addExpressionWahPreset(true).ok).toBe(false);
-    expect(AppStateStore.getRawState().inputEventMappings).toEqual([]);
+    expect(AppStateStore.getRawState().midiControlMappings).toEqual([]);
   });
 
   it("does not send parameter writes for effects missing from the current preset", () => {
     AppStateStore.update((s) => {
-      s.inputEventMappings = [
+      s.midiControlMappings = [
         {
           id: "p", name: "p", source: { type: "midi", kind: "cc", code: "1", channel: "any" },
           target: { type: "fx-param", dspId: "pg.spark40.SomethingElse", paramIndex: 0, min: 0, max: 1, invert: false, curve: "linear" },
@@ -147,12 +166,21 @@ describe("MidiMappingController", () => {
     controller.startLearn(["a"], 1000);
     vi.advanceTimersByTime(1001);
     expect(MidiStateStore.getRawState().learningMappingIds).toEqual([]);
-    expect(MidiStateStore.getRawState().learnStatus).toMatch(/No MIDI input/);
+    expect(MidiStateStore.getRawState().learnStatus).toMatch(/No MIDI input received/);
+  });
+
+  it("explains a learn timeout when no MIDI input is being listened to", () => {
+    AppStateStore.update((s) => {
+      s.isMidiInputAvailable = false;
+    });
+    controller.startLearn(["a"], 1000);
+    vi.advanceTimersByTime(1001);
+    expect(MidiStateStore.getRawState().learnStatus).toMatch(/No MIDI input is being listened to/);
   });
 
   it("updates the live meter with the last event and per-mapping values", () => {
     AppStateStore.update((s) => {
-      s.inputEventMappings = [
+      s.midiControlMappings = [
         {
           id: "p", name: "p", source: { type: "midi", kind: "cc", code: "11", channel: "any" },
           target: { type: "fx-param", dspId: WAH, paramIndex: 0, min: 0, max: 1, invert: false, curve: "linear" },
@@ -171,7 +199,7 @@ describe("MidiMappingController", () => {
       { id: "m", name: "m", source: { type: "midi", kind: "cc", code: "1", channel: "any" }, target: { type: "fx-onoff", dspId: WAH, mode: "toggle" } },
     ]);
     controller.patchMapping("m", { target: { mode: "momentary" }, source: { channel: "3" } });
-    let m = (AppStateStore.getRawState().inputEventMappings as InputEventMapping[])[0];
+    let m = (AppStateStore.getRawState().midiControlMappings as InputEventMapping[])[0];
     expect(m.target).toMatchObject({ type: "fx-onoff", dspId: WAH, mode: "momentary" });
     expect(m.source).toMatchObject({ kind: "cc", code: "1", channel: "3" });
 
@@ -179,7 +207,7 @@ describe("MidiMappingController", () => {
     expect(AppStateStore.getRawState().midiListenAllInputs).toBe(true);
 
     controller.removeMapping("m");
-    expect(AppStateStore.getRawState().inputEventMappings).toEqual([]);
+    expect(AppStateStore.getRawState().midiControlMappings).toEqual([]);
     expect(persist).toHaveBeenCalledTimes(4);
   });
 });

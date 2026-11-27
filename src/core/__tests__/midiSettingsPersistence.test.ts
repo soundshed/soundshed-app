@@ -19,28 +19,42 @@ describe("MIDI mapping settings persistence", () => {
     expect(AppStateStore.getRawState().midiListenAllInputs).toBe(false);
   });
 
-  it("round-trips CC mappings and the listen to all inputs option", () => {
+  it("round-trips control mappings separately from the legacy list, and the listen to all inputs option", () => {
     const vm = new AppViewModel();
     vm.loadSettings();
+    const legacyCount = AppStateStore.getRawState().inputEventMappings.length;
     const ccMapping: InputEventMapping = {
       id: "x", name: "Expression → Wah",
       source: { type: "midi", kind: "cc", code: "11", channel: "any", deviceId: "Pedal" },
-      target: { type: "fx-param", dspId: "pg.spark40.JH.Vox846", paramIndex: 0, min: 0.1, max: 0.9, invert: true, curve: "log" },
+      target: { type: "fx-param", dspId: "pg.spark40.JH.Vox846", paramIndex: 4, min: 0.1, max: 0.9, invert: true, curve: "log" },
     };
     AppStateStore.update((s) => {
-      s.inputEventMappings = [...s.inputEventMappings, ccMapping];
+      s.midiControlMappings = [ccMapping];
       s.midiListenAllInputs = true;
     });
     vm.saveSettings();
 
     AppStateStore.update((s) => {
       s.inputEventMappings = [];
+      s.midiControlMappings = [];
       s.midiListenAllInputs = false;
     });
     new AppViewModel().loadSettings();
 
-    const loaded = AppStateStore.getRawState().inputEventMappings as InputEventMapping[];
-    expect(loaded.find((m) => m.id == "x")).toEqual(ccMapping);
+    expect(AppStateStore.getRawState().midiControlMappings).toEqual([ccMapping]);
+    expect(AppStateStore.getRawState().inputEventMappings).toHaveLength(legacyCount);
     expect(AppStateStore.getRawState().midiListenAllInputs).toBe(true);
+  });
+
+  it("moves control mappings saved in the legacy list into the control list", () => {
+    const legacy: InputEventMapping = { id: "1", name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" } };
+    const cc: InputEventMapping = {
+      id: "c", name: "CC", source: { type: "midi", kind: "cc", code: "11", channel: "any" },
+      target: { type: "fx-param", dspId: "pg.spark40.JH.Vox846", paramIndex: 4, min: 0, max: 1, invert: false, curve: "linear" },
+    };
+    localStorage.setItem("settings", JSON.stringify({ inputEventMappings: [legacy, cc] }));
+    new AppViewModel().loadSettings();
+    expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
+    expect(AppStateStore.getRawState().midiControlMappings).toEqual([cc]);
   });
 });

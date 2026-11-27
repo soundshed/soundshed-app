@@ -1,7 +1,11 @@
 /**
  * App glue for MIDI mappings: feeds incoming MIDI messages to the mapping engine, sends
  * the results to the amp through the device view model, keeps the live meter / learn
- * state for the mapping editor, and edits + persists the mapping list.
+ * state for the mapping editor, and edits + persists the control mapping list.
+ *
+ * Control mappings (CC / typed sources, effect targets) are kept in
+ * AppStateStore.midiControlMappings, separate from the legacy inputEventMappings list that
+ * the Settings "Input Event Mappings" table edits. Incoming messages are matched against both.
  *
  * WebMidi itself is handled by components/device/input-events.tsx, which passes every
  * received message to handleMidiEvent().
@@ -31,6 +35,9 @@ export interface MidiDeviceActions {
 }
 
 const METER_UPDATE_INTERVAL_MS = 40;
+
+export const NO_INPUT_LISTENED_HINT =
+    "No MIDI input is being listened to: select one under MIDI Input, or tick \u201cListen to all MIDI inputs\u201d.";
 const DEFAULT_LEARN_TIMEOUT_MS = 10000;
 
 const currentTone = (): any => DeviceStateStore.getRawState().presetTone;
@@ -102,7 +109,8 @@ export class MidiMappingController {
             return ev;
         }
 
-        const mappings: InputEventMapping[] = AppStateStore.getRawState().inputEventMappings ?? [];
+        const state = AppStateStore.getRawState();
+        const mappings: InputEventMapping[] = [...(state.inputEventMappings ?? []), ...(state.midiControlMappings ?? [])];
         const result = this.engine.handleEvent(ev, mappings);
         if (!result.duplicate) {
             this.updateMeter(ev, result.matched);
@@ -136,7 +144,9 @@ export class MidiMappingController {
             this.learnTimer = null;
             MidiStateStore.update((s) => {
                 s.learningMappingIds = [];
-                s.learnStatus = "No MIDI input received, learn cancelled.";
+                s.learnStatus = AppStateStore.getRawState().isMidiInputAvailable
+                    ? "No MIDI input received, learn cancelled."
+                    : NO_INPUT_LISTENED_HINT + " Learn cancelled.";
             });
         }, timeoutMs);
     }
@@ -171,14 +181,15 @@ export class MidiMappingController {
 
     /* ---------- mapping edits ---------- */
 
+    /** The control mappings this controller edits (not the legacy amp channel list). */
     getMappings(): InputEventMapping[] {
-        return AppStateStore.getRawState().inputEventMappings ?? [];
+        return AppStateStore.getRawState().midiControlMappings ?? [];
     }
 
     updateMappings(change: (mappings: InputEventMapping[]) => InputEventMapping[]) {
         const next = change(this.getMappings().slice());
         AppStateStore.update((s) => {
-            s.inputEventMappings = next;
+            s.midiControlMappings = next;
         });
         this.persist();
     }
@@ -215,13 +226,14 @@ export class MidiMappingController {
     }
 
     /**
-     * One-click "Expression pedal -> Wah position" for the current preset. Adds the
-     * mappings (CC 11, any channel) and starts learn so the pedal actually used is captured.
+     * One-click "Expression pedal -> Wah" for the current preset. Adds the mappings (CC 11,
+     * any channel) to a continuous wah parameter (Sensitivity on the Spark's Vox 846, which
+     * has no pedal-position parameter) and starts learn so the pedal actually used is captured.
      */
     addExpressionWahPreset(autoEnable: boolean): { ok: boolean; message: string } {
         const wah = findWahTarget(currentTone(), DeviceStateStore.getRawState().fxCatalog);
         if (!wah) {
-            return { ok: false, message: "No wah found in the current preset. Add a wah to the signal chain first." };
+            return { ok: false, message: "No wah with a continuous parameter found in the current preset. Add a wah to the signal chain first." };
         }
         const mappings = buildExpressionWahMappings(wah, { autoEnable });
         this.addMappings(mappings);

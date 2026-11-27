@@ -38,7 +38,7 @@ export const DEFAULT_DEDUPE_WINDOW_MS = 30;
 /** Raw value at which a switch-like control counts as "pressed". */
 export const SWITCH_ON_VALUE = 64;
 
-/** A footswitch that only ever sends 127 is treated as pressed again after this gap. */
+/** A footswitch that only ever sends 127 is treated as pressed again when the same value repeats after this gap. */
 export const TOGGLE_REPEAT_GAP_MS = 250;
 
 /** fx-onoff threshold mode turns off this many steps below the threshold (avoids flapping). */
@@ -90,6 +90,13 @@ export function normaliseMidiEvent(e: any): NormalisedMidiEvent | null {
 }
 
 export const isMidiSource = (source: any): source is MidiEventSource => source?.type === "midi";
+
+/**
+ * Whether a mapping belongs to the MIDI control mapping list (CC / typed sources, effect
+ * targets) rather than the legacy note/program -> amp channel list shown in Settings.
+ */
+export const isControlMapping = (m: InputEventMapping | any): boolean =>
+    isMidiSource(m?.source) && (m.source.kind != null || m.target?.type !== "amp-channel");
 
 const isAnyChannel = (channel: any) => {
     if (channel == null) return true;
@@ -410,7 +417,10 @@ export class MidiMappingEngine {
             const lastHigh = state.lastHighTime;
             state.lastHighTime = now;
             const risingEdge = ev.kind !== "cc" || prevValue == null || prevValue < SWITCH_ON_VALUE;
-            const repeatedPress = lastHigh != null && now - lastHigh > TOGGLE_REPEAT_GAP_MS;
+            // only an identical repeat (e.g. 127 -> 127 from a switch without a release
+            // message) counts as a new press; a pedal or knob moving while above the switch
+            // point must not toggle
+            const repeatedPress = prevValue === ev.value && lastHigh != null && now - lastHigh > TOGGLE_REPEAT_GAP_MS;
             if (!risingEdge && !repeatedPress) return null;
             // prefer the amp's live state, so toggles stay right if the effect was switched elsewhere
             const base = current ?? state.lastSwitchState ?? false;
@@ -519,7 +529,17 @@ export function listFxTargets(tone: ToneLike | null, catalog?: CatalogLike | nul
 }
 
 const WAH_PATTERN = /wah/i;
-const WAH_POSITION_PARAM_PATTERNS = [/position/i, /pedal/i, /wah/i, /freq/i];
+
+/**
+ * Continuous parameters an expression pedal can sensibly sweep, in order of preference.
+ * The Spark's wah (JH.Vox846) is an auto-wah and exposes no pedal-position parameter: its
+ * parameter 0 ("Wah Shape" here, "Auto Wah Mode" in Ignitron) is a stepped mode selector,
+ * so the pedal is mapped to Sensitivity instead.
+ */
+const WAH_CONTINUOUS_PARAM_PATTERNS = [/position/i, /pedal/i, /freq/i, /sensitiv/i];
+
+/** Stepped selectors and tempo settings that must never be swept by a pedal. */
+const WAH_STEPPED_PARAM_PATTERN = /shape|mode|bpm|bars?\b|millisecond|\bms\b|switch|type/i;
 
 export interface WahTarget {
     dspId: string;
@@ -528,19 +548,23 @@ export interface WahTarget {
     paramName: string;
 }
 
-/** Finds a wah in the tone and the parameter that acts as its pedal position. */
+/**
+ * Finds a wah in the tone and a continuous parameter of it for an expression pedal.
+ * Returns null when there is no wah, or the wah has no parameter that is safe to sweep.
+ */
 export function findWahTarget(tone: ToneLike | null, catalog?: CatalogLike | null): WahTarget | null {
     const options = listFxTargets(tone, catalog);
     const wah = options.find((o) => WAH_PATTERN.test(o.name) || WAH_PATTERN.test(o.dspId));
     if (!wah) return null;
     const catalogParams = catalog?.catalog?.find((c) => c.dspId === wah.dspId)?.params?.map((p) => ({ index: p.index, name: p.name ?? "" }));
     const params = wah.params.length > 0 ? wah.params : catalogParams ?? [];
+    const candidates = params.filter((p) => !WAH_STEPPED_PARAM_PATTERN.test(p.name));
     let param = null;
-    for (const pattern of WAH_POSITION_PARAM_PATTERNS) {
-        param = params.find((p) => pattern.test(p.name));
+    for (const pattern of WAH_CONTINUOUS_PARAM_PATTERNS) {
+        param = candidates.find((p) => pattern.test(p.name));
         if (param) break;
     }
-    param = param ?? params.find((p) => p.index === 0) ?? { index: 0, name: "Param 1" };
+    if (!param) return null;
     return { dspId: wah.dspId, name: wah.name, paramIndex: param.index, paramName: param.name };
 }
 
@@ -551,7 +575,7 @@ export const EXPRESSION_PEDAL_CC = 11;
 export const HEEL_THRESHOLD = 3;
 
 /**
- * Mappings for "expression pedal -> wah position": a continuous fx-param mapping and,
+ * Mappings for "expression pedal -> wah": a continuous fx-param mapping and,
  * optionally, an fx-onoff mapping that switches the wah on once the pedal leaves heel.
  */
 export function buildExpressionWahMappings(

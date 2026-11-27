@@ -10,7 +10,7 @@ import {
 import { AppStateStore } from "../../../stores/appstate";
 import { DeviceStateStore } from "../../../stores/devicestate";
 import { MidiStateStore } from "../../../stores/midistate";
-import { midiMappingController } from "../../../core/midiMappingController";
+import { midiMappingController, NO_INPUT_LISTENED_HINT } from "../../../core/midiMappingController";
 import {
   describeEvent,
   describeSource,
@@ -51,11 +51,6 @@ const rowStyle: React.CSSProperties = {
 };
 
 const CHANNELS = Array.from({ length: 16 }, (_, i) => (i + 1).toString());
-
-/** Mappings this panel manages: anything MIDI except the legacy note -> amp channel ones. */
-export const isPanelMapping = (m: InputEventMapping) =>
-  m?.source?.type === "midi" &&
-  ((m.source as MidiEventSource).kind != null || m.target?.type !== "amp-channel");
 
 export const ValueMeter = ({ value, label }: { value: number | null | undefined; label?: string }) => {
   const pct = value == null ? 0 : Math.round((value / MIDI_MAX_VALUE) * 100);
@@ -253,7 +248,9 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v))
 type NewTargetType = "fx-param" | "fx-onoff" | "amp-channel";
 
 const MidiMappingPanel = () => {
-  const inputEventMappings: InputEventMapping[] = AppStateStore.useState((s) => s.inputEventMappings);
+  // control mappings are a separate list from the legacy "Input Event Mappings" table
+  const controlMappings: InputEventMapping[] = AppStateStore.useState((s) => s.midiControlMappings);
+  const isMidiInputAvailable: boolean = AppStateStore.useState((s) => s.isMidiInputAvailable);
   const midiInputs: any[] = AppStateStore.useState((s) => s.midiInputs);
   const listenAll: boolean = AppStateStore.useState((s) => s.midiListenAllInputs);
   const numPresetSlots: number = AppStateStore.useState((s) => s.numPresetSlots);
@@ -266,7 +263,7 @@ const MidiMappingPanel = () => {
 
   const fxTargets = React.useMemo(() => listFxTargets(presetTone, fxCatalog), [presetTone, fxCatalog]);
   const midiInputNames = (midiInputs ?? []).map((i) => i.name);
-  const mappings = (inputEventMappings ?? []).filter(isPanelMapping);
+  const mappings = controlMappings ?? [];
 
   const [newType, setNewType] = React.useState<NewTargetType>("fx-param");
   const [newFx, setNewFx] = React.useState<string>("");
@@ -341,6 +338,12 @@ const MidiMappingPanel = () => {
         </span>
       </div>
 
+      {!isMidiInputAvailable && (
+        <p className="settings-empty" role="note" style={{ marginTop: 0, marginBottom: "0.75rem" }}>
+          {NO_INPUT_LISTENED_HINT} Learn needs a listened input.
+        </p>
+      )}
+
       {learnStatus && (
         <div className="settings-active-chip" role="status" style={{ marginTop: 0, marginBottom: "0.75rem" }}>
           <span className="settings-chip-dot" />
@@ -354,8 +357,12 @@ const MidiMappingPanel = () => {
       )}
 
       <div style={{ ...rowStyle, marginBottom: "0.75rem" }}>
-        <button className="settings-btn settings-btn--accent" onClick={addWahPreset}>
-          Expression pedal → Wah position
+        <button
+          className="settings-btn settings-btn--accent"
+          onClick={addWahPreset}
+          title="The Spark wah (Vox 846) is an auto-wah with no pedal-position parameter; the pedal is mapped to its Sensitivity."
+        >
+          Expression pedal → Wah sensitivity
         </button>
         <label style={labelStyle}>
           <input type="checkbox" checked={wahAutoEnable} onChange={(e) => setWahAutoEnable(e.target.checked)} />

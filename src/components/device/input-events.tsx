@@ -44,9 +44,12 @@ const InputEventsControl = () => {
   // one time midi setup
   useEffect(() => {
     midiMappingController.attach(deviceViewModel, () => appViewModel.saveSettings());
-    initMidi().catch(console.error);
+    // initMidi is async: once unmounted it must not add listeners after this cleanup ran
+    let disposed = false;
+    initMidi(() => disposed).catch(console.error);
 
     return () => {
+      disposed = true;
       WebMidi.removeListener("connected", onMidiPortsChanged);
       WebMidi.removeListener("disconnected", onMidiPortsChanged);
       detachAllInputs();
@@ -84,7 +87,7 @@ const InputEventsControl = () => {
     setupMidiEvents();
   };
 
-  const initMidi = async () => {
+  const initMidi = async (isDisposed: () => boolean) => {
     console.log("Setting up WebMidi.");
 
     try {
@@ -92,6 +95,7 @@ const InputEventsControl = () => {
       navigator.requestMIDIAccess().catch(console.error)
 
       await WebMidi.enable();
+      if (isDisposed()) return;
 
       refreshMidiInputList();
 
@@ -105,6 +109,7 @@ const InputEventsControl = () => {
       console.log("WebMidi enabled.");
 
       Utils.sleepAsync(1000).then(() => {
+        if (isDisposed()) return;
         if (AppStateStore.getRawState().selectedMidiInput != null) {
           console.log(
             "Selecting input " + AppStateStore.getRawState().selectedMidiInput

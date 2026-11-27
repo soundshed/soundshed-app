@@ -17,7 +17,7 @@ const legacy: InputEventMapping = {
   id: "1", name: "C3 to CH1", source: { type: "midi", code: "48", channel: "1" }, target: { type: "amp-channel", value: "0" },
 };
 
-const mappings = () => AppStateStore.getRawState().inputEventMappings as InputEventMapping[];
+const mappings = () => AppStateStore.getRawState().midiControlMappings as InputEventMapping[];
 
 describe("MidiMappingPanel", () => {
   const device = {
@@ -42,8 +42,10 @@ describe("MidiMappingPanel", () => {
       });
       AppStateStore.update((s) => {
         s.inputEventMappings = [legacy];
+        s.midiControlMappings = [];
         s.midiInputs = [{ name: "Pedal", type: "midi" }];
         s.midiListenAllInputs = false;
+        s.isMidiInputAvailable = true;
       });
       MidiStateStore.update((s) => {
         s.lastEvent = null;
@@ -61,18 +63,31 @@ describe("MidiMappingPanel", () => {
   it("leaves legacy note mappings to the existing table", () => {
     render(<MidiMappingPanel />);
     expect(screen.getByText("No MIDI control mappings yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("explains when no MIDI input is being listened to", () => {
+    act(() => {
+      AppStateStore.update((s) => {
+        s.isMidiInputAvailable = false;
+      });
+    });
+    render(<MidiMappingPanel />);
+    expect(screen.getByRole("note")).toHaveTextContent(/No MIDI input is being listened to/);
   });
 
   it("adds the expression pedal -> wah preset and shows it learning", () => {
     render(<MidiMappingPanel />);
-    fireEvent.click(screen.getByRole("button", { name: /Expression pedal → Wah position/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Expression pedal → Wah sensitivity/ }));
 
-    expect(mappings()).toHaveLength(3);
-    expect(mappings()[1].target).toMatchObject({ type: "fx-param", dspId: WAH, paramIndex: 0 });
-    expect(mappings()[2].target).toMatchObject({ type: "fx-onoff", dspId: WAH, mode: "threshold" });
+    // kept out of the legacy list, so the old Settings table never shows or re-learns them
+    expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
+    expect(mappings()).toHaveLength(2);
+    expect(mappings()[0].target).toMatchObject({ type: "fx-param", dspId: WAH, paramIndex: 4 });
+    expect(mappings()[1].target).toMatchObject({ type: "fx-onoff", dspId: WAH, mode: "threshold" });
     expect(screen.getAllByText("Listening…")).toHaveLength(2);
     expect(screen.getByRole("status")).toHaveTextContent(/Move a control/);
-    expect(screen.getAllByText(/Vox 846 Wah · Wah Shape/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Vox 846 Wah · Sensitivity/).length).toBeGreaterThan(0);
   });
 
   it("adds a parameter mapping for an effect of the current preset and learns a CC", () => {
@@ -81,7 +96,7 @@ describe("MidiMappingPanel", () => {
     fireEvent.change(screen.getByLabelText("Parameter"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "Add & Learn" }));
 
-    const added = mappings()[1];
+    const added = mappings()[0];
     expect(added.target).toMatchObject({ type: "fx-param", dspId: WAH, paramIndex: 4 });
 
     act(() => {
@@ -90,15 +105,14 @@ describe("MidiMappingPanel", () => {
         message: { channel: 1, dataBytes: [21, 10] }, port: { name: "Pedal" },
       });
     });
-    expect(mappings()[1].source).toEqual({ type: "midi", kind: "cc", code: "21", channel: "1", deviceId: "Pedal" });
+    expect(mappings()[0].source).toEqual({ type: "midi", kind: "cc", code: "21", channel: "1", deviceId: "Pedal" });
     expect(screen.getByText("CC 21 · ch 1 · Pedal")).toBeInTheDocument();
   });
 
   it("edits range, invert and curve, and deletes a mapping", () => {
     act(() => {
       AppStateStore.update((s) => {
-        s.inputEventMappings = [
-          legacy,
+        s.midiControlMappings = [
           {
             id: "p", name: "Knob", source: { type: "midi", kind: "cc", code: "1", channel: "any" },
             target: { type: "fx-param", dspId: WAH, paramIndex: 0, min: 0, max: 1, invert: false, curve: "linear" },
@@ -111,10 +125,11 @@ describe("MidiMappingPanel", () => {
     fireEvent.change(screen.getByLabelText("Max"), { target: { value: "0.6" } });
     fireEvent.click(screen.getByLabelText("Invert"));
     fireEvent.change(screen.getByLabelText("Curve"), { target: { value: "log" } });
-    expect(mappings()[1].target).toMatchObject({ max: 0.6, invert: true, curve: "log" });
+    expect(mappings()[0].target).toMatchObject({ max: 0.6, invert: true, curve: "log" });
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Knob" }));
-    expect(mappings()).toEqual([legacy]);
+    expect(mappings()).toEqual([]);
+    expect(AppStateStore.getRawState().inputEventMappings).toEqual([legacy]);
   });
 
   it("persists the listen to all inputs option", () => {
