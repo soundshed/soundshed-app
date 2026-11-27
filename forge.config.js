@@ -18,7 +18,9 @@ module.exports = {
     packagerConfig: { 
       name:"Soundshed",
       appBundleId:"com.soundshed.tones",
-      icon: "images/icon/favicon.ico",
+      // packager swaps the extension per platform and takes the first file that exists:
+      // favicon.ico on Windows, icon.icns on macOS
+      icon: ["images/icon/favicon.ico", "images/icon/icon.icns"],
       usageDescription: {
         Microphone:
           'Microphone access may be required for some functionality such as tuner or guitar jam.',

@@ -58,6 +58,13 @@ function initApp() {
     });
 
     app.whenReady().then(() => {
+        if (process.platform === 'darwin' && !app.isPackaged) {
+            // the packaged app takes its icon from the bundle, but in development the
+            // dock would show the stock Electron icon
+            const path = require('path');
+            app.dock?.setIcon(path.join(app.getAppPath(), 'images/icon/icon-1024.png'));
+        }
+
         createWindow();
     });
 
