@@ -1422,6 +1422,138 @@ export class FxCatalogProvider {
                 ]
             },
             {
+                "type": "amp",
+                "dspId": "JH.DualShowman",
+                "name": "Fender Dual Showman",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "JH.Sunn100",
+                "name": "Sunn 100S",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "JH.Bassman50Silver",
+                "name": "Fender Bassman 50 Silverface",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
+                "type": "amp",
+                "dspId": "JH.SoundCity100",
+                "name": "Sound City 100",
+                "isExperimental":false,
+                "params": [
+                    {
+                        "name": "Gain",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Bass",
+                        "index": 3,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Middle",
+                        "index": 2,
+                        "value": 0.4
+                    },
+                    {
+                        "name": "Treble",
+                        "index": 1,
+                        "value": 0.6
+                    },
+                    {
+                        "name": "Master",
+                        "index": 4,
+                        "value": 0.7
+                    }
+                ]
+            },
+            {
                 "type": "comp",
                 "dspId": "LA2AComp",
                 "name": "LA Comp",
@@ -1532,27 +1664,27 @@ export class FxCatalogProvider {
                 "name": "Vox 846 Wah",
                 "params": [
                     {
-                        "name": "P1",
+                        "name": "Wah Shape",
                         "index": 0,
                         "value": 0.5
                     },
                     {
-                        "name": "Mode",
+                        "name": "BPM",
                         "index": 1,
                         "value": 0 // true/false
                     },
                     {
-                        "name": "P3",
+                        "name": "Milliseconds",
                         "index": 2,
                         "value": 0.2
                     },
                     {
-                        "name": "P4",
+                        "name": "Bars",
                         "index": 3,
                         "value": 0.5
                     },
                     {
-                        "name": "P5",
+                        "name": "Sensitivity",
                         "index": 4,
                         "value": 0.5
                     }
@@ -2013,6 +2145,78 @@ export class FxCatalogProvider {
                     },
                     {
                         "name": "Treble",
+                        "index": 1,
+                        "value": 0.5
+                    }
+                ]
+            },
+            {
+                "type": "drive",
+                "dspId": "JH.AxisFuzz",
+                "isExperimental":false,
+                "name": "Roger Mayer Axis Fuzz",
+                "params": [
+                    {
+                        "name": "Volume",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Drive",
+                        "index": 1,
+                        "value": 0.5
+                    }
+                ]
+            },
+            {
+                "type": "drive",
+                "dspId": "JH.SupaFuzz",
+                "isExperimental":false,
+                "name": "Supa Fuzz",
+                "params": [
+                    {
+                        "name": "Volume",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Filter",
+                        "index": 1,
+                        "value": 0.5
+                    }
+                ]
+            },
+            {
+                "type": "drive",
+                "dspId": "JH.Octavia",
+                "isExperimental":false,
+                "name": "Octavia",
+                "params": [
+                    {
+                        "name": "Level",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Fuzz",
+                        "index": 1,
+                        "value": 0.5
+                    }
+                ]
+            },
+            {
+                "type": "drive",
+                "dspId": "JH.FuzzTone",
+                "isExperimental":false,
+                "name": "Maestro Fuzz-Tone",
+                "params": [
+                    {
+                        "name": "Volume",
+                        "index": 0,
+                        "value": 0.5
+                    },
+                    {
+                        "name": "Attack",
                         "index": 1,
                         "value": 0.5
                     }

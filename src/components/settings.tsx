@@ -5,6 +5,7 @@ import { Utils } from "../core/utils";
 import { InputEventMapping } from "../spork/src/interfaces/inputEventMapping";
 import { AppStateStore } from "../stores/appstate";
 import { appViewModel } from "./app";
+import MidiMappingPanel from "./device/midi-learn/MidiMappingPanel";
 
 const SettingsControl = () => {
   const inputEventMappings = AppStateStore.useState(
@@ -211,6 +212,8 @@ const SettingsControl = () => {
           <p className="settings-empty">No input mappings configured.</p>
         )}
       </div>
+
+      <MidiMappingPanel />
 
       {enableTestMode && (
         <div className="settings-section glass-panel">

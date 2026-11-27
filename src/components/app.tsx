@@ -20,6 +20,8 @@ import "../../css/styles.css";
 import AppViewModel from "../core/appViewModel";
 import DeviceViewModel from "../core/deviceViewModel";
 import { LessonManager } from "../core/lessonManager";
+import { midiMappingController } from "../core/midiMappingController";
+import { getMixerViewModel } from "../core/mixerViewModel";
 import { Login, UserRegistration } from "../core/soundshedApi";
 import { AppStateStore } from "../stores/appstate";
 import { DeviceStateStore } from "../stores/devicestate";
@@ -36,11 +38,19 @@ import EditToneControl from "./soundshed/edit-tone";
 import LoginControl from "./soundshed/login";
 import SettingsControl from "./settings";
 import InputEventsControl from "./device/input-events";
+import GlobalMixerControls from "./device/mixer/global-mixer-controls";
 import ScalexControl from "./scalex";
 
 export const appViewModel: AppViewModel = new AppViewModel();
 export const deviceViewModel: DeviceViewModel = new DeviceViewModel();
 export const lessonManager: LessonManager = new LessonManager();
+
+// The nav-bar mixer knobs are on every page, so the mixer view model lives as long as
+// the app: it reads Guitar / Music when an amp connects and follows acks and 0x03 0x6b
+// whichever page is open. A singleton, so this never adds a second set of listeners.
+// MIDI mappings to Guitar / Music volume and mute drive it too (only on incoming MIDI,
+// and only while an amp is connected).
+midiMappingController.attachMixer(getMixerViewModel());
 
 // export context providers for view models
 export const AppViewModelContext = React.createContext(appViewModel);
@@ -138,6 +148,8 @@ const App = () => {
   return (
     <main>
       <nav className="magic-nav" aria-label="Main navigation">
+        {/* balances magic-nav__end so the links stay centred */}
+        <div className="magic-nav__start" aria-hidden="true" />
         <ul style={{listStyle:"none", padding:0, margin:0, display:"contents"}}>
           <li className="nav-item">
             <NavLink
@@ -229,6 +241,9 @@ const App = () => {
             </li>
           ) : null}
         </ul>
+        <div className="magic-nav__end">
+          <GlobalMixerControls />
+        </div>
         </nav>
 
       <div className="app-content-wrap">
