@@ -1,15 +1,7 @@
 import React, { useEffect } from "react";
-import { Utils } from "../../core/utils";
 import { DeviceStateStore } from "../../stores/devicestate";
-import {
-  appViewModel,
-  AppViewModelContext,
-  deviceViewModel as vm,
-} from "../app";
-import DeviceControls from "./device-controls";
-import MiscControls from "./misc-controls";
-import SignalPathControl from "./signal-path";
-import TunerPanel from "./tuner/tuner-panel";
+import { appViewModel, deviceViewModel as vm } from "../app";
+import AmpDesk, { FxParamChangeArgs, FxToggleArgs } from "./desk/amp-desk";
 
 const DeviceMainControl = () => {
   const deviceViewModel = vm;
@@ -79,19 +71,30 @@ const DeviceMainControl = () => {
   const requestStoreFavourite = (includeUpload: boolean = false) => {
     //save current preset
 
-    appViewModel.storeFavourite(currentPreset, includeUpload);
+    return appViewModel.storeFavourite(currentPreset, includeUpload);
   };
 
-  const requestStoreHardwarePreset = () => {
-    deviceViewModel.storeCurrentPreset(selectedChannel);  
+  // Always an explicit hardware slot chosen in the Save to Amp picker, never the
+  // virtual channel; the view model refuses anything else and resolves false.
+  const requestStoreHardwarePreset = (slot: number) => {
+    return deviceViewModel.storeCurrentPreset(slot);
   };
 
-  const fxParamChange = (args) => {
+  const fxParamChange = (args: FxParamChangeArgs) => {
     deviceViewModel.requestFxParamChange(args).then(() => {});
   };
 
-  const fxToggle = (args) => {
+  const fxToggle = (args: FxToggleArgs) => {
     deviceViewModel.requestFxToggle(args).then(() => {});
+  };
+
+  const fxChange = async (args: { dspIdOld: string; dspIdNew: string }) => {
+    try {
+      return (await deviceViewModel.requestFxChange(args)) === true;
+    } catch (err) {
+      console.warn("Fx change failed: " + err);
+      return false;
+    }
   };
 
   // configure which state changes should cause component updates
@@ -129,31 +132,15 @@ const DeviceMainControl = () => {
   }, []);
 
   return (
-    <div className="amp-intro">
-      <div className="amp-content">
-        <DeviceControls />
-        <MiscControls
-          deviceScanInProgress={deviceScanInProgress}
-          onScanForDevices={requestScanForDevices}
-          connected={connected}
-          onConnect={requestConnectDevice}
-          connectionInProgress={connectionInProgress}
-          requestCurrentPreset={requestCurrentPreset}
-          setChannel={requestSetChannel}
-          devices={devices}
-          selectedChannel={selectedChannel}
-          onSetPreset={requestStoreHardwarePreset}
-        />
-        <TunerPanel />
-        <SignalPathControl
-          signalPathState={currentPreset}
-          onFxParamChange={fxParamChange}
-          onFxToggle={fxToggle}
-          selectedChannel={selectedChannel}
-          onStoreFavourite={requestStoreFavourite}
-        />
-      </div>
-    </div>
+    <AmpDesk
+      onRefresh={() => void requestCurrentPreset()}
+      onSetChannel={requestSetChannel}
+      onSaveToAmp={requestStoreHardwarePreset}
+      onStoreFavourite={() => requestStoreFavourite(false)}
+      onFxParamChange={fxParamChange}
+      onFxToggle={fxToggle}
+      onFxChange={fxChange}
+    />
   );
 };
 

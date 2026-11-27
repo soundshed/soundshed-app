@@ -5,6 +5,7 @@ import { InputEventMapping } from "../../spork/src/interfaces/inputEventMapping"
 import { AppStateStore } from "../../stores/appstate";
 import { appViewModel, deviceViewModel } from "../app";
 import { midiMappingController } from "../../core/midiMappingController";
+import { isTypingEvent } from "./desk/keyboard-targets";
 
 const MIDI_EVENTS = ["noteon", "noteoff", "pitchbend", "programchange", "controlchange"] as const;
 
@@ -28,11 +29,58 @@ const midiEventListener = (e) => {
   }
 };
 
-const InputEventsControl = () => {
-  const inputEventMappings: InputEventMapping[] = AppStateStore.useState(
-    (s) => s.inputEventMappings
-  );
+// Keys pressed in a popover or dialog (Save to Amp, the model browser, shortcut help,
+// a modal) belong to it: a digit there picks a save slot and must not switch the amp
+// away from the tone being saved.
+const OWNED_KEYS_SELECTOR = '[role="dialog"], [role="alertdialog"], .amp-desk-save, .amp-desk-browser';
 
+const isInsidePopover = (target: EventTarget | Element | null | undefined) => {
+  const el = target as Element | null;
+  return !!el && typeof (el as any).closest == "function" && el.closest(OWNED_KEYS_SELECTOR) != null;
+};
+
+/**
+ * Capture-phase keydown listener for keyboard -> amp channel mappings. Runs before
+ * any component handler, so it has to skip keys that belong to something else.
+ */
+export const keyboardChannelListener = (event: KeyboardEvent) => {
+  if (isTypingEvent(event)) {
+    // typing in a field (search box, select, typed knob value...): not a shortcut
+    return;
+  }
+
+  if (isInsidePopover(event.target) || isInsidePopover(document.activeElement)) {
+    return;
+  }
+
+  if (event.defaultPrevented) {
+    return; // Do nothing if the event was already processed
+  }
+
+  if (event.repeat) {
+    return; // discard repeated key events
+  }
+
+  const state = AppStateStore.getRawState();
+  const inputEventMappings: InputEventMapping[] = state.inputEventMappings;
+  const numPresetSlots: number = state.numPresetSlots;
+  if (inputEventMappings == null || inputEventMappings.length == 0) return;
+
+  for (const mapping of inputEventMappings) {
+    if (mapping.source.type !== "keyboard" || mapping.target.type !== "amp-channel") continue;
+    if (mapping.source.code != event.key) continue;
+
+    // the default mappings cover keys 1-8; a 4-slot amp has no channels 5-8
+    const channel = parseInt(mapping.target.value);
+    if (!Number.isInteger(channel) || channel < 0 || channel >= numPresetSlots) continue;
+
+    deviceViewModel.setChannel(channel).then(() => {
+      console.log("Keyboard input event channel selection:" + mapping.target.value);
+    });
+  }
+};
+
+const InputEventsControl = () => {
   const selectedMidiInput: string = AppStateStore.useState(
     (s) => s.selectedMidiInput
   );
@@ -61,11 +109,11 @@ const InputEventsControl = () => {
     setupMidiEvents();
   }, [selectedMidiInput, midiListenAllInputs]);
 
+  // keyboard -> channel mappings (the listener reads the current mappings itself)
   useEffect(() => {
-    if (inputEventMappings != null && inputEventMappings.length > 0) {
-      setupKeyboardEvents();
-    }
-  }, [inputEventMappings]);
+    window.addEventListener("keydown", keyboardChannelListener, true);
+    return () => window.removeEventListener("keydown", keyboardChannelListener, true);
+  }, []);
 
   const refreshMidiInputList = () => {
     AppStateStore.update((s) => {
@@ -178,62 +226,6 @@ const InputEventsControl = () => {
         console.log("No midi input selected, skipping midi input mappings");
       }
     }
-  };
-
-  const keyboardInitialized = React.useRef(false);
-
-  const setupKeyboardEvents = () => {
-    if (keyboardInitialized.current) return;
-
-    keyboardInitialized.current = true;
-
-    // listen for keyboard inputs and match inputs to mapping
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        if (
-          document.activeElement != null &&
-          (document.activeElement.tagName === "INPUT" ||
-            document.activeElement.tagName === "TEXTAREA")
-        ) {
-          // if focus is on an input UI element ignore key events
-          return;
-        }
-
-        if (event.defaultPrevented) {
-          return; // Do nothing if the event was already processed
-        }
-
-        if (event.repeat) {
-          return; // discard repeated key events
-        }
-
-        // read the current mappings, this listener outlives the render it was added in
-        const inputEventMappings: InputEventMapping[] =
-          AppStateStore.getRawState().inputEventMappings;
-
-        if (inputEventMappings != null && inputEventMappings.length > 0) {
-          for (let mapping of inputEventMappings) {
-            if (mapping.source.type === "keyboard" && mapping.target.type === "amp-channel") {
-              if (mapping.source.code == event.key) {
-                // key handled, cancel the default action to avoid it being handled twice
-                //event.preventDefault();
-
-                deviceViewModel
-                  .setChannel(parseInt(mapping.target.value))
-                  .then(() => {
-                    console.log(
-                      "Keyboard input event channel selection:" +
-                        mapping.target.value
-                    );
-                  });
-              }
-            }
-          }
-        }
-      },
-      true
-    );
   };
 
   return <div></div>;

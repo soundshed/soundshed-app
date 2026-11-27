@@ -60,6 +60,7 @@ describe("fx changes involving models missing from the catalog", () => {
 
         DeviceStateStore.update(s => {
             s.fxCatalog = FxCatalogProvider.getFxCatalog();
+            s.isConnected = true;
             s.presetTone = {
                 name: "Hey Jimi",
                 fx: [{ type: "pg.spark40.Twin", name: "Blackface Duo", enabled: true, params: [] }]
