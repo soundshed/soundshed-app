@@ -44,6 +44,17 @@ export interface AmpKnobProps {
   formatValue?: (value: number) => string;
   id?: string;
   className?: string;
+  /** Only the dial: no readout, caption or typed entry (the caller shows them), and no 64 px minimum width. */
+  compact?: boolean;
+  /** Where the End key jumps to (default 1); null ignores End, e.g. for a volume that must never jump to full. */
+  endValue?: number | null;
+  /** Drag distance (px) that sweeps the full range (default DRAG_FULL_RANGE_PX). */
+  dragRange?: number;
+  /**
+   * Also count horizontal drag (right raises), e.g. for a knob near the top of the
+   * screen, where an upward drag soon runs out of room.
+   */
+  horizontalDrag?: boolean;
 }
 
 export const defaultKnobFormat = (value: number) => (value * 10).toFixed(1);
@@ -78,6 +89,10 @@ const AmpKnob = ({
   formatValue = defaultKnobFormat,
   id,
   className,
+  compact = false,
+  endValue = 1,
+  dragRange = DRAG_FULL_RANGE_PX,
+  horizontalDrag = false,
 }: AmpKnobProps) => {
   const [display, setDisplay] = React.useState(() => sanitise(value));
   const [editing, setEditing] = React.useState(false);
@@ -99,7 +114,7 @@ const AmpKnob = ({
   const liveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const wheelTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const uncommitted = React.useRef(false);
-  const drag = React.useRef<{ pointerId: number; lastY: number } | null>(null);
+  const drag = React.useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
   const keyRepeating = React.useRef(false);
   const cancelEdit = React.useRef(false);
 
@@ -216,7 +231,7 @@ const AmpKnob = ({
     } catch {
       // jsdom and some synthetic pointers have no capture support
     }
-    drag.current = { pointerId: e.pointerId, lastY: e.clientY };
+    drag.current = { pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY };
     setDragging(true);
   };
 
@@ -224,11 +239,15 @@ const AmpKnob = ({
     const d = drag.current;
     if (!d || e.pointerId != d.pointerId) return;
     // Incremental, so pressing/releasing the fine modifier mid-drag never jumps.
+    // Up raises; with horizontalDrag, right raises too.
     const dy = d.lastY - e.clientY;
+    const dx = horizontalDrag ? e.clientX - d.lastX : 0;
+    d.lastX = e.clientX;
     d.lastY = e.clientY;
-    if (dy == 0) return;
+    const moved = dx + dy;
+    if (moved == 0) return;
     const fine = e.shiftKey || e.metaKey || e.ctrlKey;
-    const delta = (dy / DRAG_FULL_RANGE_PX) * (fine ? FINE_FACTOR : 1);
+    const delta = (moved / (dragRange > 0 ? dragRange : DRAG_FULL_RANGE_PX)) * (fine ? FINE_FACTOR : 1);
     // Unrounded so slow fine drags (< 0.0001 per event) still accumulate.
     const v = clamp01(valueRef.current + delta);
     if (v == valueRef.current) return;
@@ -284,9 +303,11 @@ const AmpKnob = ({
         next = 0;
         break;
       case "End":
-        next = 1;
+        if (endValue == null) return;
+        next = endValue;
         break;
       case "Enter":
+        if (compact) return;
         e.preventDefault();
         e.stopPropagation();
         startEdit();
@@ -329,7 +350,7 @@ const AmpKnob = ({
   // ---- typed entry (0-10 amp scale)
 
   const startEdit = () => {
-    if (disabled) return;
+    if (disabled || compact) return;
     cancelEdit.current = false;
     setDraft((valueRef.current * 10).toFixed(1));
     setEditing(true);
@@ -383,10 +404,11 @@ const AmpKnob = ({
   const classes = ["amp-knob"];
   if (disabled) classes.push("amp-knob--disabled");
   if (dragging) classes.push("amp-knob--dragging");
+  if (horizontalDrag) classes.push("amp-knob--xy");
   if (className) classes.push(className);
 
   return (
-    <div className={classes.join(" ")} style={{ width: Math.max(size, 64) }}>
+    <div className={classes.join(" ")} style={{ width: compact ? size : Math.max(size, 64) }}>
       <div
         ref={dialRef}
         id={id}
@@ -426,7 +448,7 @@ const AmpKnob = ({
         </svg>
       </div>
 
-      {editing ? (
+      {compact ? null : editing ? (
         <input
           ref={inputRef}
           className="amp-knob__input"
@@ -448,7 +470,7 @@ const AmpKnob = ({
           {text}
         </span>
       )}
-      <span className="amp-knob__label">{label}</span>
+      {!compact && <span className="amp-knob__label">{label}</span>}
     </div>
   );
 };

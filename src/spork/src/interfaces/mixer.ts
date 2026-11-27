@@ -4,13 +4,14 @@ import { DeviceMessage } from "./preset";
  * Amp mixer messages (EXPERIMENTAL).
  *
  * Protocol (documented for the Spark LIVE in paulhamsh/SparkBox SparkIO.ino, and
- * reported to change the guitar volume on a Spark GO by lucanenni/spark-go-utils;
- * neither is confirmed on a Spark 2, 40 or MINI):
+ * reported to change the guitar volume on a Spark GO by lucanenni/spark-go-utils).
+ * A user's hardware test confirmed channels 0 (guitar) and 5 (music) on a Spark 2;
+ * channel 9 and the Spark 40 / MINI are untested:
  *
  *   App -> Amp  0x01 0x33  payload: channel (msgpack positive fixint, 1 byte), then a
  *                          msgpack float32 (0xca + 4 bytes big endian) volume 0..1.
- *                          Whether a Spark 2 wants a trailing 0x00 (as it does for
- *                          0x01 0x04) is unknown, so the caller chooses.
+ *                          Whether a Spark 2 needs a trailing 0x00 (as it does for
+ *                          0x01 0x04) was not recorded, so the caller chooses.
  *   App -> Amp  0x02 0x33  payload: channel byte. Asks for that channel's volume.
  *   Amp -> App  0x03 0x33  payload: msgpack float32. The reply does NOT say which
  *                          channel it is for, so requests have to be serialised.

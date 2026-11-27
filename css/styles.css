@@ -217,6 +217,123 @@ td, th { color: var(--text); }
     background: var(--text-faint);
 }
 
+/* Nav-bar mixer (src/components/device/mixer/global-mixer-controls.tsx).
+   The empty start column and the end column share the space left by the links,
+   so the links stay centred; the end column never shrinks below its controls. */
+.magic-nav__start,
+.magic-nav__end {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.magic-nav__end {
+    display: flex;
+    justify-content: flex-end;
+    min-width: max-content;
+}
+.nav-mixer {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.3rem 0.25rem;
+}
+.nav-mixer__channel {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.nav-mixer__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    min-width: 2.9rem;
+}
+.nav-mixer__label {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.nav-mixer__value {
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+}
+.nav-mixer__mute {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-hover);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.nav-mixer__mute:hover {
+    color: var(--text);
+    border-color: var(--accent);
+}
+.nav-mixer__mute.is-muted {
+    color: var(--red);
+    border-color: var(--red);
+    background: rgba(239,68,68,0.12);
+}
+/* muted: the knob keeps the level unmute restores, dimmed and without the amber arc.
+   Only the SVG is dimmed, so the dial's focus outline stays at full contrast. */
+.nav-mixer__channel.is-muted .nav-mixer__knob svg {
+    opacity: 0.45;
+}
+/* the last set did not reach the amp (the title says so) */
+.nav-mixer__channel.is-error .nav-mixer__mute {
+    border-style: dashed;
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(239,68,68,0.3);
+}
+.nav-mixer__channel.is-error .nav-mixer__value::after {
+    content: " !";
+    color: var(--red);
+    font-weight: 700;
+}
+.nav-mixer__channel.is-muted .amp-knob__arc {
+    stroke: var(--text-faint);
+    filter: none;
+}
+.nav-mixer__channel.is-muted .nav-mixer__value {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+/* narrow windows: tighter links and controls. The nav stays one row (about 48px),
+   as the pages' calc(100vh - 50px) heights assume: below 860px the controls drop
+   their text (each channel's title and the knob's value text still give the level). */
+@media (max-width: 1100px) {
+    .magic-nav .nav-link {
+        padding: 0.85rem 0.7rem;
+    }
+    .nav-mixer {
+        gap: 0.6rem;
+    }
+}
+@media (max-width: 860px) {
+    .nav-mixer__text {
+        display: none;
+    }
+    .nav-mixer {
+        gap: 0.5rem;
+    }
+    .nav-mixer__channel {
+        gap: 0.3rem;
+    }
+}
+@media (max-width: 720px) {
+    .magic-nav .nav-link {
+        padding: 0.85rem 0.5rem;
+    }
+}
+
 /* ── Page Sections ──────────────────────────────────────────── */
 .home-intro,
 .amp-intro,
@@ -2037,6 +2154,9 @@ select:focus {
 .amp-knob__dial svg {
     display: block;
     overflow: visible;
+}
+.amp-knob--xy .amp-knob__dial {
+    cursor: move;
 }
 .amp-knob__dial:focus-visible {
     outline: 2px solid var(--accent);

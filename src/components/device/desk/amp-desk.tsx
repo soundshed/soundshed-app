@@ -1,6 +1,5 @@
 import React from "react";
 import { VIRTUAL_CHANNEL } from "../../../core/sparkChannels";
-import { getMixerViewModel } from "../../../core/mixerViewModel";
 import { isSpark2DeviceName } from "../../../core/sparkModels";
 import { getTunerViewModel } from "../../../core/tunerViewModel";
 import { FxCatalogProvider } from "../../../spork/src/devices/spark/sparkFxCatalog";
@@ -222,12 +221,6 @@ const AmpDesk = (props: AmpDeskProps) => {
       setTunerOpen(true);
     }
   };
-
-  // Created with the amp screen, so the mixer's acks and 0x03 0x6b input volume
-  // notifications are counted even before its drawer is opened. Never sends by itself.
-  React.useEffect(() => {
-    getMixerViewModel();
-  }, []);
 
   // Closes the topmost popover; false when nothing was open.
   const closeTopPopover = () => {

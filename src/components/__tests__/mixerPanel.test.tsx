@@ -53,14 +53,19 @@ afterEach(() => {
 });
 
 describe("MixerPanel", () => {
-  it("shows the experimental warning and three labelled sliders in the unknown state", async () => {
+  it("shows the diagnostics warning and the Guitar and Music sliders in the unknown state", async () => {
     render(<MixerPanel viewModel={vm} />);
     await settle();
 
     expect(screen.getByRole("heading", { name: "Amp mixer (experimental)" })).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent(MIXER_WARNING);
+    expect(MIXER_WARNING).toMatch(/confirmed on a Spark 2/);
+    expect(MIXER_WARNING).toMatch(/other models are untested/);
+    expect(MIXER_WARNING).toMatch(/diagnostics/);
+    // Master is only reachable through the custom channel now
+    expect(screen.queryByRole("slider", { name: /^master/i })).toBeNull();
 
-    for (const [name, channel] of [[/^guitar/i, 0], [/^music/i, 5], [/^master/i, 9]] as const) {
+    for (const [name, channel] of [[/^guitar/i, 0], [/^music/i, 5]] as const) {
       const s = slider(name);
       expect(s).toHaveAttribute("min", "0");
       expect(s).toHaveAttribute("max", "100");
@@ -97,19 +102,19 @@ describe("MixerPanel", () => {
     render(<MixerPanel viewModel={vm} />);
     act(() => {
       MixerStateStore.update((s) => {
-        s.channels[9] = { value: null, readStatus: "no-reply" };
+        s.channels[5] = { value: null, readStatus: "no-reply" };
       });
     });
 
-    expect(screen.getByTestId("mixer-read-9")).toHaveTextContent("no reply");
-    expect(screen.getByTestId("mixer-value-9")).toHaveTextContent("—");
+    expect(screen.getByTestId("mixer-read-5")).toHaveTextContent("no reply");
+    expect(screen.getByTestId("mixer-value-5")).toHaveTextContent("—");
   });
 
   it("reads again with the Read from amp button", async () => {
     render(<MixerPanel viewModel={vm} />);
     await settle();
     // finish the read started on open
-    for (const v of [0.1, 0.2, 0.3]) {
+    for (const v of [0.1, 0.2]) {
       events.emit("mixer-message", { type: "mixer_volume", value: v });
       await settle();
     }
@@ -136,27 +141,27 @@ describe("MixerPanel", () => {
   it("steps 1 % with the arrow keys and 10 % with PageUp/PageDown, and ignores End", async () => {
     render(<MixerPanel viewModel={vm} />);
     await settle();
-    const master = slider(/^master/i);
+    const music = slider(/^music/i);
 
-    fireEvent.keyDown(master, { key: "PageUp" });
+    fireEvent.keyDown(music, { key: "PageUp" });
     await settle();
-    fireEvent.keyDown(master, { key: "ArrowUp" });
+    fireEvent.keyDown(music, { key: "ArrowUp" });
     await settle();
-    fireEvent.keyDown(master, { key: "PageDown" });
+    fireEvent.keyDown(music, { key: "PageDown" });
     await settle();
-    fireEvent.keyDown(master, { key: "ArrowRight" });
+    fireEvent.keyDown(music, { key: "ArrowRight" });
     await settle();
-    fireEvent.keyDown(master, { key: "End" });
+    fireEvent.keyDown(music, { key: "End" });
     await settle();
 
     expect(sets().map((a) => [a.data.channel, a.data.value])).toEqual([
-      [9, 0.1],
-      [9, 0.11],
-      [9, 0.01],
-      [9, 0.02],
+      [5, 0.1],
+      [5, 0.11],
+      [5, 0.01],
+      [5, 0.02],
     ]);
-    fireEvent.keyUp(master, { key: "ArrowRight" });
-    expect(master).toHaveValue("2");
+    fireEvent.keyUp(music, { key: "ArrowRight" });
+    expect(music).toHaveValue("2");
   });
 
   it("keeps the user's value while dragging when the amp reports its input volume", async () => {
@@ -240,7 +245,7 @@ describe("MixerPanel", () => {
   it("drops a drag cut short by a disconnect and shows the value read after reconnecting", async () => {
     render(<MixerPanel viewModel={vm} />);
     await settle();
-    for (const v of [0.1, 0.2, 0.3]) {
+    for (const v of [0.1, 0.2]) {
       events.emit("mixer-message", { type: "mixer_volume", value: v });
       await settle();
     }
@@ -266,6 +271,24 @@ describe("MixerPanel", () => {
     expect(sets().map((a) => [a.data.channel, a.data.value])).toEqual([[0, 0.11]]);
   });
 
+  it("shares the mute with the nav-bar knobs: shows it, and a slider move unmutes", async () => {
+    render(<MixerPanel viewModel={vm} />);
+    await settle();
+    events.emit("mixer-message", { type: "mixer_volume", value: 0.5 });
+    await settle();
+
+    await act(async () => {
+      await vm.toggleMute(0);
+    });
+    expect(slider(/^guitar/i)).toHaveValue("0");
+    expect(screen.getByTestId("mixer-channel-0")).toHaveTextContent("muted");
+
+    fireEvent.change(slider(/^guitar/i), { target: { value: "20" } });
+    await settle();
+    expect(MixerStateStore.getRawState().channels[0]).toMatchObject({ muted: false, value: 0.2 });
+    expect(screen.getByTestId("mixer-channel-0")).not.toHaveTextContent("muted");
+  });
+
   it("says when a read may be a late reply", async () => {
     render(<MixerPanel viewModel={vm} />);
     act(() => {
@@ -285,7 +308,6 @@ describe("MixerPanel", () => {
     expect(screen.getByText("Connect an amp to use the mixer.")).toBeInTheDocument();
     expect(slider(/^guitar/i)).toBeDisabled();
     expect(slider(/^music/i)).toBeDisabled();
-    expect(slider(/^master/i)).toBeDisabled();
     expect(screen.getByRole("button", { name: "Read from amp" })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Append 0x00 (Spark 2 style)" })).toBeDisabled();
     expect(events.invoke).not.toHaveBeenCalled();

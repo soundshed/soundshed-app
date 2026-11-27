@@ -143,7 +143,7 @@ const TopBar = (props: TopBarProps) => {
           aria-expanded={props.mixerOpen}
           aria-controls="amp-desk-mixer"
           onClick={props.onToggleMixer}
-          title="Amp mixer: Guitar, Music and Master volume (experimental)"
+          title="Amp mixer diagnostics: Guitar and Music volume (experimental)"
         >
           Mixer
         </button>

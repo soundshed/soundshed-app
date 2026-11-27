@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   effectiveTrailingZero,
   formatMixerValue,
+  MIXER_CHANNELS,
+  MIXER_READ_CHANNELS,
   MIXER_READ_SETTLE_MS,
   MIXER_READ_TIMEOUT_MS,
   MixerEvents,
@@ -74,7 +76,8 @@ describe("MixerViewModel", () => {
     MixerStateStore.update((s) => Object.assign(s, initialMixerState()));
     events = new FakeEvents();
     now = 50_000;
-    vm = new MixerViewModel(events, () => now);
+    // The read on connect has its own tests below; here it would get in the way.
+    vm = new MixerViewModel(events, () => now, { readOnConnect: false });
   });
 
   afterEach(() => {
@@ -84,7 +87,7 @@ describe("MixerViewModel", () => {
   });
 
   describe("safety", () => {
-    it("never sends anything when an amp connects", async () => {
+    it("never sends anything when an amp connects (with the read on connect off)", async () => {
       setConnected(true);
       await flush();
       setConnected(false);
@@ -93,6 +96,14 @@ describe("MixerViewModel", () => {
 
       expect(events.invoke).not.toHaveBeenCalled();
       expect(state().channels).toEqual({});
+    });
+
+    it("controls Guitar and Music only; Master is no longer a standard channel", () => {
+      expect(MIXER_CHANNELS).toEqual([
+        { channel: 0, label: "Guitar" },
+        { channel: 5, label: "Music" },
+      ]);
+      expect(MIXER_READ_CHANNELS).toEqual([0, 5]);
     });
 
     it("refuses to send or read while disconnected", async () => {
@@ -129,8 +140,8 @@ describe("MixerViewModel", () => {
     });
 
     it("clamps the value to 0..1", async () => {
-      await vm.setVolume(9, 1.5);
-      await vm.setVolume(9, -1);
+      await vm.setVolume(5, 1.5);
+      await vm.setVolume(5, -1);
 
       expect(actions(events).map((a) => a.data.value)).toEqual([1, 0]);
     });
@@ -204,7 +215,7 @@ describe("MixerViewModel", () => {
 
       setConnected(true);
       await vm.setVolume(0, 0.6);
-      expect(actions(events).map((a) => a.data.trailingZero)).toEqual([false, false]);
+      expect(actions(events).filter((a) => a.action == "setMixerVolume").map((a) => a.data.trailingZero)).toEqual([false, false]);
     });
 
     it("drops the rest of a drag when the amp disconnects", async () => {
@@ -227,7 +238,7 @@ describe("MixerViewModel", () => {
 
     const reads = () => actions(events).filter((a) => a.action == "getMixerVolume").map((a) => a.data);
 
-    it("asks for guitar, music and master one at a time and attributes each reply", async () => {
+    it("asks for guitar and music one at a time and attributes each reply", async () => {
       const done = vm.readMixer();
       await flush();
 
@@ -241,21 +252,18 @@ describe("MixerViewModel", () => {
       expect(reads()).toEqual([0, 5]);
 
       events.emit("mixer-message", { type: "mixer_volume", value: 0.25 });
-      await flush();
-      expect(reads()).toEqual([0, 5, 9]);
-
-      events.emit("mixer-message", { type: "mixer_volume", value: 0.7 });
       await expect(done).resolves.toBe(true);
 
+      expect(reads()).toEqual([0, 5]);
       expect(state().channels[5].value).toBe(0.25);
-      expect(state().channels[9].value).toBeCloseTo(0.7);
+      expect(state().channels[9]).toBeUndefined();
       expect(state().isReading).toBe(false);
       // reading never writes a value
       expect(actions(events).some((a) => a.action == "setMixerVolume")).toBe(false);
     });
 
     it("marks a channel that does not answer in time as no reply and moves on", async () => {
-      const done = vm.readMixer();
+      const done = vm.readMixer([0, 5, 9]);
       await flush();
 
       await vi.advanceTimersByTimeAsync(MIXER_READ_TIMEOUT_MS - 1);
@@ -344,7 +352,7 @@ describe("MixerViewModel", () => {
 
     it("resolves false when nothing answers", async () => {
       const done = vm.readMixer();
-      await vi.advanceTimersByTimeAsync(3 * MIXER_READ_TIMEOUT_MS + 2 * MIXER_READ_SETTLE_MS + 10);
+      await vi.advanceTimersByTimeAsync(2 * MIXER_READ_TIMEOUT_MS + MIXER_READ_SETTLE_MS + 10);
 
       await expect(done).resolves.toBe(false);
       expect(state().isReading).toBe(false);
@@ -422,6 +430,383 @@ describe("MixerViewModel", () => {
       await expect(done).resolves.toBe(false);
       expect(state()).toEqual(initialMixerState());
       expect(reads()).toEqual([0]);
+    });
+  });
+
+  const sets = () =>
+    actions(events)
+      .filter((a) => a.action == "setMixerVolume")
+      .map((a) => [a.data.channel, a.data.value]);
+
+  describe("toggleMute", () => {
+    beforeEach(() => setConnected(true));
+
+    it("mutes by sending 0 and remembering the level, and unmutes by sending it back", async () => {
+      await vm.setVolume(0, 0.6);
+
+      await expect(vm.toggleMute(0)).resolves.toBe(true);
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0, lastSentValue: 0 });
+
+      await expect(vm.toggleMute(0)).resolves.toBe(true);
+      expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.6, lastSentValue: 0.6 });
+      expect(sets()).toEqual([
+        [0, 0.6],
+        [0, 0],
+        [0, 0.6],
+      ]);
+    });
+
+    it("unmuting with no known level only clears the mute and leaves the level at 0", async () => {
+      // unknown level
+      await vm.toggleMute(5);
+      expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: null, value: 0 });
+      await vm.toggleMute(5);
+      expect(state().channels[5]).toMatchObject({ muted: false, value: 0 });
+
+      // a level of 0 is not worth going back to either
+      await vm.toggleMute(5);
+      await vm.toggleMute(5);
+
+      expect(sets()).toEqual([
+        [5, 0],
+        [5, 0],
+      ]);
+    });
+
+    it("turning a muted channel unmutes it at the new level", async () => {
+      await vm.setVolume(0, 0.5);
+      await vm.toggleMute(0);
+
+      await vm.setVolume(0, 0.3);
+
+      expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.3 });
+      expect(sets()).toEqual([
+        [0, 0.5],
+        [0, 0],
+        [0, 0.3],
+      ]);
+    });
+
+    it("goes through the coalescing path while a send is in flight", async () => {
+      const first = deferred();
+      events.invoke.mockImplementationOnce(() => first.promise);
+
+      void vm.setVolume(0, 0.6);
+      await expect(vm.toggleMute(0)).resolves.toBe(true);
+      expect(sets()).toEqual([[0, 0.6]]);
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0 });
+
+      first.resolve(true);
+      await flush();
+
+      expect(sets()).toEqual([
+        [0, 0.6],
+        [0, 0],
+      ]);
+      expect(state().channels[0].lastSentValue).toBe(0);
+    });
+
+    describe("when the send fails", () => {
+      it.each([
+        ["resolves false", () => events.invoke.mockResolvedValueOnce(false)],
+        ["rejects", () => events.invoke.mockRejectedValueOnce(new Error("GATT write failed"))],
+      ])("undoes a mute whose 0 was not written (perform-action %s)", async (_name, fail) => {
+        await vm.setVolume(0, 0.6);
+        fail();
+
+        await expect(vm.toggleMute(0)).resolves.toBe(false);
+
+        expect(sets()).toEqual([
+          [0, 0.6],
+          [0, 0],
+        ]);
+        expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.6, sendFailed: true, lastSentValue: 0.6 });
+        expect(state().lastError).toMatch(/could not send/i);
+
+        // so the button mutes again (sends 0), and a send that gets through clears the flag
+        await expect(vm.toggleMute(0)).resolves.toBe(true);
+        expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0, sendFailed: false });
+        expect(state().lastError).toBeNull();
+      });
+
+      it.each([
+        ["resolves false", () => events.invoke.mockResolvedValueOnce(false)],
+        ["rejects", () => events.invoke.mockRejectedValueOnce(new Error("GATT write failed"))],
+      ])("undoes an unmute whose level was not written (perform-action %s)", async (_name, fail) => {
+        await vm.setVolume(5, 0.6);
+        await vm.toggleMute(5);
+        fail();
+
+        await expect(vm.toggleMute(5)).resolves.toBe(false);
+
+        expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0, sendFailed: true });
+        // the next click tries the unmute again
+        await vm.toggleMute(5);
+        expect(sets().slice(-2)).toEqual([
+          [5, 0.6],
+          [5, 0.6],
+        ]);
+        expect(state().channels[5]).toMatchObject({ muted: false, value: 0.6, sendFailed: false });
+      });
+
+      it("undoes a knob turn that would have unmuted, keeping the level to restore", async () => {
+        await vm.setVolume(0, 0.5);
+        await vm.toggleMute(0);
+        events.invoke.mockResolvedValueOnce(false);
+
+        await vm.setVolume(0, 0.3);
+
+        expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5, value: 0 });
+      });
+
+      it("keeps a plain level change that failed as it was (no mute involved)", async () => {
+        await vm.setVolume(0, 0.5);
+        events.invoke.mockResolvedValueOnce(false);
+
+        await vm.setVolume(0, 0.3);
+
+        expect(state().channels[0]).toMatchObject({ value: 0.3, sendFailed: true });
+        expect(state().channels[0].muted).toBeFalsy();
+      });
+
+      it("undoes a queued mute whose send failed after the one in flight went through", async () => {
+        const first = deferred();
+        events.invoke.mockImplementationOnce(() => first.promise);
+        void vm.setVolume(0, 0.6);
+        await vm.toggleMute(0);
+        events.invoke.mockResolvedValueOnce(false);
+
+        first.resolve(true);
+        await flush();
+
+        expect(sets()).toEqual([
+          [0, 0.6],
+          [0, 0],
+        ]);
+        // the amp has 0.6 (the in-flight send), not the 0
+        expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.6, sendFailed: true, lastSentValue: 0.6 });
+      });
+
+      it("keeps a mute whose in-flight predecessor failed but whose own 0 got through", async () => {
+        await vm.setVolume(0, 0.4);
+        const first = deferred();
+        events.invoke.mockImplementationOnce(() => first.promise);
+        void vm.setVolume(0, 0.6);
+        await vm.toggleMute(0);
+
+        first.resolve(false);
+        await flush();
+
+        expect(sets()).toEqual([
+          [0, 0.4],
+          [0, 0.6],
+          [0, 0],
+        ]);
+        expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.6, value: 0, sendFailed: false, lastSentValue: 0 });
+      });
+
+      it("undoes the mute when both the in-flight and the queued send fail", async () => {
+        await vm.setVolume(0, 0.4);
+        const first = deferred();
+        events.invoke.mockImplementationOnce(() => first.promise);
+        void vm.setVolume(0, 0.6);
+        await vm.toggleMute(0);
+        events.invoke.mockResolvedValueOnce(false);
+
+        first.resolve(false);
+        await flush();
+
+        // the amp still has 0.4, the last level that got through
+        expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.4, sendFailed: true });
+      });
+    });
+
+    it("refuses while disconnected", async () => {
+      setConnected(false);
+      await expect(vm.toggleMute(0)).resolves.toBe(false);
+      expect(events.invoke).not.toHaveBeenCalled();
+      expect(state().lastError).toMatch(/connect an amp/i);
+    });
+
+    it("is cleared by a 03 6B guitar level above 0, not by one of 0", async () => {
+      await vm.setVolume(0, 0.5);
+      await vm.toggleMute(0);
+
+      events.emit("mixer-message", { type: "input_volume", value: 0 });
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5, value: 0 });
+
+      events.emit("mixer-message", { type: "input_volume", value: 0.4 });
+      expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.4 });
+    });
+
+    it("is cleared by a read reply above 0, kept by a reply of 0 or a stale one", async () => {
+      await vm.setVolume(5, 0.7);
+      await vm.toggleMute(5);
+
+      let done = vm.readMixer([5]);
+      await flush();
+      events.emit("mixer-message", { type: "mixer_volume", value: 0 });
+      await done;
+      expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.7 });
+
+      // muted again after the request went out: the reply is from before the mute
+      await vm.toggleMute(5);
+      done = vm.readMixer([5]);
+      await flush();
+      await vm.toggleMute(5);
+      events.emit("mixer-message", { type: "mixer_volume", value: 0.7 });
+      await done;
+      expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.7, value: 0 });
+
+      done = vm.readMixer([5]);
+      await flush();
+      events.emit("mixer-message", { type: "mixer_volume", value: 0.2 });
+      await done;
+      expect(state().channels[5]).toMatchObject({ muted: false, unmuteValue: null, value: 0.2 });
+    });
+  });
+
+  describe("read on connect and mutes over a reconnect", () => {
+    const reads = () => actions(events).filter((a) => a.action == "getMixerVolume").map((a) => a.data);
+
+    const connectTo = (address: string | null) =>
+      DeviceStateStore.update((s) => {
+        s.connectedDevice = address == null ? null : { name: "Spark 2", address };
+        s.isConnected = true;
+      });
+
+    /** Answers the outstanding reads in order; null lets that one time out. */
+    const answer = async (...values: Array<number | null>) => {
+      for (const v of values) {
+        await flush();
+        if (v == null) await vi.advanceTimersByTimeAsync(MIXER_READ_TIMEOUT_MS + MIXER_READ_SETTLE_MS);
+        else events.emit("mixer-message", { type: "mixer_volume", value: v });
+      }
+      await flush();
+    };
+
+    /** Connected to amp A, guitar at 0.5 and muted, then the link drops. */
+    const muteGuitarAndDrop = async () => {
+      connectTo("A");
+      await answer(0.5, 0.7);
+      await vm.toggleMute(0);
+      setConnected(false);
+      expect(state().channels).toEqual({});
+      events.invoke.mockClear();
+    };
+
+    beforeEach(() => {
+      vm.dispose();
+      vm = new MixerViewModel(events, () => now);
+    });
+
+    afterEach(() =>
+      DeviceStateStore.update((s) => {
+        s.connectedDevice = null;
+      })
+    );
+
+    it("reads guitar and music once when an amp connects, and sends no value", async () => {
+      connectTo("A");
+      await answer(0.4, 0.6);
+
+      expect(reads()).toEqual([0, 5]);
+      expect(sets()).toEqual([]);
+      expect(state().channels[0]).toMatchObject({ value: 0.4, readStatus: "ok" });
+      expect(state().channels[5]).toMatchObject({ value: 0.6, readStatus: "ok" });
+      expect(state().isReading).toBe(false);
+    });
+
+    it("keeps a mute over a reconnect of the same amp when it still reads 0", async () => {
+      await muteGuitarAndDrop();
+
+      connectTo("A");
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5 });
+      await answer(0, 0.7);
+
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5, value: 0 });
+      expect(sets()).toEqual([]);
+
+      await vm.toggleMute(0);
+      expect(sets()).toEqual([[0, 0.5]]);
+    });
+
+    it("keeps the mute when the amp does not answer the read", async () => {
+      await muteGuitarAndDrop();
+
+      connectTo("A");
+      await answer(null, 0.7);
+
+      expect(state().channels[0]).toMatchObject({ muted: true, unmuteValue: 0.5, readStatus: "no-reply" });
+    });
+
+    it("clears the mute when the same amp reads above 0 after reconnecting", async () => {
+      await muteGuitarAndDrop();
+
+      connectTo("A");
+      await answer(0.3, 0.7);
+
+      expect(state().channels[0]).toMatchObject({ muted: false, unmuteValue: null, value: 0.3 });
+    });
+
+    it.each([
+      ["another amp", "B"],
+      ["an amp without an address", null],
+    ])("drops the mute when %s connects", async (_name, address) => {
+      await muteGuitarAndDrop();
+
+      connectTo(address);
+      expect(state().channels[0]?.muted).toBeFalsy();
+      await answer(0, 0.7);
+      expect(state().channels[0]?.muted).toBeFalsy();
+
+      // so the button mutes (sends 0) rather than restoring A's level
+      await vm.toggleMute(0);
+      expect(sets()).toEqual([[0, 0]]);
+    });
+
+    it("does not let an uncertain read reply (maybe another channel's late one) end a held mute", async () => {
+      // Music muted at 0.6, then the link drops
+      connectTo("A");
+      await answer(0.7, 0.6);
+      await vm.toggleMute(5);
+      setConnected(false);
+      events.invoke.mockClear();
+
+      connectTo("A");
+      expect(state().channels[5]).toMatchObject({ muted: true, unmuteValue: 0.6 });
+      // Guitar's reply is late: it times out, and arrives after the Music request went out
+      await flush();
+      await vi.advanceTimersByTimeAsync(MIXER_READ_TIMEOUT_MS + MIXER_READ_SETTLE_MS);
+      await flush();
+      expect(reads()).toEqual([0, 5]);
+      events.emit("mixer-message", { type: "mixer_volume", value: 0.7 });
+      await flush();
+
+      expect(state().channels[5]).toMatchObject({
+        muted: true,
+        unmuteValue: 0.6,
+        readUncertain: true,
+        lastReadValue: 0.7,
+      });
+      // the uncertain 0.7 is not taken as Music's level
+      expect(state().channels[5].value).not.toBe(0.7);
+      expect(sets()).toEqual([]);
+
+      // unmuting still goes back to the remembered level
+      await vm.toggleMute(5);
+      expect(sets()).toEqual([[5, 0.6]]);
+    });
+
+    it("forgets the held mute once it was dealt with", async () => {
+      await muteGuitarAndDrop();
+      connectTo("B");
+      await answer(0.2, 0.7);
+      setConnected(false);
+
+      connectTo("A");
+      expect(state().channels[0]?.muted).toBeFalsy();
+      await answer(0, 0.7);
     });
   });
 

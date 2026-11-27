@@ -56,6 +56,29 @@ describe("AmpKnob", () => {
     });
   });
 
+  describe("compact and endValue", () => {
+    it("compact renders only the dial: no readout, caption or typed entry", () => {
+      const { container } = renderKnob({ compact: true, size: 30 });
+      expect(screen.queryByTestId("amp-knob-value")).toBeNull();
+      expect(screen.queryByText("Gain")).toBeNull();
+      expect((container.firstChild as HTMLElement).style.width).toBe("30px");
+
+      fireEvent.keyDown(knob(), { key: "Enter" });
+      expect(screen.queryByRole("textbox")).toBeNull();
+      // still a full slider
+      fireEvent.keyDown(knob(), { key: "ArrowUp" });
+      expect(calls()).toEqual([[0.51, "commit"]]);
+    });
+
+    it("endValue null ignores End, Home still goes to 0", () => {
+      renderKnob({ endValue: null });
+      fireEvent.keyDown(knob(), { key: "End" });
+      expect(onChange).not.toHaveBeenCalled();
+      fireEvent.keyDown(knob(), { key: "Home" });
+      expect(calls()).toEqual([[0, "commit"]]);
+    });
+  });
+
   describe("keyboard", () => {
     it.each([
       ["ArrowUp", false, 0.51],
@@ -316,6 +339,27 @@ describe("AmpKnob", () => {
       move(180, { shiftKey: true }); // 20 px fine = 0.01
       up(180);
       expect(calls().slice(-1)[0]).toEqual([0.51, "commit"]);
+    });
+
+    it("ignores horizontal movement by default", () => {
+      renderKnob({ value: 0.5 });
+      fireEvent.pointerDown(knob(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+      fireEvent.pointerMove(knob(), { pointerId: 1, clientX: 180, clientY: 100 });
+      fireEvent.pointerUp(knob(), { pointerId: 1, clientX: 180, clientY: 100 });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("with horizontalDrag and dragRange, right raises, left lowers, and up still counts", () => {
+      renderKnob({ value: 0, horizontalDrag: true, dragRange: 100 });
+      expect(knob().closest(".amp-knob")).toHaveClass("amp-knob--xy");
+      fireEvent.pointerDown(knob(), { pointerId: 1, button: 0, clientX: 100, clientY: 20 });
+      fireEvent.pointerMove(knob(), { pointerId: 1, clientX: 160, clientY: 20 }); // right 60 px = 0.6
+      expect(knob()).toHaveAttribute("aria-valuenow", "0.6");
+      fireEvent.pointerMove(knob(), { pointerId: 1, clientX: 140, clientY: 20 }); // left 20 px = -0.2
+      expect(knob()).toHaveAttribute("aria-valuenow", "0.4");
+      fireEvent.pointerMove(knob(), { pointerId: 1, clientX: 140, clientY: 10 }); // up 10 px = +0.1
+      fireEvent.pointerUp(knob(), { pointerId: 1, clientX: 140, clientY: 10 });
+      expect(calls().slice(-1)[0]).toEqual([0.5, "commit"]);
     });
 
     it("does not send anything for a click without movement", () => {

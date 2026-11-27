@@ -13,23 +13,33 @@ import { IMixerChannelState, IMixerState, initialMixerChannelState, initialMixer
 import { platformEvents } from "./platformUtils";
 
 // ---------------------------------------------------------------------------
-// Experimental amp mixer (Guitar / Music / Master volume)
+// Amp mixer (Guitar / Music volume and mute), shown as knobs in the nav bar and as
+// sliders in the amp screen's diagnostics drawer.
 //
-// HARDWARE EXPERIMENT. The 0x01 0x33 / 0x02 0x33 messages are documented for the
-// Spark LIVE only (paulhamsh/SparkBox) and reported to work on a Spark GO; on a
-// Spark 2 the GUITAR and MUSIC knobs may well be analog and ignore them.
+// EXPERIMENTAL. The 0x01 0x33 / 0x02 0x33 messages are documented for the Spark
+// LIVE (paulhamsh/SparkBox). A user's hardware test confirmed Guitar (channel 0)
+// and Music (channel 5) on a Spark 2; other models are untested. Master (9) is no
+// longer a standard channel, the drawer's custom channel can still probe it.
 //
 // SAFETY: nothing here ever sends a mixer value on its own. Not on connect, not
 // on a channel switch, not from saved settings (values are not persisted). Only
-// setVolume(), called from an explicit user action, writes to the amp. Reads
-// (0x02 0x33) are harmless and may be done when the panel opens.
+// setVolume() and toggleMute(), called from an explicit user action, write to the
+// amp. Reads (0x02 0x33) are harmless: Guitar and Music are read once when an amp
+// connects, and again when the drawer opens.
+//
+// MUTE: the amp has no mute command, so muting sends 0 and remembers the level to
+// go back to. A mute is kept across a disconnect and reconnect of the same amp (by
+// address) in this session, and dropped when the amp reports a level again. If the
+// send that carried a mute or unmute fails, the mute is undone in the store (and the
+// channel is flagged sendFailed), so the controls never show a mute the amp lacks.
 //
 // Read replies (0x03 0x33) do not say which channel they are for, so reads are
 // done one at a time and a reply belongs to the oldest outstanding request. After
 // a request times out its reply may still come in late, so the next request waits
 // MIXER_READ_SETTLE_MS, a channel-less reply that arrives before the next request
 // was even written is dropped, and any later reply in that pass is marked
-// readUncertain (the panel says it may be a late reply).
+// readUncertain (the panel says it may be a late reply). An uncertain reply never
+// ends a mute: it may be another channel's level.
 //
 // A read reply never overwrites a value the user set after the request went out
 // (or is still sending): the amp answered with what it had before the set.
@@ -40,11 +50,10 @@ export interface MixerChannelInfo {
     label: string;
 }
 
-/** The channels the panel shows sliders for, in order. */
+/** The channels the nav-bar knobs and the drawer's sliders control, in order. */
 export const MIXER_CHANNELS: ReadonlyArray<MixerChannelInfo> = [
     { channel: MIXER_CHANNEL.GUITAR, label: "Guitar" },
     { channel: MIXER_CHANNEL.MUSIC, label: "Music" },
-    { channel: MIXER_CHANNEL.MASTER, label: "Master" },
 ];
 
 export const MIXER_READ_CHANNELS: ReadonlyArray<number> = MIXER_CHANNELS.map(c => c.channel);
@@ -77,9 +86,33 @@ export function effectiveTrailingZero(trailingZero: boolean | null, isSpark2: bo
     return trailingZero ?? isSpark2;
 }
 
+export interface MixerViewModelOptions {
+    /** Read the standard channels when an amp connects (default true). */
+    readOnConnect?: boolean;
+}
+
+/** Mutes kept over a disconnect: channel -> level to restore, for the amp they were made on. */
+interface HeldMutes {
+    address: string;
+    channels: Map<number, number | null>;
+}
+
 export interface MixerEvents {
     on(type: string, action: (event: any, args: any) => any): void;
     invoke(type: string, data: any): Promise<any>;
+}
+
+/** A channel's level and mute, as the store shows it (see SendEntry.base). */
+interface ChannelLevel {
+    value: number | null;
+    muted: boolean;
+    unmuteValue: number | null;
+}
+
+/** The set in flight for a channel. */
+interface SendEntry {
+    /** The latest value queued behind it, with the store's level right after it was queued. */
+    pending: { value: number; after: ChannelLevel } | null;
 }
 
 interface OutstandingRead {
@@ -97,7 +130,7 @@ export class MixerViewModel {
     // At most one set per channel is in flight and at most one more waits (only the
     // latest value), like DeviceViewModel.requestFxParamChange, so a slider drag never
     // builds a backlog on a BLE link that delivers about two commands a second.
-    private sends = new Map<number, { pending: number | null }>();
+    private sends = new Map<number, SendEntry>();
 
     // Read requests waiting for their 0x03 0x33 reply, oldest first.
     private outstanding: OutstandingRead[] = [];
@@ -112,18 +145,28 @@ export class MixerViewModel {
     // Bumped by reset() so work started before a disconnect stops touching the store.
     private generation = 0;
 
+    // Address of the connected amp, and the mutes held over a disconnect.
+    private connectedAddress: string | null = null;
+    private heldMutes: HeldMutes | null = null;
+
     private unsubscribeConnection: () => void;
 
-    constructor(private events: MixerEvents = platformEvents, private now: () => number = () => Date.now()) {
+    constructor(
+        private events: MixerEvents = platformEvents,
+        private now: () => number = () => Date.now(),
+        private options: MixerViewModelOptions = {},
+    ) {
         // DeviceContext forwards mixer replies, acks and input volume notifications
         // under their own event.
         this.events.on("mixer-message", (_event, msg: DeviceMessage) => this.handleMessage(msg));
 
-        // Forget everything when the amp goes away (another amp may connect next).
-        // Connecting does nothing: no value is ever sent automatically.
+        if (this.isConnected()) this.connectedAddress = this.deviceAddress();
+
+        // Connecting reads Guitar and Music (never sends a value); disconnecting
+        // forgets everything except the mutes (another amp may connect next).
         this.unsubscribeConnection = DeviceStateStore.subscribe(
             s => s.isConnected,
-            connected => { if (!connected) this.reset(); });
+            connected => { if (connected) this.onConnected(); else this.onDisconnected(); });
     }
 
     /** Stops following the connection state (used by tests). */
@@ -132,6 +175,7 @@ export class MixerViewModel {
         this.generation++;
         this.sends.clear();
         this.setCounts.clear();
+        this.heldMutes = null;
         this.cancelReads();
     }
 
@@ -141,6 +185,43 @@ export class MixerViewModel {
 
     private isConnected(): boolean {
         return !!DeviceStateStore.getRawState().isConnected;
+    }
+
+    private deviceAddress(): string | null {
+        return DeviceStateStore.getRawState().connectedDevice?.address ?? null;
+    }
+
+    private onConnected() {
+        const address = this.deviceAddress();
+        const held = this.heldMutes;
+        this.heldMutes = null;
+        this.connectedAddress = address;
+
+        // The same amp again (e.g. a BLE drop and auto-reconnect): it is still at 0
+        // unless the read below finds a level (turned up on the amp meanwhile). Any
+        // other amp, or one we can't tell apart, starts unmuted.
+        if (held && address != null && held.address == address) {
+            MixerStateStore.update(s => {
+                for (const [channel, unmuteValue] of held.channels) {
+                    s.channels[channel] = { ...(s.channels[channel] ?? initialMixerChannelState()), muted: true, unmuteValue };
+                }
+            });
+        }
+
+        // Read only, so the knobs show the amp's real levels.
+        if (this.options.readOnConnect !== false) void this.readMixer();
+    }
+
+    private onDisconnected() {
+        const channels = new Map<number, number | null>();
+        for (const [key, ch] of Object.entries(this.state.channels)) {
+            if (ch?.muted) channels.set(Number(key), ch.unmuteValue ?? null);
+        }
+        this.heldMutes = channels.size > 0 && this.connectedAddress != null
+            ? { address: this.connectedAddress, channels }
+            : null;
+        this.connectedAddress = null;
+        this.reset();
     }
 
     private update(patch: Partial<IMixerState>) {
@@ -168,9 +249,11 @@ export class MixerViewModel {
                 if (typeof value != "number" || !Number.isFinite(value)) return;
                 this.update({ lastInputVolume: value, lastInputVolumeAt: this.now() });
                 // The amp reports its real guitar input volume. Show it, unless the user
-                // is busy changing that slider (a send is in flight or waiting).
+                // is busy changing that slider (a send is in flight or waiting). A level
+                // above 0 on a muted guitar means it was turned up on the amp: unmuted.
                 if (!this.sends.has(MIXER_CHANNEL.GUITAR)) {
-                    this.patchChannel(MIXER_CHANNEL.GUITAR, { value: clampMixerValue(value) });
+                    const level = clampMixerValue(value);
+                    this.patchChannel(MIXER_CHANNEL.GUITAR, { value: level, ...this.unmutedBy(MIXER_CHANNEL.GUITAR, level) });
                 }
                 break;
             }
@@ -216,7 +299,14 @@ export class MixerViewModel {
             readStatus: "ok",
             readUncertain: unnamed && this.lateReplyPossible,
         };
-        if (!userSetSince) patch.value = clampMixerValue(value);
+        // An uncertain reply may be another channel's (a timed-out read's late answer),
+        // so it must not end a mute or replace the 0 a muted channel was set to.
+        const uncertain = !!patch.readUncertain;
+        const muted = !!this.state.channels[channel]?.muted;
+        if (!userSetSince && !(uncertain && muted)) {
+            patch.value = clampMixerValue(value);
+            Object.assign(patch, this.unmutedBy(channel, patch.value));
+        }
         this.patchChannel(channel, patch);
 
         if (request) {
@@ -226,10 +316,16 @@ export class MixerViewModel {
         }
     }
 
+    /** The patch that clears a channel's mute when the amp reports a level above 0. */
+    private unmutedBy(channel: number, level: number): Partial<IMixerChannelState> {
+        return this.state.channels[channel]?.muted && level > 0 ? { muted: false, unmuteValue: null } : {};
+    }
+
     /**
      * Sets a channel's volume (0..1, clamped). Only call this from a user action.
-     * Coalesced per channel: resolves with the result of the send it started, or true
-     * straight away when the value was queued behind a send already in flight.
+     * Unmutes the channel. Coalesced per channel: resolves with the result of the send
+     * it started, or true straight away when the value was queued behind a send
+     * already in flight.
      */
     async setVolume(channel: number, value: number): Promise<boolean> {
         if (!isValidMixerChannel(channel) || typeof value != "number" || !Number.isFinite(value)) {
@@ -241,23 +337,68 @@ export class MixerViewModel {
             return false;
         }
 
-        const clamped = clampMixerValue(value);
+        // Turning a muted channel's knob or slider unmutes it at the new level.
+        const unmute = this.state.channels[channel]?.muted ? { muted: false, unmuteValue: null } : {};
+        return this.queueSend(channel, clampMixerValue(value), unmute);
+    }
+
+    /**
+     * Mutes or unmutes a channel. Only call this from a user action. Muting sends 0 and
+     * remembers the known level (if above 0); unmuting sends that level back, or only
+     * clears the mute when there is none, leaving the level at 0 rather than guessing.
+     */
+    async toggleMute(channel: number): Promise<boolean> {
+        if (!isValidMixerChannel(channel)) {
+            this.update({ lastError: `Invalid mixer channel (${channel}).` });
+            return false;
+        }
+        if (!this.isConnected()) {
+            this.update({ lastError: NOT_CONNECTED_ERROR });
+            return false;
+        }
+
+        const ch = this.state.channels[channel];
+        if (!ch?.muted) {
+            const level = ch?.value;
+            return this.queueSend(channel, 0, { muted: true, unmuteValue: level != null && level > 0 ? level : null });
+        }
+        if (ch.unmuteValue == null) {
+            this.patchChannel(channel, { muted: false, unmuteValue: null });
+            return true;
+        }
+        return this.queueSend(channel, ch.unmuteValue, { muted: false, unmuteValue: null });
+    }
+
+    private channelLevel(channel: number): ChannelLevel {
+        const ch = this.state.channels[channel];
+        return { value: ch?.value ?? null, muted: !!ch?.muted, unmuteValue: ch?.unmuteValue ?? null };
+    }
+
+    private queueSend(channel: number, value: number, patch: Partial<IMixerChannelState>): Promise<boolean> | boolean {
+        const before = this.channelLevel(channel);
         this.setCounts.set(channel, (this.setCounts.get(channel) ?? 0) + 1);
-        this.patchChannel(channel, { value: clamped });
+        this.patchChannel(channel, { ...patch, value });
+        const after = this.channelLevel(channel);
 
         const inFlight = this.sends.get(channel);
         if (inFlight) {
             // keep only the latest value; it is sent when the current send settles
-            inFlight.pending = clamped;
+            inFlight.pending = { value, after };
             return true;
         }
 
-        return this.sendNow(channel, clamped);
+        return this.sendNow(channel, value, after, before);
     }
 
-    private async sendNow(channel: number, value: number): Promise<boolean> {
+    /**
+     * Writes one value. `after` is the level the store showed once it was queued, `base`
+     * the level the amp is known to have (the store before the first of this run of
+     * sends). If the run ends with a failed send, a mute or unmute it carried is undone,
+     * so the controls never show muted while the amp still plays (or the reverse).
+     */
+    private async sendNow(channel: number, value: number, after: ChannelLevel, base: ChannelLevel): Promise<boolean> {
         const generation = this.generation;
-        const entry = { pending: null as number | null };
+        const entry: SendEntry = { pending: null };
         this.sends.set(channel, entry);
 
         let ok = false;
@@ -274,17 +415,29 @@ export class MixerViewModel {
         if (generation != this.generation) return ok;
 
         if (ok) {
-            this.patchChannel(channel, { lastSentValue: value, lastSentAt: this.now() });
+            base = after;
+            this.patchChannel(channel, { lastSentValue: value, lastSentAt: this.now(), sendFailed: false });
             if (this.state.lastError) this.update({ lastError: null });
         } else {
+            this.patchChannel(channel, { sendFailed: true });
             this.update({ lastError: "Could not send the mixer volume to the amp. Check the amp connection and try again." });
         }
 
         this.sends.delete(channel);
-        if (entry.pending != null && this.isConnected()) {
-            void this.sendNow(channel, entry.pending);
+        const next = entry.pending;
+        if (next != null && this.isConnected()) {
+            void this.sendNow(channel, next.value, next.after, base);
+        } else if (!ok) {
+            this.rollBackMute(channel, base);
         }
         return ok;
+    }
+
+    /** After a failed send: if the store's mute differs from what the amp has, go back to the amp's. */
+    private rollBackMute(channel: number, base: ChannelLevel) {
+        if (this.channelLevel(channel).muted == base.muted) return;
+        this.log(`Mixer channel ${channel}: the ${base.muted ? "unmute" : "mute"} was not sent, undoing it`);
+        this.patchChannel(channel, { value: base.value, muted: base.muted, unmuteValue: base.unmuteValue });
     }
 
     /**
@@ -405,9 +558,10 @@ export class MixerViewModel {
     }
 
     /**
-     * Forgets all mixer values, e.g. when the amp disconnects. The tester's explicit
-     * trailing 0x00 choice is a session setting, not a mixer value, so it is kept
-     * (an auto-reconnect must not bring back a frame format they ruled out).
+     * Forgets all mixer values, e.g. when the amp disconnects (the mutes to restore on
+     * a reconnect were set aside before). The tester's explicit trailing 0x00 choice is
+     * a session setting, not a mixer value, so it is kept (an auto-reconnect must not
+     * bring back a frame format they ruled out).
      */
     reset() {
         this.generation++;
@@ -420,7 +574,11 @@ export class MixerViewModel {
 
 let sharedMixerViewModel: MixerViewModel | null = null;
 
-/** The app-wide mixer view model, created (and subscribed to amp messages) on first use. */
+/**
+ * The app-wide mixer view model, created (and subscribed to amp messages and the
+ * connection state) on first use. app.tsx creates it at startup, so connect reads,
+ * acks and 0x03 0x6b notifications are handled whichever page is open.
+ */
 export function getMixerViewModel(): MixerViewModel {
     if (sharedMixerViewModel == null) {
         sharedMixerViewModel = new MixerViewModel();

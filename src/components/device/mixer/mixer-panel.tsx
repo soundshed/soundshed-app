@@ -11,13 +11,16 @@ import {
 import { DeviceStateStore } from "../../../stores/devicestate";
 import { IMixerChannelState, MixerStateStore } from "../../../stores/mixerstate";
 
-// Experimental amp mixer drawer (Guitar / Music / Master). Styled like the tuner
-// drawer: the app's control-strip classes, btn and CSS variables.
+// Amp mixer diagnostics drawer (Guitar / Music sliders, reads, acks, 0x03 0x6b, the
+// trailing 0x00 switch and a custom channel). Everyday control is the nav bar's
+// knobs (global-mixer-controls.tsx); both share MixerStateStore so they stay in sync.
+// Styled like the tuner drawer: the app's control-strip classes, btn and CSS
+// variables.
 //
 // Nothing is sent until the user moves a slider. Opening the panel only reads.
 
 export const MIXER_WARNING =
-  "Experimental. Sends the Spark mixer message (0x33). Documented for Spark LIVE; untested on Spark 2/40/MINI. Turn the amp's volume down before trying.";
+  "Experimental. Sends the Spark mixer message (0x33). Guitar and Music were confirmed on a Spark 2 in a user's hardware test; other models are untested. This panel is for diagnostics.";
 
 const panelStyle: React.CSSProperties = {
   padding: "0.6rem 1rem 0.75rem",
@@ -161,7 +164,7 @@ const MixerSlider = ({ id, label, channel, state, disabled, onChange }: MixerSli
         onBlur={endDrag}
       />
       <div style={{ ...rowStyle, justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-        <span>{shown == null ? "unknown" : ""}</span>
+        <span>{shown == null ? "unknown" : state?.muted ? "muted" : ""}</span>
         <span data-testid={`mixer-read-${channel}`}>{readText}</span>
       </div>
     </div>
@@ -206,7 +209,7 @@ const MixerPanel = ({ viewModel, isSpark2 = false }: MixerPanelProps) => {
           type="button"
           className="btn btn-sm btn-secondary"
           disabled={disabled || mixer.isReading}
-          title="Ask the amp for its Guitar, Music and Master volume (read only)"
+          title="Ask the amp for its Guitar and Music volume (read only)"
           onClick={() => void vm.readMixer()}
         >
           {mixer.isReading ? "Reading…" : "Read from amp"}

@@ -16,10 +16,16 @@ export interface IMixerChannelState {
     /** The last value actually written to the amp, and when. */
     lastSentValue?: number;
     lastSentAt?: number;
+    /** Muted from the app: 0 was sent and unmuteValue is the level to go back to. */
+    muted?: boolean;
+    /** Level restored on unmute; null when it was unknown or 0 (unmute then leaves the level at 0). */
+    unmuteValue?: number | null;
+    /** The last set of this channel could not be written to the amp (cleared by the next one that is). */
+    sendFailed?: boolean;
 }
 
 export interface IMixerState {
-    /** Keyed by mixer channel number (0 guitar, 5 music, 9 master, or a probed one). */
+    /** Keyed by mixer channel number (0 guitar, 5 music, or a probed one such as 9 master). */
     channels: Record<number, IMixerChannelState>;
     /** Latest 0x03 0x6b input volume notification from the amp, null if none. */
     lastInputVolume: number | null;
