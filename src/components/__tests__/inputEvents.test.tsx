@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../testing/componentTestSetup";
 import { AppStateStore } from "../../stores/appstate";
@@ -15,6 +16,7 @@ vi.mock("../app", () => ({
 
 import { keyboardChannelListener } from "../device/input-events";
 import SaveSlotPicker from "../device/desk/save-slot-picker";
+import RenamePresetPopover from "../device/desk/rename-preset-popover";
 
 const keyMapping = (key: string, channel: number) => ({
   id: "k" + key,
@@ -96,5 +98,40 @@ describe("keyboard channel mappings", () => {
     expect(setChannel).not.toHaveBeenCalled();
     expect(screen.getByRole("radio", { name: "Slot 3" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Slot 3" })).toHaveFocus();
+  });
+
+  it("lets a digit typed into the rename field type instead of switching the amp", async () => {
+    const user = userEvent.setup();
+    render(
+      <RenamePresetPopover
+        currentName="Clean"
+        mode="channel"
+        channel={0}
+        hasUnsavedEdits={false}
+        onRenameLocal={vi.fn()}
+        onRenameChannel={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const input = screen.getByRole("textbox", { name: "Name" });
+    expect(input).toHaveFocus();
+
+    await user.keyboard("{End} 2");
+
+    expect(setChannel).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Clean 2");
+  });
+
+  it("lets a digit typed into the Save to Amp name field type instead of switching the amp", async () => {
+    const user = userEvent.setup();
+    render(<SaveSlotPicker numSlots={4} defaultSlot={0} toneName="Live" onSave={vi.fn()} onClose={vi.fn()} />);
+    const input = screen.getByRole("textbox", { name: "Name" });
+
+    await user.click(input);
+    await user.keyboard("{End}3");
+
+    expect(setChannel).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Live3");
+    expect(screen.getByRole("radio", { name: "Slot 1" })).toHaveAttribute("aria-checked", "true");
   });
 });

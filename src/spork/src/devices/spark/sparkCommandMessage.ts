@@ -172,8 +172,19 @@ export class SparkCommandMessage {
         this.add_bytes(this.mergeBytes(bytes(len(pack_str) + 0xa0), bytes(pack_str)))
     }
 
+    // msgpack string: fixstr (0xa0 + length) up to 31 UTF-8 bytes, str8 (0xd9, length)
+    // up to 255. Preset names may be 40 characters, so they need str8 past 31 bytes;
+    // a fixstr prefix past 0xbf would be another msgpack type altogether.
     add_string(pack_str) {
-        this.add_bytes(this.mergeBytes(bytes(len(pack_str) + 0xa0), bytes(pack_str)))
+        const length = len(pack_str);
+        if (length > 255) {
+            throw new Error(`String too long for the amp (${length} bytes, 255 max)`);
+        }
+        if (length > 31) {
+            this.add_long_string(pack_str);
+            return;
+        }
+        this.add_bytes(this.mergeBytes(bytes(length + 0xa0), bytes(pack_str)))
     }
 
     add_long_string(pack_str) {
@@ -367,7 +378,7 @@ export class SparkCommandMessage {
         this.add_string(preset["Version"])
 
         let descr = preset["Description"]
-        if (descr.length > 31) {
+        if (len(descr) > 31) {
             this.add_long_string(descr)
         }
         else {
@@ -442,7 +453,7 @@ export class SparkCommandMessage {
 
         let descr = meta.description;
 
-        if (descr.length > 31) {
+        if (len(descr) > 31) {
             this.add_long_string(descr)
         }
         else {

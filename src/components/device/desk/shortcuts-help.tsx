@@ -12,6 +12,7 @@ export const DESK_SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
   { keys: "M  or  Enter on a block", action: "Change model" },
   { keys: `/  or  ${MOD}+F`, action: "Search models" },
   { keys: `${MOD}+S`, action: "Save to amp" },
+  { keys: "F2", action: "Rename tone" },
   { keys: "↑ ↓ / wheel", action: "Adjust the focused knob (Shift: fine / ×10)" },
   { keys: "Double-click knob", action: "Reset to the model default" },
   { keys: "Enter on a knob", action: "Type a value (0–10)" },

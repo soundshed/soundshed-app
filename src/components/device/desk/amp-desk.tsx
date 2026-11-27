@@ -14,6 +14,8 @@ import { AMP_SLOT_INDEX, buildDeskBlocks, DeskBlock, DESK_SLOTS, hasSignalChain 
 import Inspector from "./inspector";
 import { isTypingEvent } from "./keyboard-targets";
 import ModelBrowser from "./model-browser";
+import RenamePresetPopover from "./rename-preset-popover";
+import type { RenameResult } from "../../../core/deviceViewModel";
 import SaveSlotPicker from "./save-slot-picker";
 import ShortcutsHelp from "./shortcuts-help";
 import TopBar, { DeskNotice } from "./top-bar";
@@ -37,8 +39,12 @@ export interface FxToggleArgs {
 export interface AmpDeskProps {
   onRefresh: () => void;
   onSetChannel: (channel: number) => void;
-  /** Stores the current tone on a hardware slot (0-based); false when it failed. */
-  onSaveToAmp: (slot: number) => Promise<boolean>;
+  /** Stores the current tone on a hardware slot (0-based) under name; false when it failed. */
+  onSaveToAmp: (slot: number, name: string) => Promise<boolean>;
+  /** Renames the tone on screen only (nothing is sent); false when there is no tone. */
+  onRenameLocal: (name: string) => boolean;
+  /** Renames a hardware channel by storing the current tone to it under the new name. */
+  onRenameChannel: (slot: number, name: string) => Promise<RenameResult>;
   onStoreFavourite: () => Promise<boolean | void> | void;
   onFxParamChange: (args: FxParamChangeArgs) => void;
   onFxToggle: (args: FxToggleArgs) => void;
@@ -60,6 +66,14 @@ const AmpDesk = (props: AmpDeskProps) => {
   const storeCatalog: FxCatalog | null = DeviceStateStore.useState((s) => s.fxCatalog);
   const numSlots: number = AppStateStore.useState((s) => s.numPresetSlots);
   const tunerEnabled = TunerStateStore.useState((s) => s.isEnabled);
+  const hasUnsavedEdits: boolean = DeviceStateStore.useState((s) => s.hasUnsavedEdits);
+  const slotNames: Record<number, string> = DeviceStateStore.useState((s) => s.slotNames);
+  const lastNameCheck = DeviceStateStore.useState((s) => s.lastNameCheck);
+  const presetToneSlot: number | null = DeviceStateStore.useState((s) => s.presetToneSlot);
+
+  // A channel rename uploads the tone on screen, which right after a channel switch is
+  // still the previous channel's until the amp sends the new one.
+  const channelLoading = connected && isHardwareChannel(selectedChannel, numSlots) && presetToneSlot !== selectedChannel;
 
   const catalog = React.useMemo(() => storeCatalog ?? FxCatalogProvider.getFxCatalog(), [storeCatalog]);
   const blocks = React.useMemo(() => buildDeskBlocks(tone, catalog), [tone, catalog]);
@@ -70,6 +84,13 @@ const AmpDesk = (props: AmpDeskProps) => {
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [renameOpen, setRenameOpen] = React.useState(false);
+  // Captured when the rename opens: a rename-and-save targets that channel only.
+  const [renameTarget, setRenameTarget] = React.useState<{
+    mode: "channel" | "local";
+    channel: number;
+    localReason?: "disconnected" | "live";
+  } | null>(null);
   const [tunerOpen, setTunerOpen] = React.useState(false);
   const [toneChooserOpen, setToneChooserOpen] = React.useState(false);
   const [notice, setNotice] = React.useState<DeskNotice | null>(null);
@@ -89,6 +110,7 @@ const AmpDesk = (props: AmpDeskProps) => {
   const savingRef = React.useRef(false);
   const saveButtonRef = React.useRef<HTMLButtonElement>(null);
   const helpButtonRef = React.useRef<HTMLButtonElement>(null);
+  const renameButtonRef = React.useRef<HTMLButtonElement>(null);
   // Slot the browser was last opened on by the user. It remounts per block, and only
   // a user open focuses its search: a remount from ←/→ leaves focus on the chain.
   const browserAutoFocus = React.useRef<number | null>(null);
@@ -136,24 +158,52 @@ const AmpDesk = (props: AmpDeskProps) => {
     setHelpOpen(false);
   };
 
+  // Shares savingRef with Save to Amp: a rename that is saving stays open.
+  const closeRename = (restoreFocus: boolean) => {
+    if (renameOpen && savingRef.current) return false;
+    if (renameOpen && restoreFocus) returnFocus(renameButtonRef.current, ".amp-desk-rename");
+    setRenameOpen(false);
+    return true;
+  };
+
   const openSave = () => {
     if (!connected) {
       showNotice({ kind: "error", text: "Connect an amp to save the tone to it." });
       return;
     }
+    if (!closeRename(false)) return;
     closeHelp(false);
     setBrowserOpen(false);
     setSaveOpen(true);
   };
 
+  const openRename = () => {
+    if (renameOpen || !tone?.name || savingRef.current) return;
+    if (channelLoading) {
+      showNotice({ kind: "error", text: `Channel ${selectedChannel + 1} is still loading.` });
+      return;
+    }
+    if (!closeSave(false)) return;
+    closeHelp(false);
+    setBrowserOpen(false);
+    const onChannel = connected && isHardwareChannel(selectedChannel, numSlots);
+    setRenameTarget({
+      mode: onChannel ? "channel" : "local",
+      channel: selectedChannel,
+      localReason: onChannel ? undefined : connected ? "live" : "disconnected",
+    });
+    setRenameOpen(true);
+  };
+
   const toggleHelp = () => {
     if (helpOpen) closeHelp(true);
-    else if (closeSave(false)) setHelpOpen(true);
+    else if (closeSave(false) && closeRename(false)) setHelpOpen(true);
   };
 
   const openBrowser = (index = selectedIndex) => {
     if (blocks[index]?.fx == null) return;
     closeSave(false);
+    closeRename(false);
     closeHelp(false);
     browserAutoFocus.current = index;
     setSelectedIndex(index);
@@ -182,17 +232,49 @@ const AmpDesk = (props: AmpDeskProps) => {
     return props.onFxChange({ dspIdOld: selectedBlock.fx.type, dspIdNew });
   };
 
-  const saveToAmp = async (slot: number) => {
+  const saveToAmp = async (slot: number, name: string) => {
     if (savingRef.current) return false;
     savingRef.current = true;
     setSaving(true);
     try {
-      return await props.onSaveToAmp(slot);
+      return await props.onSaveToAmp(slot, name);
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   };
+
+  const renameChannel = async (name: string): Promise<RenameResult> => {
+    if (savingRef.current || renameTarget?.mode != "channel") return { ok: false, reason: "store-failed" };
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      return await props.onRenameChannel(renameTarget.channel, name);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  const renameLocal = (name: string) => {
+    const ok = props.onRenameLocal(name);
+    // the new name is right next to the notice, so it isn't repeated here
+    if (ok) showNotice({ kind: "ok", text: "Renamed." });
+    return ok;
+  };
+
+  // A save from the picker under a new name reads the slot back; a different name
+  // reported by the amp is shown here, once.
+  React.useEffect(() => {
+    if (!lastNameCheck) return;
+    showNotice({
+      kind: "error",
+      text: `The amp reports “${lastNameCheck.reported}” on channel ${lastNameCheck.slot + 1}.`,
+    });
+    DeviceStateStore.update((s) => {
+      s.lastNameCheck = null;
+    });
+  }, [lastNameCheck]);
 
   const storeFavourite = async () => {
     try {
@@ -221,6 +303,7 @@ const AmpDesk = (props: AmpDeskProps) => {
   const closeTopPopover = () => {
     if (helpOpen) closeHelp(true);
     else if (saveOpen) closeSave(true); // a running save stays open, Esc is still used up
+    else if (renameOpen) closeRename(true); // likewise a rename that is saving
     else if (browserOpen) closeBrowser();
     else return false;
     return true;
@@ -254,6 +337,12 @@ const AmpDesk = (props: AmpDeskProps) => {
     }
     if (mod || e.altKey) return;
 
+    if (key == "F2" && !e.shiftKey) {
+      e.preventDefault();
+      openRename();
+      return;
+    }
+
     switch (key) {
       case "?":
         e.preventDefault();
@@ -266,13 +355,13 @@ const AmpDesk = (props: AmpDeskProps) => {
         return;
       case "ArrowLeft":
       case "[":
-        if (saveOpen || helpOpen) return;
+        if (saveOpen || helpOpen || renameOpen) return;
         e.preventDefault();
         selectBlock(selectedIndex - 1);
         return;
       case "ArrowRight":
       case "]":
-        if (saveOpen || helpOpen) return;
+        if (saveOpen || helpOpen || renameOpen) return;
         e.preventDefault();
         selectBlock(selectedIndex + 1);
         return;
@@ -295,18 +384,19 @@ const AmpDesk = (props: AmpDeskProps) => {
     return () => window.removeEventListener("keydown", listener);
   }, []);
 
-  // A click outside the save picker or the help closes them.
+  // A click outside the save picker, the rename or the help closes them.
   React.useEffect(() => {
-    if (!saveOpen && !helpOpen) return;
+    if (!saveOpen && !helpOpen && !renameOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (target?.closest?.(".amp-desk-anchor")) return;
       closeSave(false);
+      closeRename(false);
       closeHelp(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [saveOpen, helpOpen]);
+  }, [saveOpen, helpOpen, renameOpen]);
 
   return (
     <div className="amp-desk">
@@ -327,11 +417,35 @@ const AmpDesk = (props: AmpDeskProps) => {
           <SaveSlotPicker
             numSlots={numSlots}
             defaultSlot={saveDefaultSlot}
-            toneName={tone?.name || "current tone"}
+            toneName={tone?.name ?? ""}
             onSave={saveToAmp}
             onClose={() => closeSave(true)}
           />
         }
+        renameOpen={renameOpen}
+        renameDisabled={!tone?.name || saving || channelLoading}
+        renameTitle={
+          channelLoading
+            ? `Channel ${selectedChannel + 1} is loading from the amp (Refresh if it doesn't)`
+            : "Rename (F2)"
+        }
+        renameButtonRef={renameButtonRef}
+        onToggleRename={() => (renameOpen ? closeRename(true) : openRename())}
+        renamePopover={
+          renameTarget && (
+            <RenamePresetPopover
+              currentName={tone?.name ?? ""}
+              mode={renameTarget.mode}
+              channel={renameTarget.channel}
+              localReason={renameTarget.localReason}
+              hasUnsavedEdits={hasUnsavedEdits}
+              onRenameLocal={renameLocal}
+              onRenameChannel={renameChannel}
+              onClose={() => closeRename(true)}
+            />
+          )
+        }
+        slotNames={slotNames}
         onFavourite={() => void storeFavourite()}
         onBrowseTones={() => setToneChooserOpen(true)}
         tunerOpen={tunerVisible}

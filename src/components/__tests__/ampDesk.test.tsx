@@ -70,6 +70,8 @@ beforeEach(() => {
     onRefresh: vi.fn(),
     onSetChannel: vi.fn(),
     onSaveToAmp: vi.fn().mockResolvedValue(true),
+    onRenameLocal: vi.fn().mockReturnValue(true),
+    onRenameChannel: vi.fn().mockResolvedValue({ ok: true, check: "confirmed" }),
     onStoreFavourite: vi.fn().mockResolvedValue(true),
     onFxParamChange: vi.fn(),
     onFxToggle: vi.fn(),
@@ -383,7 +385,7 @@ describe("top bar", () => {
     await user.click(within(picker).getByRole("button", { name: /save to channel 2/i }));
     await user.click(within(picker).getByRole("button", { name: /overwrite channel 2/i }));
 
-    expect(props.onSaveToAmp).toHaveBeenCalledWith(1);
+    expect(props.onSaveToAmp).toHaveBeenCalledWith(1, "Clean Machine");
     expect(props.onSaveToAmp).not.toHaveBeenCalledWith(VIRTUAL_CHANNEL);
     expect(await within(picker).findByRole("status")).toHaveTextContent("Saved to channel 2");
   });
@@ -539,6 +541,267 @@ describe("top bar", () => {
     expect(screen.queryByTestId("tuner-panel")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Tuner" }));
     expect(screen.getByTestId("tuner-panel")).toBeInTheDocument();
+  });
+});
+
+describe("rename", () => {
+  const renameButton = () => screen.getByRole("button", { name: "Rename tone" });
+  const renameDialog = () => screen.queryByRole("dialog", { name: "Rename tone" });
+  const saveDialog = () => screen.queryByRole("dialog", { name: "Save to amp" });
+
+  beforeEach(() => {
+    // channel 2's preset has loaded from the amp
+    setDevice({ hasUnsavedEdits: false, slotNames: {}, lastNameCheck: null, presetToneSlot: 1 });
+  });
+
+  it("opens with F2 and lists F2 in the shortcut help", () => {
+    renderDesk();
+
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(renameDialog()).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Clean Machine");
+    expect(renameButton()).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(renameDialog()).toBeNull();
+
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toHaveTextContent("Rename tone");
+  });
+
+  it("ignores F2 typed in an input and with a modifier", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+    fireEvent.keyDown(document.body, { key: "m" });
+
+    await user.type(screen.getByRole("combobox", { name: "Search models" }), "{F2}");
+    fireEvent.keyDown(document.body, { key: "F2", ctrlKey: true });
+
+    expect(renameDialog()).toBeNull();
+  });
+
+  it("renames the selected hardware channel and returns focus to the rename button", async () => {
+    const user = userEvent.setup();
+    renderDesk(); // channel 2 (index 1)
+
+    await user.click(renameButton());
+    expect(screen.getByText("Renaming saves this channel to the amp.")).toBeInTheDocument();
+
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Clean Lead{Enter}");
+
+    expect(props.onRenameChannel).toHaveBeenCalledWith(1, "Clean Lead");
+    expect(await screen.findByRole("status")).toHaveTextContent("Renamed channel 2 to “Clean Lead”.");
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(renameDialog()).toBeNull();
+    expect(renameButton()).toHaveFocus();
+  });
+
+  it("targets the channel selected when the dialog opened", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+
+    await user.click(renameButton());
+    setDevice({ selectedChannel: 3 });
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Clean Lead{Enter}");
+
+    expect(props.onRenameChannel).toHaveBeenCalledWith(1, "Clean Lead");
+  });
+
+  it("warns about unsaved changes and offers a rename here only", async () => {
+    const user = userEvent.setup();
+    setDevice({ hasUnsavedEdits: true });
+    renderDesk();
+
+    await user.click(renameButton());
+    expect(screen.getByText(/Channel 2 has changes that aren't saved on the amp/)).toBeInTheDocument();
+
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Local Name");
+    await user.click(screen.getByRole("button", { name: "Rename here only" }));
+
+    expect(props.onRenameLocal).toHaveBeenCalledWith("Local Name");
+    expect(props.onRenameChannel).not.toHaveBeenCalled();
+    expect(renameDialog()).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Renamed.");
+  });
+
+  it.each([
+    ["a Live tone", { selectedChannel: VIRTUAL_CHANNEL }, /isn't stored on a channel/],
+    ["no amp connected", { isConnected: false }, /No amp connected/],
+  ])("renames locally for %s", async (_label, patch, note) => {
+    const user = userEvent.setup();
+    setDevice(patch);
+    renderDesk();
+
+    await user.click(renameButton());
+    expect(screen.getByText(note)).toBeInTheDocument();
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Local Name{Enter}");
+
+    expect(props.onRenameLocal).toHaveBeenCalledWith("Local Name");
+    expect(props.onRenameChannel).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Renamed.");
+  });
+
+  it("is disabled until the selected channel's preset has loaded from the amp", () => {
+    // switched to channel 2; the tone on screen is still the previous channel's
+    setDevice({ presetToneSlot: null });
+    renderDesk();
+
+    expect(renameButton()).toBeDisabled();
+    expect(renameButton()).toHaveAttribute("title", expect.stringMatching(/Channel 2 is loading from the amp/));
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(renameDialog()).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Channel 2 is still loading.");
+
+    setDevice({ presetToneSlot: 1 });
+    expect(renameButton()).toBeEnabled();
+    expect(renameButton()).toHaveAttribute("title", "Rename (F2)");
+  });
+
+  it("stays available on a Live tone, which has no channel to load", () => {
+    setDevice({ selectedChannel: VIRTUAL_CHANNEL, presetToneSlot: null });
+    renderDesk();
+
+    expect(renameButton()).toBeEnabled();
+  });
+
+  it("doesn't show the tone name's tooltip over the rename dialog", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+
+    expect(screen.getByTestId("tone-name")).toHaveAttribute("title", "Clean Machine");
+    await user.click(renameButton());
+    const dialog = renameDialog()!;
+    for (const el of [screen.getByRole("textbox", { name: "Name" }), ...Array.from(dialog.querySelectorAll("button, p, label"))]) {
+      expect(el.closest("[title]")).toBeNull();
+    }
+  });
+
+  it("keeps the full notice text in its title, so a long one can be cut short", () => {
+    renderDesk();
+
+    setDevice({ lastNameCheck: { slot: 1, expected: "Clean Lead", reported: "Super Long Preset Name For Testing 1234" } });
+
+    expect(screen.getByRole("alert")).toHaveAttribute("title", "The amp reports “Super Long Preset Name For Testing 1234” on channel 2.");
+  });
+
+  it("is disabled with no tone loaded", () => {
+    setDevice({ presetTone: null });
+    renderDesk();
+
+    expect(renameButton()).toBeDisabled();
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(renameDialog()).toBeNull();
+  });
+
+  it("closes Save to Amp when it opens, and the other way round", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+
+    await user.click(screen.getByRole("button", { name: /save to amp/i }));
+    expect(saveDialog()).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(saveDialog()).toBeNull();
+    expect(renameDialog()).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /save to amp/i }));
+    expect(renameDialog()).toBeNull();
+    expect(saveDialog()).toBeInTheDocument();
+  });
+
+  it("closes with Esc before the model browser, and on an outside click", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+
+    fireEvent.keyDown(document.body, { key: "m" });
+    expect(screen.getByTestId("model-browser")).toBeInTheDocument();
+    // F2 from the search field types nothing and opens nothing; from the page it opens rename
+    act(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(screen.queryByTestId("model-browser")).toBeNull();
+    expect(renameDialog()).toBeInTheDocument();
+
+    // help over rename: Esc closes help first
+    await user.click(screen.getByRole("button", { name: "Keyboard shortcuts" }));
+    expect(renameDialog()).toBeNull();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).toBeNull();
+
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(renameDialog()).toBeInTheDocument();
+    await user.click(tab(/^Delay:/));
+    expect(renameDialog()).toBeNull();
+  });
+
+  it("stays open while saving, and its button is disabled while Save to Amp runs", async () => {
+    const user = userEvent.setup();
+    let finish!: (r: any) => void;
+    props.onRenameChannel.mockImplementation(() => new Promise((r) => (finish = r)));
+    renderDesk();
+
+    await user.click(renameButton());
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Clean Lead{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("Saving channel 2");
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    await user.click(tab(/^Delay:/));
+    fireEvent.keyDown(document.body, { key: "s", metaKey: true });
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(renameDialog()).toBeInTheDocument();
+    expect(saveDialog()).toBeNull();
+    expect(screen.getByRole("button", { name: /save to amp/i })).toBeDisabled();
+
+    await act(async () => finish({ ok: true, check: "unconfirmed" }));
+    expect(screen.getByRole("status")).toHaveTextContent("The amp didn't report the name back.");
+
+    // and the other way round: a running save disables rename
+    let finishSave!: (ok: boolean) => void;
+    props.onSaveToAmp.mockImplementation(() => new Promise<boolean>((r) => (finishSave = r)));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: /save to amp/i }));
+    await user.click(screen.getByRole("button", { name: /save to channel 2/i }));
+    await user.click(screen.getByRole("button", { name: /overwrite channel 2/i }));
+    expect(renameButton()).toBeDisabled();
+    fireEvent.keyDown(document.body, { key: "F2" });
+    expect(renameDialog()).toBeNull();
+
+    await act(async () => finishSave(true));
+    expect(renameButton()).toBeEnabled();
+  });
+
+  it("passes the edited name from Save to Amp", async () => {
+    const user = userEvent.setup();
+    renderDesk();
+
+    await user.click(screen.getByRole("button", { name: /save to amp/i }));
+    await user.clear(screen.getByRole("textbox", { name: "Name" }));
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Clean Lead{Enter}");
+    await user.click(screen.getByRole("button", { name: /overwrite channel 2/i }));
+
+    expect(props.onSaveToAmp).toHaveBeenCalledWith(1, "Clean Lead");
+  });
+
+  it("shows a name the amp reported differently after a save", () => {
+    renderDesk();
+
+    setDevice({ lastNameCheck: { slot: 1, expected: "Clean Lead", reported: "Clean Machine" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("The amp reports “Clean Machine” on channel 2.");
+    expect(DeviceStateStore.getRawState().lastNameCheck).toBeNull();
+  });
+
+  it("shows a known slot name in the channel button's title, keeping its label", () => {
+    setDevice({ slotNames: { 2: "Fuzz Lead" } });
+    renderDesk();
+
+    const ch3 = screen.getByRole("button", { name: "Channel 3" });
+    expect(ch3).toHaveAttribute("title", "Channel 3: Fuzz Lead");
+    expect(screen.getByRole("button", { name: "Channel 1" })).toHaveAttribute("title", "Channel 1");
   });
 });
 

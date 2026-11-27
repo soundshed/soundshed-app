@@ -1,5 +1,5 @@
 import { BluetoothDeviceInfo } from '../spork/src/interfaces/deviceController';
-import { DeviceState, FxCatalog, FxCatalogItem, FxChangeMessage, FxParamMessage, Preset, PresetChangeMessage } from '../spork/src/interfaces/preset';
+import { DeviceState, FxCatalog, FxCatalogItem, FxChangeMessage, FxParamMessage, FxToggleMessage, Preset, PresetChangeMessage } from '../spork/src/interfaces/preset';
 import { FxMappingSparkToTone, FxMappingToneToSpark } from './fxMapping';
 import { Tone, ToneFxParam } from './soundshedApi';
 import { FxCatalogProvider } from "../spork/src/devices/spark/sparkFxCatalog";
@@ -13,6 +13,16 @@ import { VIRTUAL_CHANNEL } from './sparkChannels';
 import { BleProvider } from '../spork/src/devices/spark/bleProvider';
 import { TcpProvider } from '../spork/src/devices/spark/tcpProvider';
 import envSettings from '../env';
+import { validatePresetName } from './presetName';
+
+// Outcome of renaming the tone on a hardware channel. There is no rename command in the
+// Spark protocol, so a rename uploads the whole preset to the slot again (same UUID)
+// and then reads the slot back to check the name the amp reports.
+export type RenameResult =
+    | { ok: false; reason: "invalid" | "not-connected" | "not-hardware" | "channel-changed" | "not-loaded" | "store-failed" }
+    | { ok: true; check: "confirmed" | "mismatch" | "unconfirmed"; reportedName?: string };
+
+type NameCheckResult = { check: "confirmed" | "mismatch" | "unconfirmed"; reportedName?: string };
 
 export class DeviceViewModel {
 
@@ -49,6 +59,14 @@ export class DeviceViewModel {
 
     private lastChannelChange = null;
 
+    // How long a rename waits for the amp to report the slot back. Static so tests can
+    // shorten it.
+    static nameCheckTimeoutMs = 3000;
+
+    // A read-back of a slot after a save with a new name, resolved by the next preset
+    // the amp reports for that slot (or as "unconfirmed" on timeout).
+    private pendingNameCheck: { slot: number, name: string, resolve: (r: NameCheckResult) => void } | null = null;
+
     private isHardwareSlot(channel: number): boolean {
         return Number.isInteger(channel) && channel >= 0 && channel < AppStateStore.getRawState().numPresetSlots;
     }
@@ -57,6 +75,12 @@ export class DeviceViewModel {
     // hardware channel. The virtual channel (0x7f) never replaces that.
     private setSelectedChannel(channel: number) {
         DeviceStateStore.update(s => {
+            // a switched channel loads its stored preset, so nothing on screen is unsaved;
+            // until that preset arrives the tone on screen is still the previous one's
+            if (s.selectedChannel != channel) {
+                s.hasUnsavedEdits = false;
+                s.presetToneSlot = null;
+            }
             s.selectedChannel = channel;
             if (this.isHardwareSlot(channel)) {
                 s.lastHardwareChannel = channel;
@@ -144,16 +168,47 @@ export class DeviceViewModel {
                 // the tone the user just loaded with that slot's stored preset.
                 if (this.isVirtualChannelToneLive()) {
                     this.log("Ignoring preset data from the amp, an applied tone is live on the virtual channel");
-                } else {
+                } else if (!args.message || args.message.type == 'preset') {
+                    // The reader keeps the last preset it parsed and sends it along with
+                    // every later message (fx_param_msg, hardware_bpm, tuner_output, ...), so
+                    // only a preset reply (or an event with no message) says anything new.
+                    // Replacing the tone from the repeated copy would undo a rename or an
+                    // edit made since, so those messages are applied to the current tone
+                    // below instead.
+
                     // got a preset, convert to Tone object model as required,
                     let t: Tone;
                     if (args.presetConfig.meta) {
                         t = new FxMappingSparkToTone().mapFrom(args.presetConfig);
+                        // Keep the amp's UUID (the mapping makes a new one): a channel
+                        // rename stores the tone again under this id, and a favourite of
+                        // the same preset is matched by it.
+                        const ampId = args.presetConfig.meta.id;
+                        if (t != null && typeof ampId == "string" && ampId.trim() != "") {
+                            t.toneId = ampId;
+                        }
                     } else {
                         t = <Tone>args.presetConfig;
                     }
 
-                    DeviceStateStore.update(s => { s.presetTone = t });
+                    const selected = DeviceStateStore.getRawState().selectedChannel;
+
+                    DeviceStateStore.update(s => {
+                        s.presetTone = t;
+                        // the same assumption as slotNames: this preset is the selected channel's
+                        s.presetToneSlot = this.isHardwareSlot(selected) ? selected : null;
+                        if (this.isHardwareSlot(selected) && t?.name != null) {
+                            s.slotNames[selected] = t.name;
+                        }
+                    });
+
+                    const check = this.pendingNameCheck;
+                    if (check && selected == check.slot) {
+                        const reported = (t?.name ?? "").trim();
+                        check.resolve(reported == check.name
+                            ? { check: "confirmed", reportedName: reported }
+                            : { check: "mismatch", reportedName: reported });
+                    }
                 }
             }
 
@@ -181,8 +236,31 @@ export class DeviceViewModel {
                         this.requestPresetConfig(presetChange.presetNumber);
                     }
 
+                } else if (message.type == 'hardware_preset_stored') {
+                    // the amp stored its current tone (e.g. a held preset button)
+                    let stored = <PresetChangeMessage>message;
+                    if (stored.presetNumber == DeviceStateStore.getRawState().selectedChannel) {
+                        DeviceStateStore.update(s => { s.hasUnsavedEdits = false; });
+                    }
                 } else {
-                    if (message.type == 'fx_param_msg') {
+                    if (message.type == 'fx_param_msg' || message.type == 'fx_change_msg' || message.type == 'fx_toggled') {
+                        // an edit made on the amp itself (or a footswitch)
+                        DeviceStateStore.update(s => { s.hasUnsavedEdits = true; });
+                    }
+
+                    if (message.type == 'fx_toggled') {
+                        // a block switched on or off on the amp: keep the tone on screen in
+                        // step, so a later upload (Save, channel rename) doesn't revert it
+                        let msg = <FxToggleMessage>message;
+                        let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
+                        const fx = this.findFxForAmpDspId(presetState, msg.dspId);
+                        if (fx) {
+                            fx.enabled = msg.active == true;
+                            DeviceStateStore.update(s => { s.presetTone = presetState });
+                        } else {
+                            this.log(`Cannot update device state for UI: ${msg.dspId} not found in current preset state`);
+                        }
+                    } else if (message.type == 'fx_param_msg') {
                         //fx param change received from amp
                         // TODO: debounce this?
                         let msg = <FxParamMessage>message;
@@ -347,7 +425,7 @@ export class DeviceViewModel {
             if (connected) {
                 // store last connected devices
 
-                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null; s.deviceConnectionFailed = false; s.connectionLost = false });
+                DeviceStateStore.update(s => { s.isConnected = true; s.connectedDevice = device; s.lastAttemptedDevice = null; s.deviceConnectionFailed = false; s.connectionLost = false; s.hasUnsavedEdits = false; s.slotNames = {}; s.lastNameCheck = null; s.presetToneSlot = null; });
 
                 // auto-select preset slots based on connected device name
                 const slots = DeviceViewModel.getPresetSlotsForDevice(device.name);
@@ -466,6 +544,9 @@ export class DeviceViewModel {
                         DeviceStateStore.update(s => {
                             s.presetTone = tone;
                             s.selectedChannel = VIRTUAL_CHANNEL;
+                            // the applied tone is "Live", a marker that already says it isn't stored
+                            s.hasUnsavedEdits = false;
+                            s.presetToneSlot = null;
                         });
                     } catch (err) {
                         // The tone is already on the amp; a display mapping failure must not
@@ -491,6 +572,15 @@ export class DeviceViewModel {
         return "pg.spark40." + dspId;
     }
 
+    // The block in a tone for a dspId the amp reports (unprefixed). The amp reports any
+    // reverb as "bias.reverb"; the tone holds it as "pg.spark40.bias.reverb.<variant>".
+    private findFxForAmpDspId(tone: Tone, dspId: string) {
+        if (tone?.fx == null || dspId == null) return undefined;
+        const type = this.expandedDspId(dspId.replace("pg.spark40.", ""));
+        return tone.fx.find(f => f.type == type)
+            ?? (dspId.endsWith("bias.reverb") ? tone.fx.find(f => f.type?.startsWith(type + ".")) : undefined);
+    }
+
 
     async requestAmpChange(args: FxChangeMessage) {
         this.lastCommandType = "requestAmpChange";
@@ -502,6 +592,8 @@ export class DeviceViewModel {
             return false;
         }
 
+
+        DeviceStateStore.update(s => { s.hasUnsavedEdits = true; });
 
         return platformEvents.invoke('perform-action', { action: 'changeAmp', data: args }).then(
             () => {
@@ -567,6 +659,7 @@ export class DeviceViewModel {
 
         return platformEvents.invoke('perform-action', { action: 'changeFx', data: args }).then(
             () => {
+                DeviceStateStore.update(s => { s.hasUnsavedEdits = true; });
                 return true;
             });
     }
@@ -578,7 +671,8 @@ export class DeviceViewModel {
         // find param to change and set it in our model before sending to amp
         var fx = presetState.fx.find(f => f.type == args.dspId);
         fx.params.find(p => p.paramId == args.index).value = args.value;
-        DeviceStateStore.update(s => { s.presetTone = presetState });
+        // MIDI sends here directly, so this marks the tone edited as well
+        DeviceStateStore.update(s => { s.presetTone = presetState; s.hasUnsavedEdits = true; });
 
         args.dspId = this.normalizeDspId(args.dspId);
 
@@ -601,6 +695,11 @@ export class DeviceViewModel {
     // Resolves once the change is queued, not when the amp has received it. The store
     // is updated when a value is actually sent (by requestFxParamChangeImmediate).
     async requestFxParamChange(args): Promise<boolean> {
+
+        // marked at request time: the send itself may wait behind a coalesced one
+        if (!DeviceStateStore.getRawState().hasUnsavedEdits) {
+            DeviceStateStore.update(s => { s.hasUnsavedEdits = true; });
+        }
 
         const key = this.normalizeDspId(args.dspId) + ":" + args.index;
         const inFlight = this.fxParamSends.get(key);
@@ -643,7 +742,7 @@ export class DeviceViewModel {
 
         // find param to change and set it in our model before sending to amp
         presetState.fx.find(f => f.type == args.dspId).enabled = (args.value == 1);
-        DeviceStateStore.update(s => { s.presetTone = presetState });
+        DeviceStateStore.update(s => { s.presetTone = presetState; s.hasUnsavedEdits = true; });
 
         args.dspId = this.normalizeDspId(args.dspId);
 
@@ -706,33 +805,174 @@ export class DeviceViewModel {
         return true;
     }
 
-    async storeCurrentPreset(presetNum: number): Promise<boolean> {
+    // Stores the current tone on a hardware slot, optionally under a new name. Used by
+    // Save to Amp. When the name changed and the slot is the selected channel, the slot
+    // is read back in the background and a different reported name lands in
+    // DeviceStateStore.lastNameCheck.
+    async storeCurrentPreset(presetNum: number, name?: string): Promise<boolean> {
+
+        const previousName: string | undefined = DeviceStateStore.getRawState().presetTone?.name;
+        const stored = await this.storeTone(presetNum, name);
+
+        if (stored != null && name !== undefined && stored != previousName
+            && presetNum == DeviceStateStore.getRawState().selectedChannel) {
+            void this.checkSlotName(presetNum, stored).then(r => {
+                if (r.check == "mismatch") {
+                    DeviceStateStore.update(s => { s.lastNameCheck = { slot: presetNum, expected: stored, reported: r.reportedName ?? "" }; });
+                }
+            });
+        }
+
+        return stored != null;
+    }
+
+    // Renames the tone on screen only. Nothing is sent: the name goes to the amp with
+    // the next Save to Amp.
+    renameTone(name: string): boolean {
+        const tone = DeviceStateStore.getRawState().presetTone;
+        const v = validatePresetName(name);
+        if (tone == null || !v.ok) {
+            return false;
+        }
+
+        const renamed: Tone = Utils.deepClone(tone);
+        renamed.name = v.name;
+        DeviceStateStore.update(s => { s.presetTone = renamed; });
+        return true;
+    }
+
+    // Renames the selected hardware channel on the amp. The Spark protocol has no rename
+    // command, so this stores the whole current tone (same UUID) to the slot under the
+    // new name, including any unsaved edits, then reads the slot back. Refused until the
+    // selected channel's preset has loaded from the amp (see presetToneSlot).
+    async renameChannelPreset(slot: number, name: string): Promise<RenameResult> {
+
+        const v = validatePresetName(name);
+        if (!v.ok) {
+            return { ok: false, reason: "invalid" };
+        }
+
+        const state = DeviceStateStore.getRawState();
+        if (!state.isConnected) {
+            return { ok: false, reason: "not-connected" };
+        }
+        if (!this.isHardwareSlot(slot)) {
+            return { ok: false, reason: "not-hardware" };
+        }
+        // the dialog captured the channel when it opened; never write to another one
+        if (slot != state.selectedChannel) {
+            return { ok: false, reason: "channel-changed" };
+        }
+        // The upload is the tone on screen. Right after a channel switch (or when the
+        // amp's preset reply was dropped) that is still the previous channel's tone, and
+        // storing it would overwrite this channel's sound with another one's.
+        if (state.presetToneSlot !== slot) {
+            return { ok: false, reason: "not-loaded" };
+        }
+
+        const stored = await this.storeTone(slot, v.name);
+        if (stored == null) {
+            return { ok: false, reason: "store-failed" };
+        }
+
+        const check = await this.checkSlotName(slot, stored);
+        return { ok: true, ...check };
+    }
+
+    // The shared store path. Returns the name the tone was stored under, or null when
+    // nothing was stored.
+    private async storeTone(presetNum: number, name?: string): Promise<string | null> {
 
         // A write with no amp connected is swallowed further down and would be reported
         // as a successful save.
         if (!DeviceStateStore.getRawState().isConnected) {
             this.log("Cannot store preset, no amp connected");
-            return false;
+            return null;
         }
 
         // Only real hardware slots can be written. The virtual channel (0x7f) is where an
         // applied, unsaved tone lives, and storing to it is not a save the user can get back.
         if (!this.isHardwareSlot(presetNum)) {
             this.log("Cannot store preset, not a hardware slot: " + presetNum);
-            return false;
+            return null;
+        }
+
+        let newName: string | undefined;
+        if (name !== undefined) {
+            const v = validatePresetName(name);
+            if ("error" in v) {
+                this.log("Cannot store preset, invalid name: " + v.error);
+                return null;
+            }
+            newName = v.name;
         }
 
         this.lastCommandType = "requestPresetChange";
         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
-        let p = new FxMappingToneToSpark().mapFrom(presetState);
 
         try {
+            if (newName !== undefined) {
+                presetState.name = newName;
+            }
+            // meta.id (the UUID) comes from toneId, so a rename keeps the same preset id
+            let p = new FxMappingToneToSpark().mapFrom(presetState);
+
             const result = await platformEvents.invoke('perform-action', { action: 'storePreset', data: [p, presetNum] });
-            return result !== false;
+            if (result === false) {
+                return null;
+            }
         } catch (err) {
             this.log("Failed to store preset: " + err);
-            return false;
+            return null;
         }
+
+        DeviceStateStore.update(s => {
+            if (newName !== undefined && s.presetTone != null && s.presetTone.toneId == presetState.toneId) {
+                s.presetTone.name = newName;
+            }
+            s.slotNames[presetNum] = presetState.name;
+            if (presetNum == s.selectedChannel) {
+                s.hasUnsavedEdits = false;
+                // the selected slot now holds the tone on screen
+                if (s.presetTone != null && s.presetTone.toneId == presetState.toneId) {
+                    s.presetToneSlot = presetNum;
+                }
+            }
+        });
+
+        return presetState.name;
+    }
+
+    // Reads the slot back and compares the name the amp reports. The amp's version
+    // replaces the tone on screen through the device-state-changed handler.
+    private checkSlotName(slot: number, name: string): Promise<NameCheckResult> {
+
+        // only one read-back at a time; an older one can no longer be matched
+        this.pendingNameCheck?.resolve({ check: "unconfirmed" });
+
+        return new Promise<NameCheckResult>(resolve => {
+            let settled = false;
+            let timer: ReturnType<typeof setTimeout> | null = null;
+
+            const check = {
+                slot,
+                name,
+                resolve: (r: NameCheckResult) => {
+                    if (settled) return;
+                    settled = true;
+                    if (timer != null) clearTimeout(timer);
+                    if (this.pendingNameCheck === check) this.pendingNameCheck = null;
+                    resolve(r);
+                }
+            };
+
+            this.pendingNameCheck = check;
+            timer = setTimeout(() => check.resolve({ check: "unconfirmed" }), DeviceViewModel.nameCheckTimeoutMs);
+
+            this.requestPresetConfig(slot).catch(err => {
+                this.log("Failed to read the slot back: " + err);
+            });
+        });
     }
 }
 

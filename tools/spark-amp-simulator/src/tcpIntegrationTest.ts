@@ -478,6 +478,53 @@ async function main() {
             ensure(countCmdSub(responses, 0x03, 0x27) > 0, "Expected response cmd=03 sub=27");
         }, results);
 
+        // There is no rename command: a rename is the whole preset sent again with 01 01
+        // to the slot, same UUID, with no 01 38 (select) and no 27 (store) involved.
+        await runStep("Rename a hardware slot by re-upload", async () => {
+            const slot = 2;
+
+            const selectedChannel = async () => {
+                const responses = await client.sendAndCollect(command.request_info(0x10));
+                const msg = parseMessages(responses, SparkMessageReader).find((m) => m.type === "hardware_channel_current");
+                ensure(!!msg, "Expected hardware_channel_current");
+                return msg.presetNumber as number;
+            };
+
+            const before = await readPresetFromSlot(client, command, SparkMessageReader, slot);
+            const uuid = before?.meta?.id;
+            ensure(!!uuid, `Slot ${slot} preset has no UUID`);
+            const channelBefore = await selectedChannel();
+
+            // 40 characters needs msgpack str8; 31 is the last fixstr length
+            for (const name of ["Renamed by integration test (str8) 40 ch", "Renamed fixstr boundary 31 char"]) {
+                ensure(name.length === 40 || name.length === 31, `Test name has unexpected length ${name.length}`);
+
+                const preset = JSON.parse(JSON.stringify(before));
+                preset.meta.name = name;
+
+                const uploadFrames: Uint8Array[] = command.create_preset_from_model(preset, slot);
+                const responses = await client.sendAndCollect(uploadFrames, 120, 3500);
+
+                if (uploadFrames.length > 1) {
+                    ensure(countCmdSub(responses, 0x05, 0x01) > 0, "Expected at least one chunk ACK cmd=05 sub=01");
+                }
+                ensure(countCmdSub(responses, 0x04, 0x01) > 0, "Expected final ACK cmd=04 sub=01");
+                ensure(countCmdSub(responses, 0x03, 0x38) === 0, "Did not expect 03 38 (channel change) for a rename");
+                ensure(countCmdSub(responses, 0x03, 0x27) === 0, "Did not expect 03 27 (store) for a rename");
+
+                const after = await readPresetFromSlot(client, command, SparkMessageReader, slot);
+                ensure(after?.meta?.name === name, `Expected slot ${slot} name '${name}', got '${String(after?.meta?.name)}'`);
+                ensure(after?.meta?.id === uuid, `Expected slot ${slot} UUID ${uuid} unchanged, got ${String(after?.meta?.id)}`);
+                ensure(after?.sigpath?.length === before.sigpath.length, "Expected the signal path to be unchanged");
+
+                const snapshotName = simulator.getStateSnapshot().slots[slot]?.name;
+                ensure(snapshotName === name, `Expected simulator snapshot to list '${name}' on CH${slot + 1}, got '${String(snapshotName)}'`);
+
+                const channelAfter = await selectedChannel();
+                ensure(channelAfter === channelBefore, `Expected selected channel ${channelBefore} unchanged, got ${channelAfter}`);
+            }
+        }, results);
+
         await runStep("Exercise amp/effect/toggle/param ACK commands", async () => {
             const ampResponses = await client.sendAndCollect(command.change_amp("Twin", "Twin"));
             ensure(countCmdSub(ampResponses, 0x04, 0x06) > 0, "Expected ACK cmd=04 sub=06 for amp change");

@@ -76,8 +76,8 @@ const DeviceMainControl = () => {
 
   // Always an explicit hardware slot chosen in the Save to Amp picker, never the
   // virtual channel; the view model refuses anything else and resolves false.
-  const requestStoreHardwarePreset = (slot: number) => {
-    return deviceViewModel.storeCurrentPreset(slot);
+  const requestStoreHardwarePreset = (slot: number, name: string) => {
+    return deviceViewModel.storeCurrentPreset(slot, name);
   };
 
   const fxParamChange = (args: FxParamChangeArgs) => {
@@ -136,6 +136,8 @@ const DeviceMainControl = () => {
       onRefresh={() => void requestCurrentPreset()}
       onSetChannel={requestSetChannel}
       onSaveToAmp={requestStoreHardwarePreset}
+      onRenameLocal={(name) => deviceViewModel.renameTone(name)}
+      onRenameChannel={(slot, name) => deviceViewModel.renameChannelPreset(slot, name)}
       onStoreFavourite={() => requestStoreFavourite(false)}
       onFxParamChange={fxParamChange}
       onFxToggle={fxToggle}

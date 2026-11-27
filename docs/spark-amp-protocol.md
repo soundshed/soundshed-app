@@ -206,7 +206,7 @@ Once you've decoded the 7-bit encoding back to 8-bit, the payload contains these
 | **Float** | `ca` + 4 bytes (big-endian IEEE 754) | `ca 3f 00 00 00` = 0.5 |
 | **Short string** | `(0xa0 + length)` + string bytes | `a5 54 77 69 6e` = "Twin" |
 | **Prefixed string** | `length byte` + `(0xa0 + length)` + string bytes | `04 a4 46 75 7a 7a` = "Fuzz" |
-| **Long string** | `d9` + `length byte` + string bytes | For strings longer than 31 bytes |
+| **Long string** | `d9` + `length byte` + string bytes | For strings of 32–255 bytes (msgpack `str8`) |
 | **Small number** | Just the byte value | Parameter index, preset number |
 | **Array marker** | `(0x90 + count)` | `97` = array of 7 items (the pedal chain) |
 
@@ -416,6 +416,16 @@ Checksum                    ← 1 byte (see below)
 | `02` | Hardware preset 3 |
 | `03` | Hardware preset 4 |
 | `7f` | Temporary / software preset (not saved to amp) |
+
+### Renaming a Preset
+
+There is **no command that renames a preset**. None of the open-source implementations (paulhamsh Spark Protocol v3.2, SparkBox/SparkIO, Spark-Parser, Ignitron, Flint) has one; the only command that carries just a name is the amp's own name (`01 11` set, `02 11` get, `03 11` reply).
+
+A rename is the whole preset sent again with `01 01`, with the **same UUID**, the new name, and the hardware slot in the channel byte. Flint's `AmpController.RenameAsync` does this, and so does Soundshed. It sends no `01 38` (select) and no `27`: `03 27` is the amp telling the app it stored its current tone (e.g. after a held preset button), not a store command the app sends.
+
+Name encoding: up to 31 bytes the name is a fixstr (`a0 + length`, at most `bf`); 32–255 bytes need `str8` (`d9 length …`). The official app limits names to **40 characters** (`Preset.MaxNameLength = 40` in Flint, from the app's `popup_edit_preset`; SparkBox's `STR_LEN` is also 40), so names of 32–40 bytes must use `str8`. Readers commonly replace bytes outside printable ASCII (`0x20`–`0x7E`) with spaces, and how the amp handles UTF-8 is undocumented, so Soundshed only accepts printable ASCII names.
+
+> **Not confirmed on hardware:** that a Spark 2 keeps a slot written this way (with no store command) after a power cycle. The simulator does; Soundshed reads the slot back after a rename and reports a different name.
 
 ### Preset Checksum
 

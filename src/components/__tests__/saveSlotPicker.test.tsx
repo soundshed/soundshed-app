@@ -52,8 +52,8 @@ describe("save slot picker", () => {
     await user.click(screen.getByRole("button", { name: "Overwrite channel 4" }));
 
     expect(props.onSave).toHaveBeenCalledTimes(1);
-    expect(props.onSave).toHaveBeenCalledWith(3);
-    expect(await screen.findByRole("status")).toHaveTextContent("Saved to channel 4.");
+    expect(props.onSave).toHaveBeenCalledWith(3, "Crunchy");
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved to channel 4 as “Crunchy”.");
   });
 
   it("goes back from the confirmation without saving", async () => {
@@ -132,6 +132,90 @@ describe("save slot picker", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save to channel 1");
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
     expect(props.onSave).toHaveBeenCalledTimes(1);
+  });
+
+  describe("name field", () => {
+    const nameInput = () => screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement;
+
+    it("starts with the tone's name, above the slots, while focus stays on the checked slot", () => {
+      renderPicker({ defaultSlot: 1 });
+
+      expect(nameInput()).toHaveValue("Crunchy");
+      expect(screen.getByRole("radio", { name: "Slot 2" })).toHaveFocus();
+      // first in Tab order
+      expect(nameInput().compareDocumentPosition(slots()[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("types digits and moves the caret with arrows instead of picking a slot", async () => {
+      const user = userEvent.setup();
+      renderPicker({ defaultSlot: 0 });
+
+      await user.click(nameInput());
+      await user.keyboard("{End} 2{ArrowLeft}{ArrowLeft}{ArrowRight}3");
+
+      expect(nameInput()).toHaveValue("Crunchy 32");
+      expect(screen.getByRole("radio", { name: "Slot 1" })).toHaveAttribute("aria-checked", "true");
+      expect(nameInput()).toHaveFocus();
+    });
+
+    it("goes to the confirmation with Enter in the field", async () => {
+      const user = userEvent.setup();
+      renderPicker();
+
+      await user.click(nameInput());
+      await user.keyboard("{Enter}");
+
+      expect(screen.getByRole("button", { name: "Overwrite channel 1" })).toHaveFocus();
+    });
+
+    it("does not go on with an Enter that confirms an IME composition", () => {
+      renderPicker();
+
+      fireEvent.keyDown(nameInput(), { key: "Enter", isComposing: true });
+
+      expect(screen.queryByRole("button", { name: "Overwrite channel 1" })).toBeNull();
+    });
+
+    it("blocks the confirmation while the name is invalid and says why", async () => {
+      const user = userEvent.setup();
+      const props = renderPicker();
+
+      await user.clear(nameInput());
+      expect(nameInput()).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("Enter a name.");
+      expect(screen.getByRole("button", { name: /save to channel 1/i })).toHaveAttribute("aria-disabled", "true");
+
+      await user.click(screen.getByRole("button", { name: /save to channel 1/i }));
+      expect(screen.queryByRole("button", { name: "Overwrite channel 1" })).toBeNull();
+      expect(nameInput()).toHaveFocus();
+
+      await user.type(nameInput(), "Café");
+      expect(screen.getByRole("alert")).toHaveTextContent(/basic symbols/);
+      expect(props.onSave).not.toHaveBeenCalled();
+    });
+
+    it("saves under the edited, trimmed name and shows it in the confirmation", async () => {
+      const user = userEvent.setup();
+      const props = renderPicker();
+
+      await user.clear(nameInput());
+      await user.type(nameInput(), "  Crunchy Lead ");
+      await user.click(screen.getByRole("button", { name: /save to channel 1/i }));
+
+      expect(screen.getByText("Overwrite channel 1 on the amp with “Crunchy Lead”?")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Overwrite channel 1" }));
+
+      expect(props.onSave).toHaveBeenCalledWith(0, "Crunchy Lead");
+      expect(await screen.findByRole("status")).toHaveTextContent("Saved to channel 1 as “Crunchy Lead”.");
+    });
+
+    it("closes on Escape from the field", () => {
+      const props = renderPicker();
+
+      fireEvent.keyDown(nameInput(), { key: "Escape" });
+
+      expect(props.onClose).toHaveBeenCalled();
+    });
   });
 
   it("closes on Escape", () => {

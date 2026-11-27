@@ -82,6 +82,7 @@ When running in an interactive terminal, the simulator now shows a live TUI dash
 - decorative boxed console panels
 - selected slot and preset-bank counts
 - current channel preset summary (name/UUID/BPM/FX chain)
+- a **Channels** box listing every hardware slot as `CHn  name` (`>` marks the selected one), so a rename from the app shows up straight away
 - upload state and last command/sub-command
 - TCP endpoint, connected clients, RX/TX frame counters
 - recent simulator/server logs
@@ -91,6 +92,14 @@ Disable TUI if needed:
 ```bash
 npm run sim:spark -- --model spark-2 --transport tcp --port 9124 --host 127.0.0.1 --verbose --no-tui
 ```
+
+Test the app's rename check against an amp that ignores the write:
+
+```bash
+npm run sim:spark -- --model spark-2 --port 9124 --drop-slot-uploads
+```
+
+With `--drop-slot-uploads` (or `npm_config_drop_slot_uploads=true`) preset uploads to a hardware slot are still acked but not stored; uploads to the virtual channel (`0x7f`) still apply. Renaming a channel in the app then ends with "Saved, but the amp reports “…” on channel N.", and the Channels box keeps the old name.
 
 Use with app TCP mode:
 

@@ -1,8 +1,8 @@
 import React from "react";
 
 // One-row header of the amp screen: device, channel selector, tone name and the
-// tone/amp actions. Popovers (save picker, shortcut help) are passed in and drop
-// down under their buttons.
+// tone/amp actions. Popovers (save picker, rename, shortcut help) are passed in and
+// drop down under their buttons; the tuner opens as a drawer below the bar.
 
 export interface DeskNotice {
   text: string;
@@ -33,6 +33,16 @@ interface TopBarProps {
   helpOpen: boolean;
   onToggleHelp: () => void;
   helpPopover?: React.ReactNode;
+  renameOpen: boolean;
+  /** No tone loaded, or a save or rename is already running */
+  renameDisabled: boolean;
+  /** Tooltip of the rename button, e.g. why it is disabled */
+  renameTitle?: string;
+  renameButtonRef?: React.Ref<HTMLButtonElement>;
+  onToggleRename: () => void;
+  renamePopover?: React.ReactNode;
+  /** Last known name per hardware slot (0-based), this session only */
+  slotNames?: Record<number, string>;
   notice: DeskNotice | null;
 }
 
@@ -46,6 +56,7 @@ const TopBar = (props: TopBarProps) => {
     toneName,
     notice,
   } = props;
+  const slotNames = props.slotNames ?? {};
 
   return (
     <header className="amp-desk-topbar">
@@ -66,6 +77,7 @@ const TopBar = (props: TopBarProps) => {
               className={`amp-desk-channel ${selectedChannel === i ? "is-active" : ""}`}
               id={`ch${i + 1}`}
               aria-label={`Channel ${i + 1}`}
+              title={slotNames[i] ? `Channel ${i + 1}: ${slotNames[i]}` : `Channel ${i + 1}`}
               aria-pressed={selectedChannel === i}
               onClick={() => props.onSetChannel(i)}
             >
@@ -80,14 +92,35 @@ const TopBar = (props: TopBarProps) => {
         )}
       </div>
 
-      <div className="amp-desk-topbar__tone" title={toneName ?? ""}>
-        <span className="amp-desk-topbar__tone-name" data-testid="tone-name">
+      {/* The rename popover opens inside this element, so the tone name's tooltip is on
+          the name only: on the wrapper every field and button in the popover showed it. */}
+      <div className="amp-desk-topbar__tone">
+        <span className="amp-desk-topbar__tone-name" data-testid="tone-name" title={toneName ?? ""}>
           {toneName || "No tone loaded"}
         </span>
+        {/* positions the rename popover from the tone area, not from the ✎ (see styles.css) */}
+        <div className="amp-desk-anchor amp-desk-anchor--rename">
+          <button
+            ref={props.renameButtonRef}
+            type="button"
+            id="renamePreset"
+            className={`amp-desk-action amp-desk-action--rename ${props.renameOpen ? "is-active" : ""}`}
+            aria-label="Rename tone"
+            title={props.renameTitle ?? "Rename (F2)"}
+            aria-haspopup="dialog"
+            aria-expanded={props.renameOpen}
+            disabled={props.renameDisabled}
+            onClick={props.onToggleRename}
+          >
+            ✎
+          </button>
+          {props.renameOpen && props.renamePopover}
+        </div>
         {notice && (
           <span
             className={`amp-desk-notice amp-desk-notice--${notice.kind}`}
             role={notice.kind == "error" ? "alert" : "status"}
+            title={notice.text}
           >
             {notice.text}
           </span>

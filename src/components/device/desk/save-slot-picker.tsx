@@ -1,18 +1,25 @@
 import React from "react";
+import { validatePresetName } from "../../../core/presetName";
+import { isTypingTarget } from "./keyboard-targets";
+import { isPlainEnter, PresetNameField } from "./rename-preset-popover";
 
 // "Save to Amp" popover: pick a hardware slot, confirm the overwrite, then show the
 // result inline. Only real slots 1..numSlots are ever offered or sent; the virtual
 // channel (0x7f) holds an applied tone and is not somewhere a save can go.
 // While a save runs the picker cannot be closed (the screen ignores Esc and outside
 // clicks too), so its result is always shown.
+// The tone can be saved under a new name: the Name field above the slots starts with
+// the current name. Focus still starts on the checked slot, so Ctrl/⌘+S, Enter, Enter
+// saves without touching the name.
 
 interface SaveSlotPickerProps {
   numSlots: number;
   /** Slot (0-based) to preselect, usually the current or last hardware channel */
   defaultSlot: number;
+  /** Initial value of the Name field */
   toneName: string;
-  /** Resolves false when the amp did not store the preset */
-  onSave: (slot: number) => Promise<boolean>;
+  /** Resolves false when the amp did not store the preset. name is trimmed and valid. */
+  onSave: (slot: number, name: string) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -24,8 +31,12 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
   const [slot, setSlot] = React.useState(() => (isHardwareSlot(defaultSlot, numSlots) ? defaultSlot : 0));
   const [step, setStep] = React.useState<Step>("choose");
   const [saved, setSaved] = React.useState<boolean | null>(null);
+  const [nameValue, setNameValue] = React.useState(toneName ?? "");
+  const nameCheck = validatePresetName(nameValue);
+  const name = nameCheck.name;
 
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const nameRef = React.useRef<HTMLInputElement>(null);
   const confirmRef = React.useRef<HTMLButtonElement>(null);
   const statusRef = React.useRef<HTMLParagraphElement>(null);
   const closeRef = React.useRef<HTMLButtonElement>(null);
@@ -49,12 +60,21 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
     rootRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')[next]?.focus();
   };
 
+  // "Save to channel N…": on to the confirmation, unless the name is invalid.
+  const toConfirm = () => {
+    if (!nameCheck.ok) {
+      nameRef.current?.focus();
+      return;
+    }
+    setStep("confirm");
+  };
+
   const save = async () => {
-    if (!isHardwareSlot(slot, numSlots) || step == "saving") return;
+    if (!isHardwareSlot(slot, numSlots) || step == "saving" || !nameCheck.ok) return;
     setStep("saving");
     let ok = false;
     try {
-      ok = await onSave(slot);
+      ok = await onSave(slot, nameCheck.name);
     } catch {
       ok = false;
     }
@@ -70,6 +90,15 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
       return;
     }
     if (step != "choose") return;
+    if (isTypingTarget(e.target)) {
+      // Keys typed into the name type and move the caret; they never pick a slot.
+      if (isPlainEnter(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        toConfirm();
+      }
+      return;
+    }
     if (e.key == "ArrowLeft" || e.key == "ArrowRight") {
       e.preventDefault();
       e.stopPropagation();
@@ -97,8 +126,16 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
       {step == "choose" && (
         <>
           <p className="amp-desk-popover__title" id="amp-desk-save-title">
-            Save “{toneName}” to channel
+            Save to channel
           </p>
+          <PresetNameField
+            id="amp-desk-save-name"
+            value={nameValue}
+            onChange={setNameValue}
+            // the primary button is aria-disabled while the name is invalid, so say why
+            showError
+            inputRef={nameRef}
+          />
           <div className="amp-desk-save__slots" role="radiogroup" aria-labelledby="amp-desk-save-title">
             {Array.from({ length: numSlots }, (_, i) => (
               <button
@@ -116,7 +153,12 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
             ))}
           </div>
           <div className="amp-desk-popover__actions">
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => setStep("confirm")}>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              aria-disabled={!nameCheck.ok}
+              onClick={toConfirm}
+            >
               Save to channel {channel}…
             </button>
             <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>
@@ -129,7 +171,7 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
       {step == "confirm" && (
         <>
           <p className="amp-desk-popover__title">
-            Overwrite channel {channel} on the amp with “{toneName}”?
+            Overwrite channel {channel} on the amp with “{name}”?
           </p>
           <p className="amp-desk-popover__note">What is stored on channel {channel} now will be replaced.</p>
           <div className="amp-desk-popover__actions">
@@ -153,7 +195,7 @@ const SaveSlotPicker = ({ numSlots, defaultSlot, toneName, onSave, onClose }: Sa
         <>
           {saved ? (
             <p className="amp-desk-popover__title amp-desk-popover__ok" role="status">
-              Saved to channel {channel}.
+              Saved to channel {channel} as “{name}”.
             </p>
           ) : (
             <p className="amp-desk-popover__title amp-desk-popover__error" role="alert">

@@ -81,6 +81,104 @@ describe("storing the current preset", () => {
 
         await expect(vm.storeCurrentPreset(0)).resolves.toBe(false);
     });
+
+    describe("with a new name", () => {
+        beforeEach(() => {
+            DeviceStateStore.update(s => { s.selectedChannel = 1; s.slotNames = {}; s.hasUnsavedEdits = false; });
+        });
+
+        it.each([
+            ["the virtual channel", VIRTUAL_CHANNEL],
+            ["a negative slot", -1],
+            ["a slot past the device's last one", 4],
+            ["a fractional slot", 1.5],
+            ["NaN", NaN],
+        ])("still refuses %s without sending anything", async (_label, slot) => {
+            await expect(vm.storeCurrentPreset(slot, "Renamed")).resolves.toBe(false);
+            expect(storeCalls()).toHaveLength(0);
+        });
+
+        it("still refuses with no amp connected", async () => {
+            DeviceStateStore.update(s => { s.isConnected = false; });
+
+            await expect(vm.storeCurrentPreset(1, "Renamed")).resolves.toBe(false);
+            expect(storeCalls()).toHaveLength(0);
+        });
+
+        it.each([[""], ["   "], ["x".repeat(41)], ["クリーン"]])("sends nothing for the invalid name %j", async (name) => {
+            await expect(vm.storeCurrentPreset(2, name)).resolves.toBe(false);
+            expect(storeCalls()).toHaveLength(0);
+            expect(DeviceStateStore.getRawState().presetTone.name).toBe("Keeper");
+        });
+
+        it("stores the tone under the trimmed name and keeps its id", async () => {
+            await expect(vm.storeCurrentPreset(2, "  Keeper Lead  ")).resolves.toBe(true);
+
+            const [p, slot] = storeCalls()[0][1].data;
+            expect(slot).toBe(2);
+            expect(p.meta.name).toBe("Keeper Lead");
+            expect(p.meta.id).toBe("keeper");
+            expect(DeviceStateStore.getRawState().presetTone.toneId).toBe("pg.tc.keeper");
+        });
+
+        it("updates the tone name and the slot's known name once stored", async () => {
+            await vm.storeCurrentPreset(2, "Keeper Lead");
+
+            expect(DeviceStateStore.getRawState().presetTone.name).toBe("Keeper Lead");
+            expect(DeviceStateStore.getRawState().slotNames[2]).toBe("Keeper Lead");
+        });
+
+        it.each([
+            ["reports failure", () => invoke.mockResolvedValue(false as any)],
+            ["throws", () => invoke.mockRejectedValue(new Error("link lost"))],
+        ])("leaves the name alone when the platform call %s", async (_label, arrange) => {
+            arrange();
+
+            await expect(vm.storeCurrentPreset(2, "Keeper Lead")).resolves.toBe(false);
+
+            expect(DeviceStateStore.getRawState().presetTone.name).toBe("Keeper");
+            expect(DeviceStateStore.getRawState().slotNames[2]).toBeUndefined();
+        });
+
+        it("doesn't rename a different tone that loaded while the save was running", async () => {
+            invoke.mockImplementation(async () => {
+                DeviceStateStore.update(s => { s.presetTone = { ...s.presetTone, toneId: "pg.tc.other", name: "Other" }; });
+                return true;
+            });
+
+            await vm.storeCurrentPreset(2, "Keeper Lead");
+
+            expect(DeviceStateStore.getRawState().presetTone.name).toBe("Other");
+            expect(DeviceStateStore.getRawState().slotNames[2]).toBe("Keeper Lead");
+        });
+
+        it("reads the selected slot back when its name changed, and reports a different name", async () => {
+            vi.useFakeTimers();
+            try {
+                await expect(vm.storeCurrentPreset(1, "Keeper Lead")).resolves.toBe(true);
+
+                const reads = invoke.mock.calls.filter(c => c[1]?.action == "getPreset");
+                expect(reads).toHaveLength(1);
+                expect(reads[0][1].data).toBe(1);
+
+                vm.pendingNameCheck.resolve({ check: "mismatch", reportedName: "Keeper" });
+                await vi.runAllTimersAsync();
+
+                expect(DeviceStateStore.getRawState().lastNameCheck).toEqual({ slot: 1, expected: "Keeper Lead", reported: "Keeper" });
+            } finally {
+                DeviceStateStore.update(s => { s.lastNameCheck = null; });
+                vi.useRealTimers();
+            }
+        });
+
+        it("doesn't read back a save to another slot or one that kept the name", async () => {
+            await vm.storeCurrentPreset(2, "Keeper Lead");
+            await vm.storeCurrentPreset(1, "Keeper Lead");
+            await vm.storeCurrentPreset(1);
+
+            expect(invoke.mock.calls.filter(c => c[1]?.action == "getPreset")).toHaveLength(0);
+        });
+    });
 });
 
 describe("changing a block's model", () => {

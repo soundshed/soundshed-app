@@ -21,7 +21,8 @@ Windows 10 or later, macOS 13 (Ventura) or later, and supported Linux distributi
 ### Amp screen
 The amp screen is laid out for a desktop window (with the tuner closed it fits 1280×860 without scrolling, and it works down to about 1024 px wide):
 
-- **Top bar**: the connected amp, channels 1–8 on a Spark 2 (1–4 on other models), a *Live* marker while an applied tone is not stored yet, Refresh, **Save to Amp** (pick a channel, confirm before overwriting), Favourite, Browse Tones and the tuner.
+- **Top bar**: the connected amp, channels 1–8 on a Spark 2 (1–4 on other models; hover a channel for its last known name this session), a *Live* marker while an applied tone is not stored yet, **Rename** (✎ next to the tone name, or F2), Refresh, **Save to Amp** (edit the name, pick a channel, confirm before overwriting), Favourite, Browse Tones and the tuner.
+- **Rename**: the Spark has no command that renames a preset, so renaming a stored channel saves the whole channel to the amp under the new name, including knob changes you haven't saved yet. The dialog says so, warns when there are unsaved changes and then offers *Rename here only*. After the save the app reads the channel back and shows whether the amp reports the new name. On a *Live* tone, or with no amp connected, only the name on screen changes; it goes to the amp with the next Save to Amp, whose Name field can also be used to rename. Names are 1–40 characters of basic ASCII (letters, numbers, spaces and symbols such as `- _ . ( )`); the amp reports other characters back as spaces, so they are not accepted. A favourite keeps its old name until you press Favourite again, which updates it. Whether a Spark 2 keeps a renamed channel after it is switched off has not been tested on hardware yet (see the checks below).
 - **Signal chain**: the 7 blocks (Gate, Comp, Drive, Amp, Mod, Delay, Reverb) as tiles with their on/off switch. Selecting a block opens it below with large knobs that always show their value (0–10).
 - **Model browser**: *Change model…* shows the models for that block with pictures. Search by model name, the gear that inspired it or category (e.g. "marshall", "fuzz").
 - **Tuner** drawer under the top bar, showing the note and how far it is off.
@@ -39,8 +40,17 @@ Knobs: drag up/down (hold Shift, Cmd or Ctrl for fine steps), use the mouse whee
 | M, or Enter on a block | Change model |
 | / or Cmd/Ctrl+F | Search models |
 | Cmd/Ctrl+S | Save to amp |
+| F2 | Rename tone |
 | Esc | Close popovers |
 | ? | Show the shortcut help |
+
+Preset rename, checks still to run on a real Spark 2 (only the simulator has been tried so far):
+
+1. Rename CH2 to a 20-character name, then switch to CH1 and back: the name is kept.
+2. Switch the amp off and on and reconnect: CH2 still has the new name and the same sound. If not, sending `01 38` to the slot after the upload is the next thing to try.
+3. A 40-character name (sent as msgpack `str8`) reads back the same after a power cycle.
+4. Rename with unsaved knob changes: the warning appears and the changes end up stored.
+5. With the simulator's `--drop-slot-uploads`, the dialog shows "Saved, but the amp reports …".
 
 The model pictures are original illustrations without brand names or logos (see [images/fx/README.md](images/fx/README.md)). The gear that inspired a model is only named as text; product names are trademarks of their respective owners and are used only to identify that gear.
 
