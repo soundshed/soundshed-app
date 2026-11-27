@@ -96,6 +96,7 @@ export class AppViewModel {
             { id: "16", name: "Key 8 to CH8", source: { type: "keyboard", code: "8" }, target: { type: "amp-channel", value: "7" } }
         ];
         let selectedMidiInput = null;
+        let midiListenAllInputs = false;
         let numPresetSlots = 4;
         let settings = localStorage.getItem("settings");
         if (settings != null) {
@@ -109,6 +110,10 @@ export class AppViewModel {
                 selectedMidiInput = settingsParsed.selectedMidiInput;
             }
 
+            if (settingsParsed.midiListenAllInputs != null) {
+                midiListenAllInputs = settingsParsed.midiListenAllInputs == true;
+            }
+
             if (settingsParsed.numPresetSlots != null) {
                 numPresetSlots = settingsParsed.numPresetSlots;
             }
@@ -118,6 +123,7 @@ export class AppViewModel {
         AppStateStore.update(s => {
             s.inputEventMappings = mappings;
             s.selectedMidiInput = selectedMidiInput;
+            s.midiListenAllInputs = midiListenAllInputs;
             s.numPresetSlots = numPresetSlots;
         });
 
@@ -129,6 +135,7 @@ export class AppViewModel {
 
         let settings = {
             selectedMidiInput: allSettings.selectedMidiInput,
+            midiListenAllInputs: allSettings.midiListenAllInputs,
             inputEventMappings: allSettings.inputEventMappings,
             numPresetSlots: allSettings.numPresetSlots
         };

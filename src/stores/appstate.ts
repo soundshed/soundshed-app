@@ -11,6 +11,7 @@ export const AppStateStore = new Store({
     midiInputs: [],
     isMidiInputAvailable: false,
     selectedMidiInput: null,
+    midiListenAllInputs: false,
     lastMidiEvent:null,
     numPresetSlots: 4
 });

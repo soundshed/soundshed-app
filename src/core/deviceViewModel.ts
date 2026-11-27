@@ -543,7 +543,7 @@ export class DeviceViewModel {
             });
     }
 
-    private async requestFxParamChangeImmediate(args) {
+    async requestFxParamChangeImmediate(args) {
         this.lastCommandType = "requestFxParamChange";
         let presetState: Tone = Utils.deepClone(DeviceStateStore.getRawState().presetTone);
 
