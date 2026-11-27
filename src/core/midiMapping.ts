@@ -277,8 +277,8 @@ export interface MidiMappingSink {
 }
 
 /**
- * Handler for target types implemented outside this module (e.g. "tuner-toggle",
- * "looper-command"). Receives the mapping and the event that matched it.
+ * Handler for target types implemented outside this module (e.g. "tuner-toggle").
+ * Receives the mapping and the event that matched it.
  */
 export type MidiTargetHandler = (mapping: InputEventMapping, ev: NormalisedMidiEvent) => void;
 

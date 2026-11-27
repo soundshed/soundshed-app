@@ -375,7 +375,7 @@ describe("MidiMappingEngine", () => {
     expect(calls).toEqual([["onoff", "wah", true], ["onoff", "wah", false]]);
   });
 
-  it("passes other target types to registered handlers, so tuner/looper can plug in", () => {
+  it("passes other target types to registered handlers, so features such as the tuner can plug in", () => {
     const { sink } = makeSink();
     const engine = new MidiMappingEngine(sink);
     const handler = vi.fn();
@@ -390,11 +390,11 @@ describe("MidiMappingEngine", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores unknown target types without a handler", () => {
+  it("ignores target types without a registered handler", () => {
     const { sink, calls } = makeSink();
     const engine = new MidiMappingEngine(sink);
     const m: InputEventMapping = {
-      id: "x", name: "x", source: { type: "midi", kind: "cc", code: "20", channel: "any" }, target: { type: "looper-command", value: "record" },
+      id: "x", name: "x", source: { type: "midi", kind: "cc", code: "20", channel: "any" }, target: { type: "tuner-toggle" },
     };
     expect(engine.handleEvent(cc(20, 127), [m]).matched).toEqual([m]);
     expect(calls).toEqual([]);

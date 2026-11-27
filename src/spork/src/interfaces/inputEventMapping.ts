@@ -35,10 +35,10 @@ export interface KeyboardEventSource {
 
 /**
  * Target types implemented by the MIDI mapping engine. Other features can register
- * handlers for further types (e.g. "tuner-toggle", "looper-command") without changing
+ * handlers for further types (e.g. "tuner-toggle") without changing
  * the mapping model: unknown target types are simply passed to a registered handler.
  */
-export type EventTargetType = "amp-channel" | "fx-param" | "fx-onoff" | "tuner-toggle" | "looper-command";
+export type EventTargetType = "amp-channel" | "fx-param" | "fx-onoff" | "tuner-toggle";
 
 export type ValueCurve = "linear" | "log";
 
