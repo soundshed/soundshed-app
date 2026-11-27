@@ -9,6 +9,7 @@ import {
 import DeviceControls from "./device-controls";
 import MiscControls from "./misc-controls";
 import SignalPathControl from "./signal-path";
+import TunerPanel from "./tuner/tuner-panel";
 
 const DeviceMainControl = () => {
   const deviceViewModel = vm;
@@ -143,6 +144,7 @@ const DeviceMainControl = () => {
           selectedChannel={selectedChannel}
           onSetPreset={requestStoreHardwarePreset}
         />
+        <TunerPanel />
         <SignalPathControl
           signalPathState={currentPreset}
           onFxParamChange={fxParamChange}

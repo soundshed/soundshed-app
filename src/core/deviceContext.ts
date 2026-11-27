@@ -2,6 +2,7 @@
 import { SparkDeviceManager } from "../spork/src/devices/spark/sparkDeviceManager";
 import { SerialCommsProvider } from "../spork/src/interfaces/serialCommsProvider";
 import { VIRTUAL_CHANNEL } from "./sparkChannels";
+import { isTunerMessage } from "../spork/src/interfaces/tuner";
 
 export class DeviceContext {
 
@@ -32,6 +33,9 @@ export class DeviceContext {
         this.deviceManager = new SparkDeviceManager(commsProvider);
 
         this.deviceManager.onStateChanged = (s: any) => {
+            // Tuner readings stream continuously while the tuner is on, so they get their own
+            // event instead of churning the preset/device state handlers.
+            if (isTunerMessage(s?.message)) { this.sendMessageToApp('tuner-message', s.message); return; }
             this.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
@@ -138,6 +142,10 @@ export class DeviceContext {
 
         if (args.action == 'getDeviceSerial') {
             return this.deviceManager.sendCommand("get_device_serial", {});
+        }
+
+        if (args.action == 'setTuner') {
+            return this.deviceManager.setTunerEnabled(args.data === true);
         }
 
         if (args.action == 'getPreset') {
