@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   describeTunerReading,
   getTunerViewModel,
@@ -39,13 +39,10 @@ const TunerPanel = ({ viewModel }: TunerPanelProps) => {
   const isPending = TunerStateStore.useState((s) => s.isPending);
   const note = TunerStateStore.useState((s) => s.note);
   const offset = TunerStateStore.useState((s) => s.offset);
+  const error = TunerStateStore.useState((s) => s.error);
 
-  // after a disconnect the amp's tuner state is unknown, so start again from "off"
-  useEffect(() => {
-    if (!connected) {
-      vm.reset();
-    }
-  }, [connected]);
+  // Resetting after a disconnect is done by TunerViewModel, since this panel is
+  // unmounted while no amp is connected.
 
   const reading = describeTunerReading(note, offset);
 
@@ -78,6 +75,12 @@ const TunerPanel = ({ viewModel }: TunerPanelProps) => {
       >
         {isEnabled ? "Tuner On" : "Tuner Off"}
       </button>
+
+      {error && (
+        <span role="alert" data-testid="tuner-error" style={{ fontSize: "0.78rem", color: "var(--red)" }}>
+          {error}
+        </span>
+      )}
 
       {isEnabled && (
         <>

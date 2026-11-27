@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../testing/componentTestSetup";
 import { DeviceStateStore } from "../../stores/devicestate";
 import { TunerStateStore, initialTunerState } from "../../stores/tunerstate";
@@ -35,6 +35,10 @@ beforeEach(() => {
   });
   events = new FakeEvents();
   vm = new TunerViewModel(events);
+});
+
+afterEach(() => {
+  vm.dispose();
 });
 
 describe("TunerPanel", () => {
@@ -97,7 +101,19 @@ describe("TunerPanel", () => {
     expect(screen.queryByTestId("tuner-needle")).toBeNull();
   });
 
-  it("is disabled and reset while no amp is connected", () => {
+  it("shows an error when the tuner could not be switched", async () => {
+    events.invoke.mockResolvedValueOnce(false);
+    render(<TunerPanel viewModel={vm} />);
+
+    await act(async () => {
+      fireEvent.click(toggleButton());
+    });
+
+    expect(toggleButton()).toHaveTextContent("Tuner Off");
+    expect(screen.getByRole("alert")).toHaveTextContent(/could not switch the tuner on/i);
+  });
+
+  it("is disabled and reset if rendered while the connection drops", () => {
     render(<TunerPanel viewModel={vm} />);
     events.emit("tuner-message", { type: "tuner_onoff", enabled: true });
 

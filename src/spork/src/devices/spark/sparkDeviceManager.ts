@@ -227,9 +227,33 @@ export class SparkDeviceManager implements DeviceController {
 
     // ---- tuner ----
 
-    // Switches the amp's tuner on or off (0x01 0x65).
-    public async setTunerEnabled(enabled: boolean) {
-        return this.sendCommand("set_tuner", enabled === true);
+    // Switches the amp's tuner on or off (0x01 0x65). Resolves true once the frame has
+    // been written, false if writing it failed. It is queued on the same commandChain
+    // as sendCommand, but uses its own write loop because executeCommand swallows
+    // write errors and the tuner UI needs to know when the switch did not reach the amp.
+    public async setTunerEnabled(enabled: boolean): Promise<boolean> {
+        const run = this.commandChain.then(
+            () => this.writeTunerSwitch(enabled === true),
+            () => this.writeTunerSwitch(enabled === true));
+
+        this.commandChain = run.then(() => { }, () => { });
+
+        return run;
+    }
+
+    private async writeTunerSwitch(enabled: boolean): Promise<boolean> {
+        this.log("Switching tuner " + (enabled ? "on" : "off"));
+        const msgArray = new SparkCommandMessage({ spark2: this.isSpark2 }).switch_tuner(enabled);
+        try {
+            for (let dat of msgArray) {
+                this.log("[SEND RAW]: " + this.buf2hex(dat));
+                await this.connection.write(typeof (Buffer) != "undefined" ? Buffer.from(dat) : dat);
+            }
+            return true;
+        } catch (err) {
+            console.warn("Caught err writing tuner switch", err);
+            return false;
+        }
     }
 
     private commandChain: Promise<any> = Promise.resolve();
@@ -287,11 +311,6 @@ export class SparkDeviceManager implements DeviceController {
         if (type == "set_fx_onoff") {
             this.log("Toggling Effect " + JSON.stringify(data));
             msgArray = msg.turn_effect_onoff(data.dspId, data.value == 1 ? "On" : "Off");
-        }
-
-        if (type == "set_tuner") {
-            this.log("Switching tuner " + (data === true ? "on" : "off"));
-            msgArray = msg.switch_tuner(data === true);
         }
 
         if (type == "set_fx_param") {

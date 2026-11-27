@@ -11,6 +11,8 @@ export interface ITunerState {
     offset: number | null;
     /** Date.now() of the latest reading, 0 when there has been none. */
     lastReadingAt: number;
+    /** Why the last switch request from the app failed, or null. */
+    error: string | null;
 }
 
 export const initialTunerState = (): ITunerState => ({
@@ -18,7 +20,8 @@ export const initialTunerState = (): ITunerState => ({
     isPending: false,
     note: null,
     offset: null,
-    lastReadingAt: 0
+    lastReadingAt: 0,
+    error: null
 });
 
 export const TunerStateStore = new Store<ITunerState>(initialTunerState());

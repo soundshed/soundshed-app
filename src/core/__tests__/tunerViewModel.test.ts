@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   describeTunerReading,
   getNoteName,
@@ -11,6 +11,7 @@ import {
 } from "../tunerViewModel";
 import { DeviceContext } from "../deviceContext";
 import { TunerStateStore, initialTunerState } from "../../stores/tunerstate";
+import { DeviceStateStore } from "../../stores/devicestate";
 import { SparkCommandMessage } from "../../spork/src/devices/spark/sparkCommandMessage";
 import { blocksToChunks } from "../../spork/src/devices/spark/__tests__/protocolTestUtils";
 import { SerialCommsProvider } from "../../spork/src/interfaces/serialCommsProvider";
@@ -144,6 +145,13 @@ describe("TunerViewModel", () => {
     vm = new TunerViewModel(events, () => now);
   });
 
+  afterEach(() => {
+    vm.dispose();
+    DeviceStateStore.update((s) => {
+      s.isConnected = false;
+    });
+  });
+
   it("sends setTuner through perform-action and records the new state", async () => {
     const ok = await vm.setEnabled(true);
 
@@ -161,7 +169,7 @@ describe("TunerViewModel", () => {
     expect(events.invoke).toHaveBeenLastCalledWith("perform-action", { action: "setTuner", data: false });
   });
 
-  it("reverts when the command could not be sent", async () => {
+  it("reverts and records an error when the command could not be sent", async () => {
     events.invoke.mockResolvedValueOnce(false);
 
     const ok = await vm.setEnabled(true);
@@ -169,6 +177,54 @@ describe("TunerViewModel", () => {
     expect(ok).toBe(false);
     expect(state().isEnabled).toBe(false);
     expect(state().isPending).toBe(false);
+    expect(state().error).toMatch(/could not switch the tuner on/i);
+
+    await vm.setEnabled(true);
+    expect(state().error).toBeNull();
+  });
+
+  it("ignores readings while a tuner-off command is still queued", async () => {
+    await vm.setEnabled(true);
+
+    let finishSend: (v: any) => void = () => {};
+    events.invoke.mockImplementationOnce(() => new Promise((resolve) => (finishSend = resolve)));
+    const off = vm.setEnabled(false);
+
+    // the command waits behind a long preset upload, well past the grace window
+    now += 5 * TRAILING_OUTPUT_GRACE_MS;
+    events.emit("tuner-message", { type: "tuner_output", note: 4, offset: 0.5 });
+    expect(state().isEnabled).toBe(false);
+    expect(state().note).toBeNull();
+
+    finishSend(true);
+    await off;
+    expect(state().isEnabled).toBe(false);
+    expect(state().isPending).toBe(false);
+
+    // the grace window starts once the frame was written
+    now += 200;
+    events.emit("tuner-message", { type: "tuner_output", note: 4, offset: 0.5 });
+    expect(state().isEnabled).toBe(false);
+    expect(state().note).toBeNull();
+  });
+
+  it("resets when the amp disconnects, without the panel being mounted", async () => {
+    DeviceStateStore.update((s) => {
+      s.isConnected = true;
+    });
+    await vm.setEnabled(true);
+    events.emit("tuner-message", { type: "tuner_output", note: 4, offset: 0.52 });
+    expect(state().note).toBe(4);
+
+    DeviceStateStore.update((s) => {
+      s.isConnected = false;
+    });
+    expect(state()).toEqual(initialTunerState());
+
+    DeviceStateStore.update((s) => {
+      s.isConnected = true;
+    });
+    expect(state()).toEqual(initialTunerState());
   });
 
   it("stores readings from the amp", () => {
@@ -271,6 +327,28 @@ describe("DeviceContext tuner routing", () => {
 
     expect(sent).toEqual([{ type: "tuner-message", args: { type: "tuner_output", note: 9, offset: 0.5 } }]);
     await context.deviceManager.disconnect();
+  });
+
+  it("setTuner resolves false through perform-action when the write fails", async () => {
+    const provider = new QuietProvider();
+    provider.write = async () => {
+      throw new Error("GATT write failed");
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const context = new DeviceContext();
+    context.init(provider, () => {});
+
+    const events = new FakeEvents();
+    events.invoke.mockImplementation((_type, data) => context.performAction(data));
+    TunerStateStore.update((s) => Object.assign(s, initialTunerState()));
+    const vm = new TunerViewModel(events);
+
+    await expect(vm.setEnabled(true)).resolves.toBe(false);
+    expect(TunerStateStore.getRawState().isEnabled).toBe(false);
+    expect(TunerStateStore.getRawState().error).not.toBeNull();
+
+    vm.dispose();
+    warn.mockRestore();
   });
 
   it("handles the setTuner action by sending switch_tuner", async () => {

@@ -1,6 +1,7 @@
 import { DeviceMessage } from "../spork/src/interfaces/preset";
 import { TUNER_MESSAGE_ONOFF, TUNER_MESSAGE_OUTPUT, TunerOnOffMessage, TunerOutputMessage } from "../spork/src/interfaces/tuner";
 import { TunerStateStore, initialTunerState } from "../stores/tunerstate";
+import { DeviceStateStore } from "../stores/devicestate";
 import { platformEvents } from "./platformUtils";
 
 // ---------------------------------------------------------------------------
@@ -120,10 +121,23 @@ export interface TunerEvents {
 export class TunerViewModel {
 
     private lastDisabledAt = -Infinity;
+    private unsubscribeConnection: () => void;
 
     constructor(private events: TunerEvents = platformEvents, private now: () => number = () => Date.now()) {
         // DeviceContext forwards tuner messages from the amp under their own event.
         this.events.on("tuner-message", (_event, msg: DeviceMessage) => this.handleMessage(msg));
+
+        // After a disconnect the amp's tuner state is unknown (it may have been power
+        // cycled), so start again from "off". This lives here rather than in TunerPanel
+        // because the panel is unmounted while no amp is connected.
+        this.unsubscribeConnection = DeviceStateStore.subscribe(
+            s => s.isConnected,
+            connected => { if (!connected) this.reset(); });
+    }
+
+    /** Stops following the connection state (used by tests). */
+    dispose() {
+        this.unsubscribeConnection?.();
     }
 
     /** Applies a tuner message received from the amp. */
@@ -144,8 +158,9 @@ export class TunerViewModel {
             const reading = <TunerOutputMessage>msg;
             const state = TunerStateStore.getRawState();
 
-            if (!state.isEnabled && (this.now() - this.lastDisabledAt) < TRAILING_OUTPUT_GRACE_MS) {
-                // a reading sent before the amp processed our "tuner off"
+            if (!state.isEnabled && (state.isPending || (this.now() - this.lastDisabledAt) < TRAILING_OUTPUT_GRACE_MS)) {
+                // Our "tuner off" is still queued, or was only just written: the amp
+                // keeps sending readings until it has processed it.
                 return;
             }
 
@@ -160,7 +175,10 @@ export class TunerViewModel {
         }
     }
 
-    /** Switches the amp's tuner on or off. Resolves false if the command could not be sent. */
+    /**
+     * Switches the amp's tuner on or off. Resolves false, puts the previous state back
+     * and sets TunerStateStore.error if the frame could not be written to the amp.
+     */
     async setEnabled(enabled: boolean): Promise<boolean> {
         const previous = TunerStateStore.getRawState().isEnabled;
 
@@ -171,6 +189,7 @@ export class TunerViewModel {
         TunerStateStore.update(s => {
             s.isEnabled = enabled;
             s.isPending = true;
+            s.error = null;
             if (!enabled) {
                 s.note = null;
                 s.offset = null;
@@ -184,10 +203,24 @@ export class TunerViewModel {
             ok = false;
         }
 
+        if (ok && !enabled) {
+            // The command can wait behind others on the device manager's queue (e.g. a
+            // Spark 2 preset upload), so the grace window for trailing readings starts
+            // when the frame has actually been written.
+            this.lastDisabledAt = this.now();
+        }
+
         TunerStateStore.update(s => {
             s.isPending = false;
-            if (!ok) {
+            if (ok) {
+                s.isEnabled = enabled;
+                if (!enabled) {
+                    s.note = null;
+                    s.offset = null;
+                }
+            } else {
                 s.isEnabled = previous;
+                s.error = `Could not switch the tuner ${enabled ? "on" : "off"}. Check the amp connection and try again.`;
             }
         });
 

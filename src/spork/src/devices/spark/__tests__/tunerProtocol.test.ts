@@ -181,11 +181,36 @@ describe("SparkDeviceManager tuner support", () => {
   });
 
   it.each([true, false])("setTunerEnabled(%s) writes the switch_tuner frame", async (enabled) => {
-    await manager.setTunerEnabled(enabled);
+    await expect(manager.setTunerEnabled(enabled)).resolves.toBe(true);
 
     expect(connection.written.map((w) => Array.from(w))).toEqual(
       new SparkCommandMessage().switch_tuner(enabled).map((b) => Array.from(b))
     );
+  });
+
+  it("setTunerEnabled resolves false when the write fails", async () => {
+    connection.write = async () => {
+      throw new Error("GATT write failed");
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(manager.setTunerEnabled(true)).resolves.toBe(false);
+
+    warn.mockRestore();
+  });
+
+  it("setTunerEnabled is queued behind commands already in flight", async () => {
+    await manager.sendCommand("get_device_name", {});
+    connection.written = [];
+
+    const first = manager.sendCommand("get_device_serial", {});
+    const tuner = manager.setTunerEnabled(true);
+    await Promise.all([first, tuner]);
+
+    expect(connection.written.map((w) => Array.from(w))).toEqual([
+      ...new SparkCommandMessage().request_info(0x23).map((b) => Array.from(b)),
+      ...new SparkCommandMessage().switch_tuner(true).map((b) => Array.from(b)),
+    ]);
   });
 
   it("reports tuner messages from the amp through onStateChanged", async () => {
