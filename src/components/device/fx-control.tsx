@@ -4,7 +4,7 @@ import { deviceViewModel } from "../app";
 import { FxCatalogItem } from "../../spork/src/interfaces/preset";
 import { DeviceStateStore } from "../../stores/devicestate";
 
-const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
+const FxControl = ({ fx, onFxParamChange, onFxToggle, slotIndex = undefined }) => {
   const fxCatalog = DeviceStateStore.useState((s) => s.fxCatalog);
   const [fxList, setFxList] = React.useState([]);
   const [isExperimentalFxSelected, setIsExperimentalFxSelected] =
@@ -18,17 +18,30 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
       (t) => t.dspId == fx.type
     );
 
-    if (fxDefinition) {
-      let listOfSameTypeFx : FxCatalogItem[] = fxCatalog.catalog.filter(
-        (t) => t.type == fxDefinition.type && t.isRemoved != true
-      );
-      listOfSameTypeFx = listOfSameTypeFx.sort((a,b)=>{ return a.name<=b.name?-1:1});
+    // An id the catalog doesn't know (e.g. a model from a newer expansion pack) has no
+    // type of its own, so fall back to the type of the signal chain slot it occupies.
+    const fxType =
+      fxDefinition?.type ??
+      fxCatalog.types.find((t) => t.index == slotIndex)?.id;
 
-      setFxList(listOfSameTypeFx);
+    let listOfSameTypeFx : FxCatalogItem[] = fxCatalog.catalog.filter(
+      (t) => fxType != null && t.type == fxType && t.isRemoved != true
+    );
+    listOfSameTypeFx = listOfSameTypeFx.sort((a,b)=>{ return a.name<=b.name?-1:1});
 
-      setIsExperimentalFxSelected(fxDefinition.isExperimental == true);
+    // Always offer the current fx, so the select never ends up empty or showing a
+    // different model than the one actually on the amp.
+    if (!listOfSameTypeFx.some((t) => t.dspId == fx.type)) {
+      listOfSameTypeFx = [
+        fxDefinition ?? { type: fxType, dspId: fx.type, name: fx.type.replace("pg.spark40.", ""), params: [] },
+        ...listOfSameTypeFx,
+      ];
     }
-  }, [fx, fxCatalog]);
+
+    setFxList(listOfSameTypeFx);
+
+    setIsExperimentalFxSelected(fxDefinition?.isExperimental == true);
+  }, [fx, fxCatalog, slotIndex]);
 
   const paramControls = fx.params.map((p) => (
     <FxParam
@@ -60,7 +73,10 @@ const FxControl = ({ fx, onFxParamChange, onFxToggle }) => {
           t.replace("pg.spark40.", "")
         );
       } else {
-        return t.replace("pg.spark40.", "");
+        return (
+          fxCatalog.types.find((i) => i.index == slotIndex)?.name ??
+          t.replace("pg.spark40.", "")
+        );
       }
     } else {
       return t;

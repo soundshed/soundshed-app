@@ -2,6 +2,10 @@ import React from "react";
 import ToneChooserModal from "../soundshed/tone-chooser-modal";
 import FxControl from "./fx-control";
 
+// A Spark preset always has gate, comp, drive, amp, mod, delay and reverb in that
+// order, which matches the fx catalog type indexes.
+const SPARK_SIGNAL_CHAIN_LENGTH = 7;
+
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
@@ -58,13 +62,14 @@ const SignalPathControl = ({
 
           <div className="signal-path-container">
             <div className="signal-path-chain">
-              {signalPathState.fx.map((fx) =>
+              {signalPathState.fx.map((fx, index) =>
                 fx.type !== "pg.spark40." ? (
                   <FxControl
                     key={fx.type.toString()}
                     fx={fx}
                     onFxParamChange={onFxParamChange}
                     onFxToggle={onFxToggle}
+                    slotIndex={signalPathState.fx.length == SPARK_SIGNAL_CHAIN_LENGTH ? index : undefined}
                   />
                 ) : null
               )}

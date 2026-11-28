@@ -84,6 +84,16 @@ describe("round-trip: effect changes", () => {
     expect(msg.dspIdNew).toBe("Twin");
   });
 
+  it("preserves a Jimi Hendrix expansion amp picked from the model list", () => {
+    // the amp select goes through change_effect, not change_amp
+    const messages = decodeBlocks(
+      new SparkCommandMessage().change_effect("Twin", "JH.Sunn100")
+    );
+
+    expect((messages[0] as FxChangeMessage).dspIdOld).toBe("Twin");
+    expect((messages[0] as FxChangeMessage).dspIdNew).toBe("JH.Sunn100");
+  });
+
   it("preserves dotted effect ids", () => {
     const messages = decodeBlocks(
       new SparkCommandMessage().change_effect("bias.reverb", "bias.noisegate")
