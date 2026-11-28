@@ -23,7 +23,7 @@
     "sim:spark:test:quick": "npm run build-tools && node build-tools/tools/spark-amp-simulator/src/tcpIntegrationTest.js",
     "watch-web": "concurrently \"tsc -w\" \"webpack -w --config ./webpack.web.config.js\"",
     "watch-electron": "concurrently \"tsc -w\" \"webpack -w --config ./webpack.electron.config.js\"",
-    "start-electron": "npm run build-electron && electron-forge start --inspect-electron",
+    "start-electron": "npm run build-electron && node tools/dev/set-electron-bundle-name.js && electron-forge start --inspect-electron",
     "test": "vitest run && npm run sim:spark:test",
     "test:watch": "vitest",
     "package": "electron-forge package",
