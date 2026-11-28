@@ -2,6 +2,7 @@
 import { SparkDeviceManager } from "../spork/src/devices/spark/sparkDeviceManager";
 import { SerialCommsProvider } from "../spork/src/interfaces/serialCommsProvider";
 import { VIRTUAL_CHANNEL } from "./sparkChannels";
+import { isTunerMessage } from "../spork/src/interfaces/tuner";
 
 export class DeviceContext {
 
@@ -32,6 +33,9 @@ export class DeviceContext {
         this.deviceManager = new SparkDeviceManager(commsProvider);
 
         this.deviceManager.onStateChanged = (s: any) => {
+            // Tuner readings stream continuously while the tuner is on, so they get their own
+            // event instead of churning the preset/device state handlers.
+            if (isTunerMessage(s?.message)) { this.sendMessageToApp('tuner-message', s.message); return; }
             this.log("DeviceContext: device state changed")
             this.sendMessageToApp('device-state-changed', s);
         };
@@ -69,6 +73,7 @@ export class DeviceContext {
             this.sendMessageToApp('device-connection-changed', 'connected');
             await this.requestPreset(this.lastSelectedChannel)
                 .catch(err => this.log("DeviceContext: post-reconnect get_preset failed: " + err));
+            void this.requestTunerState();
         } else {
             this.log("DeviceContext: reconnect attempt failed");
             this.sendMessageToApp('device-connection-changed', 'failed');
@@ -109,6 +114,7 @@ export class DeviceContext {
                         this.sendMessageToApp("device-connection-changed", "connected")
 
                         this.requestPreset(0);
+                        void this.requestTunerState();
 
                     } else {
                         this.sendMessageToApp("device-connection-changed", "failed")
@@ -138,6 +144,10 @@ export class DeviceContext {
 
         if (args.action == 'getDeviceSerial') {
             return this.deviceManager.sendCommand("get_device_serial", {});
+        }
+
+        if (args.action == 'setTuner') {
+            return this.deviceManager.setTunerEnabled(args.data === true);
         }
 
         if (args.action == 'getPreset') {
@@ -176,6 +186,14 @@ export class DeviceContext {
 
         }
 
+    }
+
+    // The amp's tuner may still be on from before (its own button, or an app that was
+    // closed with the tuner open). Its 0x03 0x65 reply reaches TunerViewModel as a
+    // tuner message, so the tuner panel shows it as on and the user can switch it off.
+    private requestTunerState() {
+        return this.deviceManager.sendCommand("get_tuner_state", {})
+            .catch(err => this.log("DeviceContext: get_tuner_state failed: " + err));
     }
 
     private requestPreset(channel: number) {
